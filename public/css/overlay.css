@@ -1,0 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+Mono:wght@400;700&family=Open+Sans:wght@400;700&display=swap');
+
+:root {
+  /* Overlay Container Variables */
+  --wp-overlay-top: 5px;
+  --wp-overlay-right: 5px;
+  --wp-overlay-width: 200px;
+  --wp-overlay-bg-color: rgba(62, 62, 62, 0.7);
+  --wp-overlay-text-color: white;
+  --wp-overlay-padding: 5px 5px;
+  --wp-overlay-border-radius: 8px;
+  --wp-overlay-font-family: 'Noto Sans KR', 'Open Sans', Arial, sans-serif;
+
+  /* Series Text Variables */
+  --wp-series-font-size: 10px;
+  --wp-series-opacity: 0.9;
+  --wp-series-margin-bottom: 2px;
+
+  /* Episode Text Variables */
+  --wp-episode-font-size: 14px;
+  --wp-episode-font-weight: bold;
+  --wp-episode-margin-bottom: 2px;
+
+  /* Time Text Variables */
+  --wp-time-font-size: 18px;
+  --wp-time-font-weight: bold;
+  --wp-time-font-family: 'Noto Sans Mono', 'Courier New', monospace;
+  --wp-time-margin-bottom : 2px;
+
+  /* Greenscreen Mode Variables */
+  --wp-greenscreen-bg-color: rgb(0, 177, 64);
+  --wp-greenscreen-border-color: rgb(0, 177, 64);
+  --wp-greenscreen-text-color: black;
+  --wp-greenscreen-text-shadow: 0px 0px 2px white, 0px 0px 3px white, 0px 0px 4px white;
+
+  /* Compact Mode Specific Variables */
+  --wp-compact-overlay-width: calc(var(--wp-overlay-width) * 1.5);
+}
+
+.wp-overlay-container {
+  position: absolute;
+  top: var(--wp-overlay-top);
+  right: var(--wp-overlay-right);
+  width: var(--wp-overlay-width);
+  background-color: var(--wp-overlay-bg-color);
+  color: var(--wp-overlay-text-color);
+  padding: var(--wp-overlay-padding);
+  border-radius: var(--wp-overlay-border-radius);
+  z-index: 9999;
+  font-family: var(--wp-overlay-font-family);
+  pointer-events: none;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.wp-overlay-series-text {
+  font-size: var(--wp-series-font-size);
+  opacity: var(--wp-series-opacity);
+  margin-bottom: var(--wp-series-margin-bottom);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wp-overlay-episode-text {
+  font-size: var(--wp-episode-font-size);
+  font-weight: var(--wp-episode-font-weight);
+  margin-bottom: var(--wp-episode-margin-bottom);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wp-overlay-time-text {
+  /* Base styling for time text if any was here, or can be removed if all handled by children */
+  /* font-family: var(--wp-time-font-family); */ /* Example, if it was here */
+}
+
+/* NEW: Styles for the time and hostname container */
+#wp-overlay-time-text-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  font-family: var(--wp-time-font-family);
+  font-size: var(--wp-time-font-size);
+  font-weight: var(--wp-time-font-weight);
+}
+
+#wp-overlay-actual-time {
+  /* Default alignment is left, which is fine */
+  /* Specific styling for time if different from container */
+}
+
+#wp-overlay-hostname-display {
+  /* Default alignment is right due to space-between on parent */
+  /* Specific styling for hostname, e.g., slightly smaller or different color/opacity */
+  font-family: 'Noto Sans KR', var(--wp-overlay-font-family); /* Prioritize Noto Sans KR */
+  font-size: calc(var(--wp-time-font-size) * 0.65); /* Adjusted to 65% of time font size */
+  opacity: 0.7;
+}
+
+/* 캡처를 위한 그린스크린 모드 */
+.wp-overlay-container.greenscreen {
+  background-color: var(--wp-greenscreen-bg-color);
+  border: 1px solid var(--wp-greenscreen-border-color);
+}
+
+.wp-overlay-container.greenscreen .wp-overlay-series-text,
+.wp-overlay-container.greenscreen .wp-overlay-episode-text,
+/* .wp-overlay-container.greenscreen .wp-overlay-time-text, */ /* Old rule for single div */
+.wp-overlay-container.greenscreen #wp-overlay-time-text-container #wp-overlay-actual-time,
+.wp-overlay-container.greenscreen #wp-overlay-time-text-container #wp-overlay-hostname-display {
+  color: var(--wp-greenscreen-text-color);
+  text-shadow: var(--wp-greenscreen-text-shadow);
+}
+
+/* Compact Mode Styles */
+.wp-overlay-container.compact {
+  /* Override default flex-direction if needed, or rely on child's display if only one child is visible */
+  /* For example, if .wp-overlay-compact-text-container is the only visible child and is display:flex, 
+     this parent might not need much change other than perhaps padding or height. */
+  padding: 4px 8px; /* Adjust padding for single line display */
+  width: var(--wp-compact-overlay-width); /* Apply 1.5x width for compact mode */
+}
+
+.wp-overlay-compact-text-container {
+  /* This element is set to display:flex in JS for compact mode */
+  /* It will be display:none for other modes (handled by JS) */
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  /* Use existing font variables or define new ones if compact mode needs different base styling */
+  font-family: var(--wp-overlay-font-family);
+  font-size: var(--wp-episode-font-size); /* Example: use episode font size as base */
+}
+
+.wp-overlay-compact-info {
+  flex-grow: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px; /* Space between info and time */
+  /* Color should inherit from .wp-overlay-container or be specified */
+}
+
+.wp-overlay-compact-time {
+  flex-shrink: 0;
+  text-align: right;
+  font-family: var(--wp-time-font-family);
+  font-size: var(--wp-time-font-size); /* Use the larger time font size */
+  font-weight: var(--wp-time-font-weight);
+  /* Color should inherit or be specified */
+}
+
+/* Ensure compact mode text also respects greenscreen text color */
+.wp-overlay-container.compact.greenscreen .wp-overlay-compact-info,
+.wp-overlay-container.compact.greenscreen .wp-overlay-compact-time {
+  color: var(--wp-greenscreen-text-color);
+  text-shadow: var(--wp-greenscreen-text-shadow);
+} 
