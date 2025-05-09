@@ -14,17 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentSiteHostEl = document.getElementById('currentSiteHost'); // Added for current site host
   const cycleTimeDisplayModeBtn = document.getElementById('cycleTimeDisplayModeBtn'); // Added for time display mode
   
-  // Position Buttons - TO BE REMOVED
-  // const posTopLeftBtn = document.getElementById('posTopLeft');
-  // const posTopRightBtn = document.getElementById('posTopRight');
-  // const posBottomLeftBtn = document.getElementById('posBottomLeft');
-  // const posBottomRightBtn = document.getElementById('posBottomRight');
-  // const positionButtons = [posTopLeftBtn, posTopRightBtn, posBottomLeftBtn, posBottomRightBtn];
-
-  // Padding Input - TO BE REMOVED
-  // const overlayPaddingInputEl = document.getElementById('overlayPaddingInput');
-  // const overlayPaddingValueDisplayEl = document.getElementById('overlayPaddingValueDisplay');
-
   // 프리뷰 요소
   const previewContainerEl = document.getElementById('previewContainer');
   const previewTitleEl = document.getElementById('previewTitle');
@@ -209,27 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
-  
-  // Padding input event listener - TO BE REMOVED
-  // if (overlayPaddingInputEl) {
-  //   overlayPaddingInputEl.addEventListener('change', () => {
-  //     const newPadding = parseInt(overlayPaddingInputEl.value, 10);
-  //     if (!isNaN(newPadding) && newPadding >= 0 && newPadding <= 50) {
-  //       if (newPadding !== currentOverlayPadding) { // Assuming currentOverlayPadding was defined
-  //         console.log(`POPUP.JS: Padding input changed. New padding: ${newPadding}px`);
-  //         // currentOverlayPadding = newPadding; // Update local state immediately for responsiveness - currentOverlayPadding is not defined
-  //         if (overlayPaddingValueDisplayEl) overlayPaddingValueDisplayEl.textContent = `${newPadding}px`;
-          
-  //         chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_PADDING', padding: newPadding }, (response) => {
-  //           handleResponse(response, "POPUP_SET_OVERLAY_PADDING");
-  //         });
-  //       }
-  //     } else {
-  //       // Reset to current value if input is invalid
-  //       // overlayPaddingInputEl.value = currentOverlayPadding; // currentOverlayPadding is not defined
-  //     }
-  //   });
-  // }
   
   // 배경 스크립트로부터 상태 업데이트 받기
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

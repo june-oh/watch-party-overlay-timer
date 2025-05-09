@@ -39,21 +39,21 @@
   /* Compact Mode Specific Variables */
   --wp-compact-overlay-width: calc(var(--wp-overlay-width) * 1.5);
 
-  /* Vertical Mode Dimensions */
-  --wp-vertical-mode-width: var(--wp-compact-overlay-width); /* Use compact width for vertical mode */
-  --wp-vertical-mode-height: var(--wp-overlay-width); /* Tall */
-
-  /* Vertical Mode Dimensions - effectively swapping width and height concepts */
-  --wp-vertical-mode-width: 60px; /* Narrow */
-  --wp-vertical-mode-height: 200px; /* Tall */
+  /* Vertical Mode Dimensions - TO BE REMOVED */
+  /* --wp-vertical-mode-width: var(--wp-compact-overlay-width); */
+  /* --wp-vertical-mode-height: var(--wp-overlay-width); */
+  /* --wp-vertical-mode-width: 60px; */
+  /* --wp-vertical-mode-height: 200px; */
 
   --wp-overlay-default-height-approx: 60px; /* Approximate default height for calculation */
 }
 
 .wp-overlay-container {
   position: absolute;
-  top: var(--wp-overlay-top); /* Controlled by JS now */
-  right: var(--wp-overlay-right); /* Controlled by JS now */
+  top: var(--wp-overlay-top);
+  right: var(--wp-overlay-right);
+  left: auto; /* Default to right alignment */
+  bottom: auto; /* Default to top alignment */
   width: var(--wp-overlay-width);
   background-color: var(--wp-overlay-bg-color);
   color: var(--wp-overlay-text-color);
@@ -65,6 +65,7 @@
   user-select: none;
   display: flex;
   flex-direction: column;
+  /* text-shadow: var(--wp-greenscreen-text-shadow); -- This was incorrectly placed here */
 }
 
 .wp-overlay-series-text {
@@ -87,8 +88,87 @@
 
 .wp-overlay-time-text {
   /* Base styling for time text if any was here, or can be removed if all handled by children */
-  /* font-family: var(--wp-time-font-family); */ /* Example, if it was here */
 }
+
+/* NEW: Styles for the time and hostname container */
+#wp-overlay-time-text-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  font-family: var(--wp-time-font-family);
+  font-size: var(--wp-time-font-size);
+  font-weight: var(--wp-time-font-weight);
+}
+
+#wp-overlay-actual-time {
+  /* Default alignment is left, which is fine */
+}
+
+#wp-overlay-hostname-display {
+  font-family: 'Noto Sans KR', var(--wp-overlay-font-family);
+  font-size: calc(var(--wp-time-font-size) * 0.65);
+  opacity: 0.7;
+}
+
+/* 캡처를 위한 그린스크린 모드 */
+.wp-overlay-container.greenscreen {
+  background-color: var(--wp-greenscreen-bg-color);
+  border: 1px solid var(--wp-greenscreen-border-color);
+}
+
+.wp-overlay-container.greenscreen .wp-overlay-series-text,
+.wp-overlay-container.greenscreen .wp-overlay-episode-text,
+.wp-overlay-container.greenscreen #wp-overlay-time-text-container #wp-overlay-actual-time,
+.wp-overlay-container.greenscreen #wp-overlay-time-text-container #wp-overlay-hostname-display {
+  color: var(--wp-greenscreen-text-color);
+  text-shadow: var(--wp-greenscreen-text-shadow);
+}
+
+/* Compact Mode Styles */
+.wp-overlay-container.compact {
+  padding: 4px 8px;
+  width: var(--wp-compact-overlay-width);
+}
+
+.wp-overlay-compact-text-container {
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  font-family: var(--wp-overlay-font-family);
+  font-size: var(--wp-episode-font-size);
+}
+
+.wp-overlay-compact-info {
+  flex-grow: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px;
+}
+
+.wp-overlay-compact-time {
+  flex-shrink: 0;
+  text-align: right;
+  font-family: var(--wp-time-font-family);
+  font-size: var(--wp-time-font-size);
+  font-weight: var(--wp-time-font-weight);
+}
+
+.wp-overlay-container.compact.greenscreen .wp-overlay-compact-info,
+.wp-overlay-container.compact.greenscreen .wp-overlay-compact-time {
+  color: var(--wp-greenscreen-text-color);
+  text-shadow: var(--wp-greenscreen-text-shadow);
+}
+
+/* New class for left positioning */
+.wp-overlay-container.position-left {
+  right: auto;
+  left: var(--wp-overlay-left);
+}
+
+/* All .vertical styles have been removed */
 
 /* NEW: Styles for the time and hostname container */
 #wp-overlay-time-text-container {
@@ -175,7 +255,76 @@
   text-shadow: var(--wp-greenscreen-text-shadow);
 }
 
-/* Styles for Vertical Mode */
+/* Styles for Vertical Mode - TO BE REMOVED */
+/*
+.wp-overlay-container.vertical {
+  width: var(--wp-vertical-mode-width);
+  height: var(--wp-vertical-mode-height);
+  display: flex;
+  flex-direction: row; 
+  justify-content: space-between; /* Changed to space-between */
+  align-items: center; 
+  padding: 5px;
+  overflow: hidden; 
+}
+
+.wp-overlay-container.vertical .wp-overlay-compact-text-container {
+  display: flex;
+  flex-direction: row; 
+  justify-content: space-between; /* Ensure title and time columns are spaced out */
+  align-items: flex-start; 
+  width: 100%; 
+  height: auto; 
+}
+
+.wp-overlay-container.vertical .wp-overlay-compact-info,
+.wp-overlay-container.vertical .wp-overlay-compact-time {
+  /* These are the columns for vertical text (e.g., D<br>I<br>G<br>I...) */
+  line-height: 1em; 
+  text-align: center; 
+  padding: 0 2px; 
+}
+
+.wp-overlay-container.vertical .wp-overlay-compact-info {
+  font-size: var(--wp-episode-font-size);
+  /* margin-right: 3px; /* Remove or adjust if space-between handles it */
+}
+
+.wp-overlay-container.vertical .wp-overlay-compact-time {
+  font-size: var(--wp-time-font-size);
+  font-family: var(--wp-time-font-family);
+  font-weight: var(--wp-time-font-weight);
+}
+
+/* Hide elements not used in vertical mode */
+.wp-overlay-container.vertical .wp-overlay-series-text,
+.wp-overlay-container.vertical .wp-overlay-episode-text,
+.wp-overlay-container.vertical .wp-overlay-time-text-container {
+  display: none !important;
+}
+
+/* Greenscreen for vertical mode */
+.wp-overlay-container.vertical.greenscreen .wp-overlay-compact-info,
+.wp-overlay-container.vertical.greenscreen .wp-overlay-compact-time {
+  color: var(--wp-greenscreen-text-color);
+  text-shadow: var(--wp-greenscreen-text-shadow);
+}
+
+
+/* Remove or adjust previous .vertical rules if they conflict */
+/* For example, the old rules targeting .wp-overlay-series-text etc. directly under .vertical 
+   are now less relevant if we are showing .wp-overlay-compact-text-container instead. 
+   The display:none above handles this, but clean up old ones if they were more complex. */
+*/
+
+/* New class for left positioning */
+.wp-overlay-container.position-left {
+  right: auto;
+  left: var(--wp-overlay-left);
+}
+
+/* Styles for Vertical Mode - TO BE REMOVED */
+/*
 .wp-overlay-container.vertical {
   width: var(--wp-vertical-mode-width);
   height: var(--wp-vertical-mode-height);
