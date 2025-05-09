@@ -1,15 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+Mono:wght@400;700&family=Open+Sans:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+Mono:wght@400;700&family=Open+Sans:wght@400;700&family=Roboto+Mono&display=swap');
 
 :root {
   /* Overlay Container Variables */
-  --wp-overlay-top: 5px;
-  --wp-overlay-right: 5px;
+  --wp-overlay-top: 8px;
+  --wp-overlay-right: 8px;
   --wp-overlay-width: 200px;
-  --wp-overlay-bg-color: rgba(62, 62, 62, 0.7);
+  --wp-overlay-bg-color: rgba(18, 18, 18, 0.8);
   --wp-overlay-text-color: white;
   --wp-overlay-padding: 5px 5px;
   --wp-overlay-border-radius: 8px;
   --wp-overlay-font-family: 'Noto Sans KR', 'Open Sans', Arial, sans-serif;
+  /* New position offset variables */
+  --wp-overlay-left: 8px;
+  --wp-overlay-bottom: 8px;
 
   /* Series Text Variables */
   --wp-series-font-size: 10px;
@@ -24,7 +27,7 @@
   /* Time Text Variables */
   --wp-time-font-size: 18px;
   --wp-time-font-weight: bold;
-  --wp-time-font-family: 'Noto Sans Mono', 'Courier New', monospace;
+  --wp-time-font-family: 'Roboto Mono', 'Noto Sans Mono', 'Courier New', monospace;
   --wp-time-margin-bottom : 2px;
 
   /* Greenscreen Mode Variables */
@@ -35,12 +38,22 @@
 
   /* Compact Mode Specific Variables */
   --wp-compact-overlay-width: calc(var(--wp-overlay-width) * 1.5);
+
+  /* Vertical Mode Dimensions */
+  --wp-vertical-mode-width: var(--wp-compact-overlay-width); /* Use compact width for vertical mode */
+  --wp-vertical-mode-height: var(--wp-overlay-width); /* Tall */
+
+  /* Vertical Mode Dimensions - effectively swapping width and height concepts */
+  --wp-vertical-mode-width: 60px; /* Narrow */
+  --wp-vertical-mode-height: 200px; /* Tall */
+
+  --wp-overlay-default-height-approx: 60px; /* Approximate default height for calculation */
 }
 
 .wp-overlay-container {
   position: absolute;
-  top: var(--wp-overlay-top);
-  right: var(--wp-overlay-right);
+  top: var(--wp-overlay-top); /* Controlled by JS now */
+  right: var(--wp-overlay-right); /* Controlled by JS now */
   width: var(--wp-overlay-width);
   background-color: var(--wp-overlay-bg-color);
   color: var(--wp-overlay-text-color);
@@ -160,4 +173,64 @@
 .wp-overlay-container.compact.greenscreen .wp-overlay-compact-time {
   color: var(--wp-greenscreen-text-color);
   text-shadow: var(--wp-greenscreen-text-shadow);
-} 
+}
+
+/* Styles for Vertical Mode */
+.wp-overlay-container.vertical {
+  width: var(--wp-vertical-mode-width);
+  height: var(--wp-vertical-mode-height);
+  display: flex;
+  flex-direction: row; 
+  justify-content: space-between; /* Changed to space-between */
+  align-items: center; 
+  padding: 5px;
+  overflow: hidden; 
+}
+
+.wp-overlay-container.vertical .wp-overlay-compact-text-container {
+  display: flex;
+  flex-direction: row; 
+  justify-content: space-between; /* Ensure title and time columns are spaced out */
+  align-items: flex-start; 
+  width: 100%; 
+  height: auto; 
+}
+
+.wp-overlay-container.vertical .wp-overlay-compact-info,
+.wp-overlay-container.vertical .wp-overlay-compact-time {
+  /* These are the columns for vertical text (e.g., D<br>I<br>G<br>I...) */
+  line-height: 1em; 
+  text-align: center; 
+  padding: 0 2px; 
+}
+
+.wp-overlay-container.vertical .wp-overlay-compact-info {
+  font-size: var(--wp-episode-font-size);
+  /* margin-right: 3px; /* Remove or adjust if space-between handles it */
+}
+
+.wp-overlay-container.vertical .wp-overlay-compact-time {
+  font-size: var(--wp-time-font-size);
+  font-family: var(--wp-time-font-family);
+  font-weight: var(--wp-time-font-weight);
+}
+
+/* Hide elements not used in vertical mode */
+.wp-overlay-container.vertical .wp-overlay-series-text,
+.wp-overlay-container.vertical .wp-overlay-episode-text,
+.wp-overlay-container.vertical .wp-overlay-time-text-container {
+  display: none !important;
+}
+
+/* Greenscreen for vertical mode */
+.wp-overlay-container.vertical.greenscreen .wp-overlay-compact-info,
+.wp-overlay-container.vertical.greenscreen .wp-overlay-compact-time {
+  color: var(--wp-greenscreen-text-color);
+  text-shadow: var(--wp-greenscreen-text-shadow);
+}
+
+
+/* Remove or adjust previous .vertical rules if they conflict */
+/* For example, the old rules targeting .wp-overlay-series-text etc. directly under .vertical 
+   are now less relevant if we are showing .wp-overlay-compact-text-container instead. 
+   The display:none above handles this, but clean up old ones if they were more complex. */ 

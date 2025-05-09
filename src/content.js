@@ -14,19 +14,20 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     let overlayMode = 'normal';
     let currentVideoInfo = null;
     let isContextInvalidated = false; // Flag for context invalidation
+    let currentTimeDisplayMode = 'current_duration'; // 'current_duration', 'current_only', 'none'
 
     // Define selectors for different sites
     const siteSelectors = {
       'laftel.net': {
-        titleSelector: '.episode-title',
-        seriesSelector: '.series-title',
+        titleSelector: '#root > div.sc-4a02fa07-0.cSulJK > div > div.sc-ec16796a-2.hlVrXi > div > div > div.sc-46d49bb0-5.hFtDBz > div.sc-46d49bb0-7.krHzYQ', // Episode Title
+        seriesSelector: '#root > div.sc-4a02fa07-0.cSulJK > div > div.sc-ec16796a-2.hlVrXi > div > a', // Series Title
         // For Laftel, we'll rely on the video element for time, so these can be null or omitted
         currentTimeSelector: null, 
         durationSelector: null,
         siteName: 'LAFTEL'
       },
       'chzzk.naver.com': {
-        titleSelector: '#layout-body > section > div > div.vod_area__GUBt2 > div > div.vod_content_left__b36\+u > div.vod_details__KhvH\+ > div > div:nth-child(1) > h2',
+        titleSelector: 'h2.video_information_title__jrLfG',
         seriesSelector: null, // No specific series selector for now
         currentTimeSelector: '#player_layout > div > div.pzp-pc__bottom > div.pzp-pc__bottom-buttons > div.pzp-pc__bottom-buttons-left > div.pzp-vod-time.pzp-pc-vod-time.pzp-pc__vod-time > span.pzp-ui-text.pzp-vod-time__current-time',
         durationSelector: '#player_layout > div > div.pzp-pc__bottom > div.pzp-pc__bottom-buttons > div.pzp-pc__bottom-buttons-left > div.pzp-vod-time.pzp-pc-vod-time.pzp-pc__vod-time > span.pzp-ui-text.pzp-vod-time__duration',
@@ -329,10 +330,20 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       const expectedDisplay = isOverlayVisible ? 'block' : 'none';
       currentOverlayElement.style.display = expectedDisplay;
 
+      // Restore default position based on CSS (or set explicitly if needed later)
+      currentOverlayElement.style.top = 'var(--wp-overlay-top)';
+      currentOverlayElement.style.right = 'var(--wp-overlay-right)';
+      currentOverlayElement.style.bottom = 'auto';
+      currentOverlayElement.style.left = 'auto';
+
+      // Restore default padding based on CSS
+      currentOverlayElement.style.padding = 'var(--wp-overlay-padding)';
+
       let baseClassName = 'wp-overlay-container';
       if (overlayMode === 'greenscreen') baseClassName += ' greenscreen';
       else if (overlayMode === 'minimal') baseClassName += ' minimal';
       else if (overlayMode === 'compact') baseClassName += ' compact';
+      else if (overlayMode === 'vertical') baseClassName += ' vertical';
       if (currentOverlayElement.className !== baseClassName) currentOverlayElement.className = baseClassName;
 
       const infoToDisplay = currentVideoInfo;
@@ -346,22 +357,54 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
         const compactInfoSpanEl = currentOverlayElement.querySelector('#wp-overlay-compact-info');
         const compactTimeSpanEl = currentOverlayElement.querySelector('#wp-overlay-compact-time');
 
-        if (overlayMode === 'compact') {
+        // Time display logic based on currentTimeDisplayMode
+        let timeTextToDisplay = '';
+        const currentS = parseFloat(infoToDisplay.currentSeconds);
+        const durationS = parseFloat(infoToDisplay.durationSeconds);
+
+        if (currentTimeDisplayMode === 'current_duration') {
+          timeTextToDisplay = `${formatTime(currentS)} / ${formatTime(durationS)}`;
+        } else if (currentTimeDisplayMode === 'current_only') {
+          timeTextToDisplay = formatTime(currentS);
+        } else if (currentTimeDisplayMode === 'none') {
+          timeTextToDisplay = ''; // Or hide the time element entirely
+        }
+
+        if (overlayMode === 'compact' || overlayMode === 'vertical') { 
           if (seriesEl) seriesEl.style.display = 'none';
           if (episodeEl) episodeEl.style.display = 'none';
           if (timeContainerEl) timeContainerEl.style.display = 'none';
           if (compactContainerEl) compactContainerEl.style.display = 'flex';
 
           if (infoToDisplay && compactInfoSpanEl && compactTimeSpanEl) {
-            compactInfoSpanEl.textContent = infoToDisplay.episode || infoToDisplay.title || 'N/A';
-            const currentS = parseFloat(infoToDisplay.currentSeconds);
-            compactTimeSpanEl.textContent = formatTime(currentS);
+            const episodeText = infoToDisplay.episode || infoToDisplay.title || 'N/A';
+            // const currentS = parseFloat(infoToDisplay.currentSeconds); // Already defined above
+            // const timeText = formatTime(currentS); // Use timeTextToDisplay now
+
+            if (overlayMode === 'vertical') {
+              compactInfoSpanEl.innerHTML = episodeText.split('').join('<br>');
+              // For vertical mode, if time is hidden, ensure the element is empty or handled
+              compactTimeSpanEl.innerHTML = currentTimeDisplayMode === 'none' ? '' : timeTextToDisplay.split('').join('<br>');
+            } else { // Compact mode
+              compactInfoSpanEl.textContent = episodeText;
+              compactTimeSpanEl.textContent = timeTextToDisplay;
+            }
           } else if (isFetchingActive && compactInfoSpanEl && compactTimeSpanEl) {
-            compactInfoSpanEl.textContent = 'Loading...';
-            compactTimeSpanEl.textContent = '--:--';
+            if (overlayMode === 'vertical') {
+              compactInfoSpanEl.innerHTML = "L<br>o<br>a<br>d<br>i<br>n<br>g<br>.<br>.<br>.";
+              compactTimeSpanEl.innerHTML = currentTimeDisplayMode === 'none' ? '' : "-<br>-<br>:<br>-<br>-";
+            } else {
+              compactInfoSpanEl.textContent = 'Loading...';
+              compactTimeSpanEl.textContent = currentTimeDisplayMode === 'none' ? '' : '--:--';
+            }
           } else if (compactInfoSpanEl && compactTimeSpanEl) {
-            compactInfoSpanEl.textContent = 'N/A';
-            compactTimeSpanEl.textContent = '--:--';
+            if (overlayMode === 'vertical') {
+              compactInfoSpanEl.innerHTML = "N<br>/<br>A";
+              compactTimeSpanEl.innerHTML = currentTimeDisplayMode === 'none' ? '' : "-<br>-<br>:<br>-<br>-";
+            } else {
+              compactInfoSpanEl.textContent = 'N/A';
+              compactTimeSpanEl.textContent = currentTimeDisplayMode === 'none' ? '' : '--:--';
+            }
           }
         } else { // Normal, Greenscreen, Minimal modes
           if (seriesEl) seriesEl.style.display = 'block';
@@ -392,18 +435,22 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
             if (seriesEl) seriesEl.textContent = infoToDisplay.series || '';
             if (episodeEl) episodeEl.textContent = infoToDisplay.episode || infoToDisplay.title || 'N/A';
             if (actualTimeSpanEl) {
-                const currentS = parseFloat(infoToDisplay.currentSeconds);
-                const durationS = parseFloat(infoToDisplay.durationSeconds);
-                actualTimeSpanEl.textContent = `${formatTime(currentS)} / ${formatTime(durationS)}`;
+                // const currentS = parseFloat(infoToDisplay.currentSeconds); // Already defined
+                // const durationS = parseFloat(infoToDisplay.durationSeconds); // Already defined
+                actualTimeSpanEl.textContent = timeTextToDisplay;
+                // Hide/show container based on whether time is displayed
+                if (timeContainerEl) timeContainerEl.style.display = currentTimeDisplayMode === 'none' ? 'none' : 'flex';
             }
           } else if (isFetchingActive) {
             if (seriesEl) seriesEl.textContent = '';
             if (episodeEl) episodeEl.textContent = 'Loading...';
-            if (actualTimeSpanEl) actualTimeSpanEl.textContent = '--:-- / --:--';
+            if (actualTimeSpanEl) actualTimeSpanEl.textContent = currentTimeDisplayMode === 'none' ? '' : '--:-- / --:--';
+            if (timeContainerEl) timeContainerEl.style.display = currentTimeDisplayMode === 'none' ? 'none' : (isFetchingActive ? 'flex' : 'none');
           } else { // Not fetching, no info, clear all text fields for these modes
             if (seriesEl) seriesEl.textContent = '';
             if (episodeEl) episodeEl.textContent = 'N/A';
-            if (actualTimeSpanEl) actualTimeSpanEl.textContent = '--:-- / --:--';
+            if (actualTimeSpanEl) actualTimeSpanEl.textContent = currentTimeDisplayMode === 'none' ? '' : '--:-- / --:--';
+            if (timeContainerEl) timeContainerEl.style.display = currentTimeDisplayMode === 'none' ? 'none' : 'flex';
           }
         }
       } else if (isFetchingActive) {
@@ -423,6 +470,8 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
             hostnameSpanEl.textContent = '';
             hostnameSpanEl.style.display = 'none';
         }
+        // Handle time container display when fetching and no info yet
+        if (timeContainerEl) timeContainerEl.style.display = currentTimeDisplayMode === 'none' ? 'none' : 'flex'; 
       }
     }
 
@@ -518,18 +567,60 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
             videoInfo: currentVideoInfo,
             success: true
           };
-        } else if (message.type === 'SYNC_INITIAL_BG_STATE') {
-          console.log('CONTENT.JS: Received SYNC_INITIAL_BG_STATE from background:', message.data);
-          isFetchingActive = message.data.isFetchingActive;
-          isOverlayVisible = message.data.isOverlayVisible;
-          overlayMode = message.data.overlayMode;
-          currentVideoInfo = message.data.lastVideoInfo; // Sync last known video info
-          
-          // Use the siteName from the synced lastKnownVideoInfo if available, otherwise from currentSiteConfig
-          const siteNameToUpdate = currentVideoInfo?.siteName || currentSiteConfig?.siteName || "N/A";
+        } else if (message.type === 'GET_OVERLAY_TEXT') {
+          let textToCopy = "N/A";
+          const seriesText = currentVideoInfo?.series || "";
+          const episodeText = currentVideoInfo?.episode || currentVideoInfo?.title || "N/A";
+          const currentTimeFormatted = formatTime(currentVideoInfo?.currentSeconds);
+          const durationTimeFormatted = formatTime(currentVideoInfo?.durationSeconds);
 
+          if (overlayMode === 'normal' || overlayMode === 'greenscreen') {
+            if (seriesText && seriesText !== "N/A") {
+              textToCopy = `${seriesText} - ${episodeText} - ${currentTimeFormatted}/${durationTimeFormatted}`;
+            } else {
+              textToCopy = `${episodeText} - ${currentTimeFormatted}/${durationTimeFormatted}`;
+            }
+          } else if (overlayMode === 'compact' || overlayMode === 'vertical') {
+            // For vertical mode, copy the readable horizontal version
+            textToCopy = `${episodeText} - ${currentTimeFormatted}`;
+          } else { // Minimal or other modes, default to episode and current time
+            textToCopy = `${episodeText} - ${currentTimeFormatted}`;
+          }
+          responseData.text = textToCopy;
+          responseData.success = true;
+        } else if (message.type === 'SYNC_INITIAL_BG_STATE') {
+          // --- DETAILED LOGGING ADDED ---
+          console.log('CONTENT.JS: Received SYNC_INITIAL_BG_STATE. Full message object:', JSON.stringify(message));
+          console.log('CONTENT.JS: Keys in received message:', message ? Object.keys(message) : 'message is null/undefined');
+          console.log('CONTENT.JS: Value of message.data:', message ? JSON.stringify(message.data) : 'message is null/undefined');
+          console.log('CONTENT.JS: Value of message.states (old key, for debug):', message ? JSON.stringify(message.states) : 'message is null/undefined');
+          // --- END OF DETAILED LOGGING ---
+
+          if (message && message.data) { // Check if message.data exists and is an object
+            isFetchingActive = message.data.isFetchingActive !== undefined ? message.data.isFetchingActive : false;
+            isOverlayVisible = message.data.isOverlayVisible !== undefined ? message.data.isOverlayVisible : false;
+            overlayMode = message.data.overlayMode || 'normal';
+            currentTimeDisplayMode = message.data.timeDisplayMode || 'current_duration'; // Sync time display mode
+            currentVideoInfo = message.data.lastVideoInfo || null; // Sync last known video info
+            console.log('CONTENT.JS: SYNC_INITIAL_BG_STATE applied using message.data.');
+          } else if (message && message.states && typeof message.states === 'object') { // Fallback for old structure, for debugging
+            console.warn("CONTENT.JS: SYNC_INITIAL_BG_STATE received with 'states' key instead of 'data'. Using 'states'. THIS IS UNEXPECTED.");
+            isFetchingActive = message.states.isFetchingActive !== undefined ? message.states.isFetchingActive : false;
+            isOverlayVisible = message.states.isOverlayVisible !== undefined ? message.states.isOverlayVisible : false;
+            overlayMode = message.states.overlayMode || 'normal';
+            currentTimeDisplayMode = message.states.timeDisplayMode || 'current_duration'; // Sync time display mode (fallback)
+            currentVideoInfo = message.states.lastVideoInfo || null;
+          } else {
+            console.error("CONTENT.JS: SYNC_INITIAL_BG_STATE received but message.data is missing or not an object. Defaulting states. Message:", JSON.stringify(message));
+            isFetchingActive = false; 
+            isOverlayVisible = false; 
+            overlayMode = 'normal'; 
+            currentTimeDisplayMode = 'current_duration'; // Default time display mode
+            currentVideoInfo = null; 
+          }
+          
           createOverlayDOMIfNotExists(); // Ensure DOM is there
-          updateOverlayDOM(currentVideoInfo, isOverlayVisible, overlayMode, siteNameToUpdate);
+          updateOverlayDOM(currentVideoInfo, isOverlayVisible, overlayMode);
 
           if (isFetchingActive && !fetchIntervalId && currentSiteConfig) {
             fetchIntervalId = setInterval(fetchAndSendVideoInfo, 1000);
@@ -540,6 +631,38 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
             console.log('CONTENT.JS: SYNC: Cleared fetching interval due to background state.');
           }
           responseData.success = true;
+          responseData.mode = overlayMode;
+        } else if (message.type === 'SET_OVERLAY_PADDING') {
+          if (typeof message.padding === 'number') {
+            updateOverlayDOM();
+            responseData.success = true;
+            responseData.padding = message.padding;
+            console.log("CONTENT.JS: Overlay padding set to", message.padding);
+          } else {
+            responseData.success = false;
+            responseData.error = "Invalid padding value";
+          }
+        } else if (message.type === 'SET_OVERLAY_POSITION') {
+          if (message.position) {
+            updateOverlayDOM();
+            responseData.success = true;
+            responseData.position = message.position;
+            console.log("CONTENT.JS: Overlay position set to", message.position);
+          } else {
+            responseData.success = false;
+            responseData.error = "Invalid position value";
+          }
+        } else if (message.type === 'SET_TIME_DISPLAY_MODE') {
+          if (message.mode) {
+            currentTimeDisplayMode = message.mode;
+            updateOverlayDOM();
+            responseData.success = true;
+            responseData.mode = currentTimeDisplayMode;
+            console.log("CONTENT.JS: Time display mode set to", currentTimeDisplayMode);
+          } else {
+            responseData.success = false;
+            responseData.error = "No time display mode provided";
+          }
         } else {
           responseData.success = false;
           responseData.error = "Unknown message type in content script";

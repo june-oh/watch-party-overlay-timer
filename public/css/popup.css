@@ -1,0 +1,199 @@
+body {
+  font-family: sans-serif;
+  width: 280px;
+  padding: 10px;
+  font-size: 13px;
+  background-color: #f9f9f9;
+  color: #333;
+}
+
+.info-item {
+  margin-bottom: 6px;
+}
+
+.info-item strong {
+  display: inline-block;
+  min-width: 70px;
+  color: #555;
+}
+
+#videoInfo div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 0;
+}
+
+button {
+  width: 100%;
+  padding: 8px;
+  margin-top: 8px;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease-in-out, filter 0.2s ease-in-out;
+}
+
+button:hover {
+  filter: brightness(90%);
+}
+
+button.start {
+  background-color: #4CAF50;
+}
+button.start:hover {
+  background-color: #45a049;
+}
+
+button.stop {
+  background-color: #f44336;
+}
+button.stop:hover {
+  background-color: #e53935;
+}
+
+button.error,
+button.start.error,
+button.stop.error {
+  background-color: #ff9800;
+}
+button.error:hover,
+button.start.error:hover,
+button.stop.error:hover {
+  background-color: #fb8c00;
+}
+
+.status {
+  font-size: 11px;
+  color: #777;
+  text-align: center;
+  margin-bottom: 8px;
+  padding: 3px;
+  border-radius: 3px;
+}
+
+.status.error {
+  color: #f44336;
+  background-color: #ffebee;
+  font-weight: bold;
+}
+
+.container {
+  margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 4px;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+h3, h4 { /* Combined h3 and h4 styling for controls sections */
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 4px;
+}
+
+/* Preview styles (might be unused if preview feature was removed) */
+.preview {
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+}
+
+.preview.greenscreen {
+  background-color: rgb(0, 177, 64);
+}
+
+.preview .title {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.preview .series {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-bottom: 4px;
+}
+
+.preview .time {
+  font-size: 14px;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+}
+
+.preview.greenscreen .title,
+.preview.greenscreen .series,
+.preview.greenscreen .time {
+  color: black;
+  text-shadow: 0px 0px 2px white;
+}
+
+/* Specific Button Styles */
+#toggleFetchingBtn {
+  background-color: #87CEEB; /* Light Sky Blue */
+}
+#toggleFetchingBtn.stop {
+  background-color: #ADD8E6; /* Lighter Blue for stop state */
+}
+#toggleFetchingBtn.error {
+   background-color: #ff9800; /* Orange for error */
+}
+
+#toggleVisibilityBtn {
+  background-color: #90ee90; /* Light Green for "Show" */
+}
+#toggleVisibilityBtn.stop {
+  background-color: #32cd32; /* Lime Green for "Hide" */
+}
+#toggleVisibilityBtn.error {
+    background-color: #ff9800; /* Orange for error */
+}
+
+/* Mode Buttons Default Styles */
+#setNormalModeBtn,
+#setCompactModeBtn,
+#toggleGreenscreenModeBtn,
+#setVerticalModeBtn {
+  background-color: #2196F3; /* Default Blue */
+}
+
+#setNormalModeBtn:hover,
+#setCompactModeBtn:hover,
+#toggleGreenscreenModeBtn:hover,
+#setVerticalModeBtn:hover {
+  filter: brightness(90%);
+}
+
+/* Active Mode Button Style */
+button.active-mode {
+  background-color: #4CAF50 !important; /* Green for active mode */
+}
+
+/* General styling for control group sections, if needed for new buttons */
+.controls-section {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.thanks-section {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 8px;
+  color: #dedddd;
+}
+
+.thanks-section p {
+  margin: 0;
+}
+
+.thanks-section strong {
+    font-weight: normal;
+    color: #333;
+} 

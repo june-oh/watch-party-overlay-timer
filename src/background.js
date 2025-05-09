@@ -2,6 +2,7 @@
 let isFetchingActive = false; // 정보 가져오기 활성화 상태 (초기값 false)
 let isOverlayVisible = false;  // 오버레이 화면 표시 상태 (초기값 false)
 let overlayMode = 'normal';
+let currentTimeDisplayMode = 'current_duration'; // 'current_duration', 'current_only', 'none'
 let lastVideoInfo = null;
 let currentTabId = null;
 let isError = false; // This global error should reflect persistent/serious issues
@@ -48,6 +49,7 @@ function sendStateToPopup() {
       isFetchingActive: isFetchingActive, // isOverlayActive 대신 isFetchingActive
       isOverlayVisible: isOverlayVisible,
       overlayMode: overlayMode,
+      timeDisplayMode: currentTimeDisplayMode, // Add time display mode
       lastVideoInfo: lastVideoInfo,
       isError: isError
     }
@@ -252,6 +254,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         isFetchingActive: isFetchingActive,
         isOverlayVisible: isOverlayVisible,
         overlayMode: overlayMode,
+        timeDisplayMode: currentTimeDisplayMode, // Add current time display mode
         lastVideoInfo: lastVideoInfo,
         isError: didInitialContentScriptCommunicationFail, // Popup specific error for this attempt
         activeTabHostname: activeTabHostname // Add hostname to the initial data
@@ -291,11 +294,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if(tabId){
             // Send current background state to the newly ready content script
             // No need to await these if content script doesn't send a meaningful response for them.
-            ensureContentScriptAndSendMessage(tabId, { type: 'SYNC_INITIAL_BG_STATE', states: { 
-                isFetchingActive: isFetchingActive, 
-                isOverlayVisible: isOverlayVisible, 
-                overlayMode: overlayMode // Ensure current overlayMode is sent
-            } });
+            ensureContentScriptAndSendMessage(tabId, { 
+                type: 'SYNC_INITIAL_BG_STATE', 
+                data: {
+                    isFetchingActive: isFetchingActive, 
+                    isOverlayVisible: isOverlayVisible, 
+                    overlayMode: overlayMode, // Ensure current overlayMode is sent
+                    timeDisplayMode: currentTimeDisplayMode // Send current time display mode
+                } 
+            });
             isError = false; // Content script is ready and we sent sync, assume good for now
             responsePayload.success = true; 
         } else {
@@ -312,6 +319,94 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // If sendResponse is called here, ensure content.js isn't also trying to send one for this message.
       // sendResponse(responsePayload); 
 
+    } else if (message.type === 'POPUP_REQUEST_OVERLAY_TEXT') {
+      if (currentTabId) {
+        try {
+          // console.log(`BG: POPUP_REQUEST_OVERLAY_TEXT - Forwarding to tab ${currentTabId}`);
+          const contentResponse = await ensureContentScriptAndSendMessage(currentTabId, { type: 'GET_OVERLAY_TEXT' });
+          if (contentResponse && contentResponse.success && typeof contentResponse.text === 'string') {
+            responsePayload.success = true;
+            responsePayload.text = contentResponse.text;
+            // console.log(`BG: POPUP_REQUEST_OVERLAY_TEXT - Received text from CS: "${contentResponse.text}"`);
+          } else {
+            responsePayload.error = (contentResponse && contentResponse.error) || "Failed to get text or invalid response from content script";
+            console.warn(`BG: POPUP_REQUEST_OVERLAY_TEXT - Invalid response from CS:`, contentResponse);
+          }
+        } catch (e) {
+          responsePayload.error = e.message || "Error forwarding text request to content script";
+          console.error("BG: Error during POPUP_REQUEST_OVERLAY_TEXT -> ensureContentScriptAndSendMessage:", responsePayload.error);
+        }
+      } else {
+        responsePayload.error = "No active tab to request overlay text from";
+        console.warn("BG: POPUP_REQUEST_OVERLAY_TEXT - currentTabId is not set.");
+      }
+      sendResponse(responsePayload);
+
+    } else if (message.type === 'POPUP_SET_OVERLAY_POSITION') {
+      const newPosition = message.position;
+      if (newPosition && newPosition !== overlayPosition) {
+        overlayPosition = newPosition;
+        if (currentTabId) {
+          try {
+            // No need to await, just inform content script
+            ensureContentScriptAndSendMessage(currentTabId, { type: 'SET_OVERLAY_POSITION', position: overlayPosition });
+            responsePayload.success = true;
+          } catch (e) {
+            responsePayload.error = e.message || "Failed to send position to content script";
+            console.error("BG: Error during POPUP_SET_OVERLAY_POSITION -> ensureContentScriptAndSendMessage:", responsePayload.error);
+          }
+        }
+        // Always send state to popup to confirm change and update UI
+        sendStateToPopup(); 
+      } else if (newPosition === overlayPosition) {
+        responsePayload.success = true; // Position is already set
+        responsePayload.message = "Position already set to " + newPosition;
+      } else {
+        responsePayload.error = "Invalid position value";
+      }
+      sendResponse(responsePayload);
+    } else if (message.type === 'POPUP_SET_OVERLAY_PADDING') {
+      const newPadding = message.padding;
+      if (typeof newPadding === 'number' && newPadding >= 0 && newPadding <= 50) {
+        if (newPadding !== overlayPadding) {
+          overlayPadding = newPadding;
+          if (currentTabId) {
+            try {
+              // No need to await, just inform content script
+              ensureContentScriptAndSendMessage(currentTabId, { type: 'SET_OVERLAY_PADDING', padding: overlayPadding });
+              responsePayload.success = true;
+            } catch (e) {
+              responsePayload.error = e.message || "Failed to send padding to content script";
+              console.error("BG: Error during POPUP_SET_OVERLAY_PADDING -> ensureContentScriptAndSendMessage:", responsePayload.error);
+            }
+          }
+          sendStateToPopup(); // Update popup with new padding
+        }
+        responsePayload.success = true;
+      } else {
+        responsePayload.error = "Invalid padding value";
+      }
+      sendResponse(responsePayload);
+    } else if (message.type === 'POPUP_CYCLE_TIME_DISPLAY_MODE') {
+      // Cycle: current_duration -> current_only -> none -> current_duration
+      if (currentTimeDisplayMode === 'current_duration') {
+        currentTimeDisplayMode = 'current_only';
+      } else if (currentTimeDisplayMode === 'current_only') {
+        currentTimeDisplayMode = 'none';
+      } else { // 'none' or any other unexpected state
+        currentTimeDisplayMode = 'current_duration';
+      }
+      responsePayload.success = true;
+      responsePayload.newTimeDisplayMode = currentTimeDisplayMode;
+
+      if (currentTabId) {
+        ensureContentScriptAndSendMessage(currentTabId, { 
+          type: 'SET_TIME_DISPLAY_MODE', 
+          mode: currentTimeDisplayMode 
+        }).catch(e => console.warn("BG: Failed to send SET_TIME_DISPLAY_MODE to CS", e.message));
+      }
+      sendStateToPopup(); // Update popup with new mode
+      sendResponse(responsePayload);
     } else {
       console.warn("BG: Received unknown message type:", message.type);
       responsePayload.success = false;
@@ -326,6 +421,7 @@ function initializeExtensionState() {
   isFetchingActive = false;
   isOverlayVisible = false;
   overlayMode = 'normal'; // Default to normal mode
+  currentTimeDisplayMode = 'current_duration'; // Default time display mode
   lastVideoInfo = null;
   // currentTabId = null; // Best not to reset currentTabId on generic init, only on startup/install
   isError = false;

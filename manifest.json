@@ -8,7 +8,8 @@
     "tabs"
   ],
   "host_permissions": [
-    "*://*.laftel.net/*"
+    "*://*.laftel.net/*",
+    "*://*.chzzk.naver.com/*"
   ],
   "background": {
     "service_worker": "src/background.js"
@@ -16,7 +17,9 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.laftel.net/player/*"
+        "*://*.laftel.net/player/*",
+        "*://*.chzzk.naver.com/vod/*",
+        "*://*.chzzk.naver.com/video/*"
       ],
       "js": ["src/content.js"],
       "css": ["public/css/overlay.css"]

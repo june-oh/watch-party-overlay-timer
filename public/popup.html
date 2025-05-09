@@ -4,162 +4,6 @@
   <meta charset="UTF-8">
   <title>Watch Party Overlay Timer</title>
   <link rel="stylesheet" type="text/css" href="css/popup.css">
-  <style>
-    body {
-      font-family: sans-serif;
-      width: 280px;
-      padding: 10px;
-      font-size: 13px;
-      background-color: #f9f9f9;
-      color: #333;
-    }
-    
-    .info-item {
-      margin-bottom: 6px;
-    }
-    
-    .info-item strong {
-      display: inline-block;
-      min-width: 70px;
-      color: #555;
-    }
-    
-    #videoInfo div {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      padding: 2px 0;
-    }
-    
-    button {
-      width: 100%;
-      padding: 8px;
-      margin-top: 8px;
-      border: none;
-      border-radius: 4px;
-      color: white;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
-    button:hover {
-      filter: brightness(90%);
-    }
-    
-    button.start {
-      background-color: #4CAF50;
-    }
-    
-    button.stop {
-      background-color: #f44336;
-    }
-    
-    button.error {
-      /* 에러 상태의 버튼 기본 스타일 (필요시) */
-    }
-    
-    button.start.error {
-      background-color: #ff9800;
-      /* 주황색 계열 */
-    }
-    
-    button.stop.error {
-      background-color: #ff9800;
-      /* 주황색 계열 */
-    }
-    
-    button.mode {
-      background-color: #2196F3;
-      margin-bottom: 10px;
-    }
-    
-    .status {
-      font-size: 11px;
-      color: #777;
-      text-align: center;
-      margin-bottom: 8px;
-      padding: 3px;
-      border-radius: 3px;
-    }
-    
-    .status.error {
-      color: #f44336;
-      background-color: #ffebee;
-      font-weight: bold;
-    }
-    
-    .container {
-      margin-bottom: 10px;
-      padding: 8px;
-      border-radius: 4px;
-      background-color: #fff;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    h3 {
-      margin: 0 0 8px 0;
-      font-size: 14px;
-      color: #333;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 4px;
-    }
-    
-    .preview {
-      padding: 8px;
-      margin-bottom: 8px;
-      border-radius: 4px;
-      background-color: rgba(0, 0, 0, 0.7);
-      color: white;
-    }
-    
-    .preview.greenscreen {
-      background-color: rgb(0, 177, 64);
-    }
-    
-    .preview .title {
-      font-size: 14px;
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
-    
-    .preview .series {
-      font-size: 12px;
-      opacity: 0.9;
-      margin-bottom: 4px;
-    }
-    
-    .preview .time {
-      font-size: 14px;
-      font-weight: bold;
-      font-family: 'Courier New', monospace;
-    }
-    
-    .preview.greenscreen .title,
-    .preview.greenscreen .series,
-    .preview.greenscreen .time {
-      color: black;
-      text-shadow: 0px 0px 2px white;
-    }
-
-    /* Custom Button Colors */
-    #toggleFetchingBtn {
-      background-color: #87CEEB; /* Light Sky Blue */
-    }
-    #toggleFetchingBtn.stop {
-      background-color: #ADD8E6; /* Lighter Blue for stop, or keep same if preferred */
-    }
-
-    #toggleVisibilityBtn {
-      background-color: #00FFa3; 
-    }
-    #toggleVisibilityBtn.stop { /* When overlay is visible, button shows "Hide", use a slightly different shade or same */
-      background-color: #00E093; 
-    }
-
-    #toggleModeBtn {
-      background-color: #28a745; /* Green */
-    }
-  </style>
 </head>
 <body>
   <div class="container">
@@ -181,8 +25,9 @@
       
       <div style="display: flex; justify-content: space-between; margin-top: 5px;">
         <button id="toggleGreenscreenModeBtn" style="flex-grow: 1; margin-right: 2.5px;">Greenscreen</button>
-        <button id="toggleFlowModeBtn" style="flex-grow: 1; margin-left: 2.5px;">Flow Mode</button>
+        <button id="setVerticalModeBtn" style="flex-grow: 1; margin-left: 2.5px;">세로 모드</button>
       </div>
+      <button id="cycleTimeDisplayModeBtn" style="margin-top: 5px; background-color: #607D8B;">시간 표시 변경</button>
     </div>
 
     <div class="info-section">
@@ -190,6 +35,10 @@
       <p><strong>Title:</strong> <span id="videoTitle">N/A</span></p>
       <p><strong>Series:</strong> <span id="videoSeries">N/A</span></p>
       <p><strong>Time:</strong> <span id="videoTime">--:-- / --:--</span></p>
+    </div>
+
+    <div class="thanks-section">
+      <p>Special Thanks To: 초승달, 뇨롱이, 에스더, Gemini</p>
     </div>
 
     <hr>

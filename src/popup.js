@@ -10,9 +10,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const setNormalModeBtn = document.getElementById('setNormalModeBtn');
   const setCompactModeBtn = document.getElementById('setCompactModeBtn');
   const toggleGreenscreenModeBtn = document.getElementById('toggleGreenscreenModeBtn');
-  const toggleFlowModeBtn = document.getElementById('toggleFlowModeBtn');
+  const setVerticalModeBtn = document.getElementById('setVerticalModeBtn');
   const currentSiteHostEl = document.getElementById('currentSiteHost'); // Added for current site host
+  const cycleTimeDisplayModeBtn = document.getElementById('cycleTimeDisplayModeBtn'); // Added for time display mode
   
+  // Position Buttons - TO BE REMOVED
+  // const posTopLeftBtn = document.getElementById('posTopLeft');
+  // const posTopRightBtn = document.getElementById('posTopRight');
+  // const posBottomLeftBtn = document.getElementById('posBottomLeft');
+  // const posBottomRightBtn = document.getElementById('posBottomRight');
+  // const positionButtons = [posTopLeftBtn, posTopRightBtn, posBottomLeftBtn, posBottomRightBtn];
+
+  // Padding Input - TO BE REMOVED
+  // const overlayPaddingInputEl = document.getElementById('overlayPaddingInput');
+  // const overlayPaddingValueDisplayEl = document.getElementById('overlayPaddingValueDisplay');
+
   // 프리뷰 요소
   const previewContainerEl = document.getElementById('previewContainer');
   const previewTitleEl = document.getElementById('previewTitle');
@@ -23,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentIsFetchingActive = false;
   let currentIsOverlayVisible = false;
   let currentOverlayMode = 'normal';
+  let currentTimeDisplayMode = 'current_duration'; // Default: show current/duration
   let currentIsError = false;
   let currentVideoInfo = null;
   let currentActiveTabHostname = 'N/A'; // Added to store hostname
@@ -33,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentIsFetchingActive = data.isFetchingActive;
     currentIsOverlayVisible = data.isOverlayVisible;
     currentOverlayMode = data.overlayMode;
+    currentTimeDisplayMode = data.timeDisplayMode || currentTimeDisplayMode; // Update time display mode
     currentIsError = data.isError || false;
     currentVideoInfo = data.lastVideoInfo;
     currentActiveTabHostname = data.activeTabHostname || currentActiveTabHostname; // Update hostname, keep if not provided
@@ -57,27 +71,24 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleVisibilityBtn.className = currentIsOverlayVisible ? 'stop' : 'start';
     
     // Reset all mode button styles
-    const modeButtons = [setNormalModeBtn, setCompactModeBtn, toggleGreenscreenModeBtn, toggleFlowModeBtn];
+    const modeButtons = [setNormalModeBtn, setCompactModeBtn, toggleGreenscreenModeBtn, setVerticalModeBtn];
     modeButtons.forEach(btn => {
       if (btn) {
-        btn.style.backgroundColor = ''; // Reset to CSS default or a specific inactive color
         btn.classList.remove('active-mode');
+        // Reset to default button styling (handled by CSS general button rules or specific ID rules now)
+        // btn.style.backgroundColor = ''; // This line can be removed
       }
     });
 
-    // Highlight the active mode button
+    // Highlight the active mode button by adding the class
     if (currentOverlayMode === 'normal' && setNormalModeBtn) {
-      setNormalModeBtn.style.backgroundColor = '#4CAF50'; // Green for active
       setNormalModeBtn.classList.add('active-mode');
     } else if (currentOverlayMode === 'compact' && setCompactModeBtn) {
-      setCompactModeBtn.style.backgroundColor = '#4CAF50';
       setCompactModeBtn.classList.add('active-mode');
     } else if (currentOverlayMode === 'greenscreen' && toggleGreenscreenModeBtn) {
-      toggleGreenscreenModeBtn.style.backgroundColor = '#4CAF50';
       toggleGreenscreenModeBtn.classList.add('active-mode');
-    } else if (currentOverlayMode === 'flow' && toggleFlowModeBtn) {
-      toggleFlowModeBtn.style.backgroundColor = '#4CAF50';
-      toggleFlowModeBtn.classList.add('active-mode');
+    } else if (currentOverlayMode === 'vertical' && setVerticalModeBtn) {
+      setVerticalModeBtn.classList.add('active-mode');
     }
     
     if(previewContainerEl) previewContainerEl.className = `preview ${currentOverlayMode}`;
@@ -180,16 +191,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  if(toggleFlowModeBtn){ 
-    toggleFlowModeBtn.addEventListener('click', () => {
-      // Simple toggle: if not flow, switch to it. If already flow, switch to normal.
-      // This might also need a concept of previous non-flow mode if more complex behavior is needed.
-      const newMode = currentOverlayMode === 'flow' ? 'normal' : 'flow';
+  if(setVerticalModeBtn){ 
+    setVerticalModeBtn.addEventListener('click', () => {
+      const newMode = currentOverlayMode === 'vertical' ? 'normal' : 'vertical';
       chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_MODE', mode: newMode }, (response) => {
-        handleResponse(response, "POPUP_TOGGLE_MODE_FLOW");
+        handleResponse(response, "POPUP_TOGGLE_MODE_VERTICAL");
       });
     });
   }
+  
+  if(cycleTimeDisplayModeBtn) {
+    cycleTimeDisplayModeBtn.addEventListener('click', () => {
+      console.log("POPUP.JS: cycleTimeDisplayModeBtn clicked.");
+      chrome.runtime.sendMessage({ type: 'POPUP_CYCLE_TIME_DISPLAY_MODE' }, (response) => {
+        handleResponse(response, "POPUP_CYCLE_TIME_DISPLAY_MODE");
+        // The UI (e.g., button text) might be updated via BACKGROUND_STATE_UPDATE if needed
+      });
+    });
+  }
+  
+  // Padding input event listener - TO BE REMOVED
+  // if (overlayPaddingInputEl) {
+  //   overlayPaddingInputEl.addEventListener('change', () => {
+  //     const newPadding = parseInt(overlayPaddingInputEl.value, 10);
+  //     if (!isNaN(newPadding) && newPadding >= 0 && newPadding <= 50) {
+  //       if (newPadding !== currentOverlayPadding) { // Assuming currentOverlayPadding was defined
+  //         console.log(`POPUP.JS: Padding input changed. New padding: ${newPadding}px`);
+  //         // currentOverlayPadding = newPadding; // Update local state immediately for responsiveness - currentOverlayPadding is not defined
+  //         if (overlayPaddingValueDisplayEl) overlayPaddingValueDisplayEl.textContent = `${newPadding}px`;
+          
+  //         chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_PADDING', padding: newPadding }, (response) => {
+  //           handleResponse(response, "POPUP_SET_OVERLAY_PADDING");
+  //         });
+  //       }
+  //     } else {
+  //       // Reset to current value if input is invalid
+  //       // overlayPaddingInputEl.value = currentOverlayPadding; // currentOverlayPadding is not defined
+  //     }
+  //   });
+  // }
   
   // 배경 스크립트로부터 상태 업데이트 받기
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -212,7 +252,8 @@ document.addEventListener('DOMContentLoaded', () => {
         overlayMode: 'normal', 
         lastVideoInfo: null, 
         isError: true, 
-        activeTabHostname: 'Error retrieving host' // Show error for hostname
+        activeTabHostname: 'Error retrieving host', // Show error for hostname
+        timeDisplayMode: 'current_duration' // Default on error
       });
       return;
     }
@@ -224,6 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isFetchingActive: response.isFetchingActive !== undefined ? response.isFetchingActive : false,
         isOverlayVisible: response.isOverlayVisible !== undefined ? response.isOverlayVisible : false,
         overlayMode: response.overlayMode || 'normal',
+        timeDisplayMode: response.timeDisplayMode || 'current_duration', // Add timeDisplayMode
         lastVideoInfo: response.lastVideoInfo || null,
         isError: response.isError !== undefined ? response.isError : false, // Default to false if isError is missing
         activeTabHostname: response.activeTabHostname || 'N/A' // Process hostname
@@ -237,7 +279,8 @@ document.addEventListener('DOMContentLoaded', () => {
         overlayMode: 'normal', 
         lastVideoInfo: null, 
         isError: true, // Treat as an error if response is not a valid object
-        activeTabHostname: 'Error retrieving host' // Show error for hostname
+        activeTabHostname: 'Error retrieving host', // Show error for hostname
+        timeDisplayMode: 'current_duration' // Default on error
       });
     }
   });
