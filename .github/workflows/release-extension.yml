@@ -60,8 +60,24 @@ jobs:
         id: extract_release_notes
         shell: bash
         run: |
+          echo "Attempting to extract release notes for tag: ${{ github.ref_name }}"
           TAG_NAME="${{ github.ref_name }}"
           CHANGELOG_VERSION_MARKER="[${TAG_NAME#v}]"
+          echo "Generated CHANGELOG_VERSION_MARKER: ${CHANGELOG_VERSION_MARKER}"
+
+          echo "--- First 10 lines of CHANGELOG.md ---"
+          head -n 10 CHANGELOG.md
+          echo "--- End of first 10 lines ---"
+
+          echo "Searching for lines starting with: '## ${CHANGELOG_VERSION_MARKER}'"
+          echo "--- Lines in CHANGELOG.md potentially matching header pattern ---"
+          grep "^## ${CHANGELOG_VERSION_MARKER}" CHANGELOG.md || echo "No lines found with grep for ^## ${CHANGELOG_VERSION_MARKER}"
+          # 이전 grep 패턴에서 [ ]가 쉘에 의해 해석되는 것을 방지하기 위해 따옴표 수정 및 변수 사용 방식 변경
+          # 정확한 패턴 매칭을 위해 grep -E (확장 정규식) 사용 및 패턴을 좀 더 명확히 함
+          EXPECTED_HEADER_PATTERN="^## \[${TAG_NAME#v}\]"
+          echo "Revised grep search for pattern: ${EXPECTED_HEADER_PATTERN}"
+          grep -E "${EXPECTED_HEADER_PATTERN}" CHANGELOG.md || echo "No lines found with revised grep for ${EXPECTED_HEADER_PATTERN}"
+          echo "--- End of grep output ---"
 
           RAW_NOTES=$(awk -v marker="$CHANGELOG_VERSION_MARKER" '
             $0 ~ ("^## " marker) { 
@@ -76,7 +92,15 @@ jobs:
             }
           ' CHANGELOG.md)
 
+          echo "--- Raw extracted notes (from awk) ---"
+          echo "$RAW_NOTES"
+          echo "--- End of raw notes ---"
+
           CLEANED_NOTES=$(echo "$RAW_NOTES" | sed '/^\s*$/d' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+          echo "--- Cleaned notes ---"
+          echo "$CLEANED_NOTES"
+          echo "--- End of cleaned notes ---"
 
           if [ -z "$CLEANED_NOTES" ]; then
             echo "Release notes for ${TAG_NAME} (looking for section starting with ''## ${CHANGELOG_VERSION_MARKER}'') not found or empty in CHANGELOG.md."
