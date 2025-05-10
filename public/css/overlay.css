@@ -4,10 +4,12 @@
   /* Overlay Container Variables */
   --wp-overlay-top: 8px;
   --wp-overlay-right: 8px;
-  --wp-overlay-width: 200px;
+  /* --wp-overlay-width: 200px; /* REMOVED - Using auto width now */
+  --wp-overlay-max-width: 350px; /* NEW - Max width for the overlay */
+  --wp-overlay-min-width: 150px; /* NEW - Min width to prevent excessive shrinking */
   --wp-overlay-bg-color: rgba(18, 18, 18, 0.8);
   --wp-overlay-text-color: white;
-  --wp-overlay-padding: 5px 5px;
+  --wp-overlay-padding: 5px 8px; /* Adjusted padding slightly */
   --wp-overlay-border-radius: 8px;
   --wp-overlay-font-family: 'Noto Sans KR', 'Open Sans', Arial, sans-serif;
   /* New position offset variables */
@@ -37,9 +39,9 @@
   --wp-greenscreen-text-shadow: 0px 0px 2px white, 0px 0px 3px white, 0px 0px 4px white;
 
   /* Compact Mode Specific Variables */
-  --wp-compact-overlay-width: calc(var(--wp-overlay-width) * 1.5);
-
-  /* Vertical Mode CSS Variables REMOVED */
+  /* --wp-compact-overlay-width: calc(var(--wp-overlay-width) * 1.5); /* REMOVED - Using auto width */
+  --wp-compact-overlay-max-width: 300px; /* NEW - Max width for compact mode */
+  --wp-compact-overlay-min-width: 120px; /* NEW - Min width for compact mode */
 
   --wp-overlay-default-height-approx: 60px; /* Approximate default height for calculation */
 }
@@ -50,7 +52,9 @@
   right: var(--wp-overlay-right);
   left: auto; /* Default to right alignment */
   bottom: auto; /* Default to top alignment */
-  width: var(--wp-overlay-width);
+  width: auto; /* CHANGED from var(--wp-overlay-width) */
+  min-width: var(--wp-overlay-min-width);
+  max-width: var(--wp-overlay-max-width);
   background-color: var(--wp-overlay-bg-color);
   color: var(--wp-overlay-text-color);
   padding: var(--wp-overlay-padding);
@@ -61,6 +65,7 @@
   user-select: none;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box; /* Add box-sizing */
 }
 
 .wp-overlay-series-text {
@@ -70,6 +75,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%; /* Ensure it doesn't overflow container */
 }
 
 .wp-overlay-episode-text {
@@ -79,25 +85,32 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%; /* Ensure it doesn't overflow container */
 }
 
-.wp-overlay-time-text {
-  /* Base styling for time text if any was here, or can be removed if all handled by children */
-}
+/* #wp-overlay-time-text is now #wp-overlay-time-text-container */
 
 /* NEW: Styles for the time and hostname container */
 #wp-overlay-time-text-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
+  width: 100%; /* Ensure it takes full available width for space-between */
   font-family: var(--wp-time-font-family);
   font-size: var(--wp-time-font-size);
   font-weight: var(--wp-time-font-weight);
+  /* Adding ellipsis support for time if it ever becomes too long, though unlikely with current format */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; 
 }
 
 #wp-overlay-actual-time {
   /* Default alignment is left, which is fine */
+  /* Potentially add ellipsis here too if individual parts could be long */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; 
 }
 
 #wp-overlay-hostname-display {
@@ -105,9 +118,13 @@
   font-family: 'Noto Sans KR', var(--wp-overlay-font-family);
   font-size: calc(var(--wp-time-font-size) * 0.65);
   opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; 
+  padding-left: 5px; /* Add some space between time and hostname */
 }
 
-/* 캡처를 위한 그린스크린 모드 - content.js에서 사용하는 클래스명 'greenscreen-active'로 변경 */
+/* Greenscreen Mode */
 .wp-overlay-container.greenscreen-active {
   background-color: var(--wp-greenscreen-bg-color);
   border: 1px solid var(--wp-greenscreen-border-color);
@@ -115,6 +132,7 @@
 
 .wp-overlay-container.greenscreen-active .wp-overlay-series-text,
 .wp-overlay-container.greenscreen-active .wp-overlay-episode-text,
+.wp-overlay-container.greenscreen-active #wp-overlay-time-text-container, /* Apply to container for children */
 .wp-overlay-container.greenscreen-active #wp-overlay-time-text-container #wp-overlay-actual-time,
 .wp-overlay-container.greenscreen-active #wp-overlay-time-text-container #wp-overlay-hostname-display {
   color: var(--wp-greenscreen-text-color);
@@ -124,15 +142,21 @@
 /* Compact Mode Styles */
 .wp-overlay-container.compact {
   padding: 4px 8px;
-  width: var(--wp-compact-overlay-width);
+  width: auto; /* CHANGED */
+  min-width: var(--wp-compact-overlay-min-width);
+  max-width: var(--wp-compact-overlay-max-width);
 }
 
 .wp-overlay-compact-text-container {
+  display: flex; /* Added display flex */
   justify-content: space-between;
   align-items: center;
   width: 100%;
   font-family: var(--wp-overlay-font-family);
   font-size: var(--wp-episode-font-size);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wp-overlay-compact-info {
@@ -142,6 +166,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin-right: 8px;
+  /* max-width: calc(100% - 80px); /* Example: Reserve space for time if time is shown */
 }
 
 .wp-overlay-compact-time {
@@ -150,27 +175,28 @@
   font-family: var(--wp-time-font-family);
   font-size: var(--wp-time-font-size);
   font-weight: var(--wp-time-font-weight);
+  white-space: nowrap; /* Ensure time doesn't wrap */
 }
 
-/* Ensure compact mode text also respects greenscreen text color - content.js에서 사용하는 클래스명 'greenscreen-active'로 변경 */
+.wp-overlay-container.compact.greenscreen-active .wp-overlay-compact-text-container, /* Apply to container */
 .wp-overlay-container.compact.greenscreen-active .wp-overlay-compact-info,
 .wp-overlay-container.compact.greenscreen-active .wp-overlay-compact-time {
   color: var(--wp-greenscreen-text-color);
   text-shadow: var(--wp-greenscreen-text-shadow);
 }
 
-/* 컴팩트 모드에서 시간 숨김 시 높이 조절 */
+/* Compact mode with no time */
 .wp-overlay-container.compact.compact-no-time {
-  height: auto; /* 내용에 맞게 높이 자동 조절 */
-  min-height: unset; /* 최소 높이 제한 해제 */
+  height: auto; 
+  min-height: unset; 
 }
 
-/* 컴팩트 모드 + 시간 숨김 시, 정보 텍스트가 추가 공간을 활용하도록 (선택적) */
 .wp-overlay-container.compact.compact-no-time .wp-overlay-compact-info {
-  margin-right: 0; /* 시간 표시가 없으므로 오른쪽 여백 제거 */
+  margin-right: 0; 
+  max-width: 100%; /* Allow full width if no time */
 }
 
-/* New class for left positioning */
+/* Left positioning */
 .wp-overlay-container.position-left {
   right: auto;
   left: var(--wp-overlay-left);
