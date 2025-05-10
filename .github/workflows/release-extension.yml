@@ -1,0 +1,93 @@
+name: Release Chrome Extension
+
+on: # Triggers the workflow on push events but only for tags starting with v
+  push:
+    tags:
+      - 'v*' # e.g. v1.0, v1.0.0, v1.2.3
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create a release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Using the latest version
+
+      - name: Set up Node.js # Added for potential future build steps and npm for versioning
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Using a recent LTS version
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Create ZIP file for Release
+        run: |
+          PACKAGE_NAME="watch-party-overlay-timer"
+          # Create a temporary directory for packaging
+          mkdir ${{ runner.temp }}/${PACKAGE_NAME}
+          # Copy necessary files and folders
+          echo "Copying manifest.json"
+          cp manifest.json ${{ runner.temp }}/${PACKAGE_NAME}/
+          echo "Copying icons folder"
+          cp -r icons ${{ runner.temp }}/${PACKAGE_NAME}/
+          echo "Copying public folder"
+          cp -r public ${{ runner.temp }}/${PACKAGE_NAME}/
+          echo "Copying src folder"
+          cp -r src ${{ runner.temp }}/${PACKAGE_NAME}/
+          echo "Copying LICENSE"
+          cp LICENSE ${{ runner.temp }}/${PACKAGE_NAME}/
+          echo "Copying README.md"
+          cp README.md ${{ runner.temp }}/${PACKAGE_NAME}/
+          # README_ko.md는 README.md가 한국어 기본이므로 ZIP에서는 제외해도 될 것 같습니다.
+          # 만약 포함을 원하시면 아래 주석을 해제하세요.
+          # echo "Copying README_ko.md"
+          # cp README_ko.md ${{ runner.temp }}/${PACKAGE_NAME}/
+          
+          # Navigate to the temp directory to create the zip from there
+          cd ${{ runner.temp }}/${PACKAGE_NAME}
+          echo "Creating ZIP file: ${PACKAGE_NAME}-${{ env.VERSION }}.zip"
+          # Zip the contents of the current directory (which is the package_name dir)
+          zip -r ../${PACKAGE_NAME}-${{ env.VERSION }}.zip .
+          # Move zip back to workspace for upload
+          mv ../${PACKAGE_NAME}-${{ env.VERSION }}.zip ${{ github.workspace }}/
+          echo "ZIP file created: ${{ github.workspace }}/${PACKAGE_NAME}-${{ env.VERSION }}.zip"
+
+      - name: Extract Release Notes
+        id: extract_release_notes
+        shell: bash
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          # CHANGELOG.md에서 버전 형식을 [1.0.0]으로 가정 (태그의 'v' 제거)
+          VERSION_IN_CHANGELOG="[${TAG_NAME#v}]"
+
+          # awk를 사용하여 해당 버전 섹션의 내용을 추출합니다.
+          RAW_NOTES=$(awk -v version_header_pattern="^## ${VERSION_IN_CHANGELOG}" '
+            $0 ~ version_header_pattern { in_section=1; next }
+            in_section && /^## / { exit }
+            in_section { print }
+          ' CHANGELOG.md)
+
+          CLEANED_NOTES=$(echo "$RAW_NOTES" | sed '/^\s*$/d' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+          if [ -z "$CLEANED_NOTES" ]; then
+            echo "Release notes for ${TAG_NAME} not found in CHANGELOG.md."
+            echo "notes=See CHANGELOG.md for details." >> $GITHUB_OUTPUT
+          else
+            echo "Successfully extracted notes for ${TAG_NAME}."
+            echo "notes<<EOF" >> $GITHUB_OUTPUT
+            echo "$CLEANED_NOTES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: watch-party-overlay-timer-${{ env.VERSION }}.zip
+          body: ${{ steps.extract_release_notes.outputs.notes }}
+          # The release name will be the tag name by default
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
