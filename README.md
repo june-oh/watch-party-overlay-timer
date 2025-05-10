@@ -44,58 +44,6 @@
 <!-- [[오버레이 작동 스크린샷 위치]] -->
 (오버레이 작동 스크린샷을 여기에 추가해주세요.)
 
-## 오버레이 외형 꾸미기
-
-오버레이의 시각적 스타일은 `public/css/overlay.css` 파일 상단에 정의된 CSS 변수를 수정하여 사용자가 직접 변경할 수 있습니다.
-
-`public/css/overlay.css` 파일을 열어 최상단의 `:root` 블록을 확인하십시오. 해당 변수들의 값을 변경하여 오버레이 스타일을 조절할 수 있습니다.
-
-### 주요 CSS 변수 및 효과:
-
-**오버레이 컨테이너:**
-*   `--wp-overlay-top`: 비디오 플레이어 상단에서의 거리 (예: `20px`)
-*   `--wp-overlay-right`: 비디오 플레이어 우측에서의 거리 (예: `20px`)
-*   `--wp-overlay-width`: 오버레이 너비 (예: `300px`)
-*   `--wp-overlay-bg-color`: 오버레이 배경색 (예: `rgba(0, 0, 0, 0.7)`)
-*   `--wp-overlay-text-color`: 오버레이 기본 텍스트 색상 (예: `white`)
-*   `--wp-overlay-padding`: 오버레이 내부 여백 (예: `8px 12px`)
-*   `--wp-overlay-border-radius`: 오버레이 모서리 둥글기 반경 (예: `4px`)
-*   `--wp-overlay-font-family`: 오버레이 기본 글꼴 (예: `'Noto Sans KR', 'Open Sans', Arial, sans-serif`)
-
-**시리즈 텍스트 (상단, 일반적으로 작은 글씨):**
-*   `--wp-series-font-size`: 시리즈 제목 글꼴 크기 (예: `13px`)
-*   `--wp-series-opacity`: 시리즈 제목 투명도 (예: `0.9`)
-*   `--wp-series-margin-bottom`: 시리즈 제목 하단 여백 (예: `2px`)
-
-**에피소드 텍스트 (중간, 일반적으로 메인 제목):**
-*   `--wp-episode-font-size`: 에피소드 제목 글꼴 크기 (예: `16px`)
-*   `--wp-episode-font-weight`: 에피소드 제목 글꼴 두께 (예: `bold`)
-*   `--wp-episode-margin-bottom`: 에피소드 제목 하단 여백 (예: `4px`)
-
-**시간 텍스트 (하단, 현재/전체 시간):**
-*   `--wp-time-font-size`: 시간 표시 글꼴 크기 (예: `18px`)
-*   `--wp-time-font-weight`: 시간 표시 글꼴 두께 (예: `bold`)
-*   `--wp-time-font-family`: 시간 표시 글꼴 (예: `'Noto Sans Mono', 'Courier New', monospace`)
-
-**그린스크린 모드:**
-*   `--wp-greenscreen-bg-color`: 그린스크린 모드 배경색 (예: `rgb(0, 177, 64)`)
-*   `--wp-greenscreen-border-color`: 그린스크린 모드 테두리 색상 (예: `rgb(0, 177, 64)`)
-*   `--wp-greenscreen-text-color`: 그린스크린 모드 텍스트 색상 (예: `black`)
-*   `--wp-greenscreen-text-shadow`: 그린스크린 모드 텍스트 그림자 (예: `0px 0px 2px white, 0px 0px 3px white, 0px 0px 4px white`)
-
-### 수정 방법:
-
-1.  프로젝트 내 `overlay-timer/public/css/` 디렉터리로 이동합니다.
-2.  텍스트 편집기로 `overlay.css` 파일을 엽니다.
-3.  파일 시작 부분의 `:root { ... }` 블록을 찾습니다.
-4.  원하는 변수의 값을 수정합니다. 예를 들어, 오버레이 너비를 넓히려면 다음처럼 변경합니다:
-    ```css
-    --wp-overlay-width: 350px; 
-    ```
-5.  `overlay.css` 파일을 저장합니다.
-6.  Chrome/Edge 브라우저의 확장 프로그램 관리 페이지(`chrome://extensions` 또는 `edge://extensions`)에서 "워치파티 오버레이 타이머"를 찾아 새로고침 버튼을 클릭하거나, 확장 프로그램을 껐다가 다시 켭니다.
-7.  콘텐츠 스크립트가 활성화된 페이지(예: 라프텔 비디오 플레이어)에 있다면, 페이지를 새로고침해야 변경 사항이 적용될 수 있습니다.
-
 ## 개발 정보
 
 *   JavaScript

@@ -8,20 +8,22 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     console.log("CONTENT.JS: Initializing for the first time.");
 
     let fetchIntervalId = null;
-    let isFetchingActive = false;
-    let isOverlayVisible = false;
-    let overlayContainer = null;
-    let overlayMode = 'normal';
-    let isGreenscreenActive = false;
+    let currentIsFetchingActive = false;
+    let currentIsOverlayVisible = false;
+    let currentOverlayMode = 'normal';
+    let currentOverlayTheme = 'light'; // 'light', 'dark', 'greenscreen-white-text', 'greenscreen-black-text'
+    let currentTimeDisplayMode = 'current_duration';
+    let currentOverlayPositionSide = 'right'; // NEW: Default position
     let currentVideoInfo = null;
     let isContextInvalidated = false;
-    let currentTimeDisplayMode = 'current_duration';
+    let lastVideoInfoString = '';
 
     // Define selectors for different sites
     const siteSelectors = {
       'laftel.net': {
         titleSelector: '#root > div.sc-4a02fa07-0.cSulJK > div > div.sc-ec16796a-2.hlVrXi > div > div > div.sc-46d49bb0-5.hFtDBz > div.sc-46d49bb0-7.krHzYQ', // Episode Title
         seriesSelector: '#root > div.sc-4a02fa07-0.cSulJK > div > div.sc-ec16796a-2.hlVrXi > div > a', // Series Title
+        movieTitleSelector: '#root > div.sc-4a02fa07-0.cSulJK > div > div.sc-ec16796a-2.hlVrXi > div > div > div.sc-46d49bb0-5.hFtDBz > a', // New: For single titles like movies
         // For Laftel, we'll rely on the video element for time, so these can be null or omitted
         currentTimeSelector: null, 
         durationSelector: null,
@@ -99,25 +101,58 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     function getVideoInfo() {
       if (checkAndHandleInvalidatedContext("getVideoInfo")) return null;
       if (!currentSiteConfig) {
-        // console.warn("CONTENT.JS: No site config loaded, cannot get video info.");
         return null;
       }
 
-      let title = "N/A", series = "N/A", currentSeconds = 0, durationSeconds = 0;
+      let episode = "N/A"; // Use 'episode' as the primary title key
+      let series = "N/A";
+      let currentSeconds = 0;
+      let durationSeconds = 0;
 
-      // Attempt to get info using selectors first
-      if (currentSiteConfig.titleSelector) {
-        const titleEl = document.querySelector(currentSiteConfig.titleSelector);
-        if (titleEl) title = titleEl.innerText.trim();
-      }
+      if (currentSiteConfig.siteName === 'LAFTEL') {
+        // Laftel specific logic
+        let mainTitleFound = false;
+        // 1. Try standard episode title selector
+        const standardEpisodeEl = document.querySelector(currentSiteConfig.titleSelector);
+        if (standardEpisodeEl) {
+            episode = standardEpisodeEl.innerText.trim();
+            mainTitleFound = true;
+            // If standard episode found, try to get series title
+            if (currentSiteConfig.seriesSelector) {
+                const seriesEl = document.querySelector(currentSiteConfig.seriesSelector);
+                if (seriesEl) {
+                    series = seriesEl.innerText.trim();
+                } else {
+                    series = ""; // Found episode, but no series found via selector
+                }
+            } else {
+                 series = ""; // No series selector defined, but episode found
+            }
+        } else if (currentSiteConfig.movieTitleSelector) {
+            // 2. Standard episode not found, try movie title selector
+            const movieTitleEl = document.querySelector(currentSiteConfig.movieTitleSelector);
+            if (movieTitleEl) {
+                episode = movieTitleEl.innerText.trim();
+                mainTitleFound = true;
+                series = ""; // For movies, series is explicitly empty as requested
+            }
+        }
+        
+        // If neither standard nor movie title was found, they remain "N/A"
 
-      if (currentSiteConfig.seriesSelector) {
-        const seriesEl = document.querySelector(currentSiteConfig.seriesSelector);
-        if (seriesEl) series = seriesEl.innerText.trim();
-      } else if (currentSiteConfig.titleSelector && !currentSiteConfig.seriesSelector) {
-        // If no series selector, but there is a title selector, assume title is the main content.
-        // For sites like CHZZK that might only have one primary title for VODs.
-        series = ""; // Or keep as "N/A" or some other default
+      } else {
+        // Generic logic for other sites (current implementation)
+        if (currentSiteConfig.titleSelector) {
+            const titleEl = document.querySelector(currentSiteConfig.titleSelector);
+            if (titleEl) episode = titleEl.innerText.trim();
+        }
+        if (currentSiteConfig.seriesSelector) {
+            const seriesEl = document.querySelector(currentSiteConfig.seriesSelector);
+            if (seriesEl) series = seriesEl.innerText.trim();
+        } else if (currentSiteConfig.titleSelector && !currentSiteConfig.seriesSelector && episode !== "N/A") {
+            // If there's a title but no series selector (e.g., chzzk VOD) and an episode title was found
+            series = ""; // Series can be empty
+        }
       }
 
       // For current time and duration, prioritize selectors if available
@@ -157,7 +192,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       // console.log(`CONTENT.JS: getVideoInfo Raw - Title: ${title}, Series: ${series}, Current: ${currentSeconds}, Duration: ${durationSeconds}`);
 
       return {
-        episode: title, // Keep 'episode' as the key for title for consistency
+        episode: episode, 
         series: series,
         currentSeconds: currentSeconds,
         durationSeconds: durationSeconds,
@@ -202,14 +237,13 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       if (document.getElementById('wp-overlay-timer')) {
         overlayContainer = document.getElementById('wp-overlay-timer');
         // 초기 클래스 설정 (모드 및 그린스크린 상태 반영)
-        overlayContainer.classList.remove('normal-mode', 'compact-mode', 'greenscreen-mode', 'greenscreen-active');
-        if (overlayMode === 'compact') {
+        overlayContainer.classList.remove('normal-mode', 'compact-mode', 'compact-no-time', 'position-left', 'position-right', 'theme-light', 'theme-dark', 'theme-greenscreen-white-text', 'theme-greenscreen-black-text');
+        if (currentOverlayMode === 'compact') {
           overlayContainer.classList.add('compact-mode');
         } else {
           overlayContainer.classList.add('normal-mode');
         }
-        overlayContainer.classList.toggle('greenscreen-active', isGreenscreenActive);
-        overlayContainer.classList.toggle('compact-no-time', overlayMode === 'compact' && currentTimeDisplayMode === 'none');
+        overlayContainer.classList.toggle('compact-no-time', currentOverlayMode === 'compact' && currentTimeDisplayMode === 'none');
         updateOverlayDOM(); 
         return;
       }
@@ -294,8 +328,16 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       if (checkAndHandleInvalidatedContext("updateOverlayDOM")) return;
       const currentOverlayElement = document.getElementById('wp-overlay-timer');
 
+      // Log entry point with all relevant current states
+      console.log(
+        `CONTENT.JS: updateOverlayDOM CALLED. Current States Before Update: \n` + 
+        `  Mode: ${currentOverlayMode}, Theme: ${currentOverlayTheme}, TimeDisplay: ${currentTimeDisplayMode}, \n` + 
+        `  Position: ${currentOverlayPositionSide}, Visible: ${currentIsOverlayVisible}, Fetching: ${currentIsFetchingActive}, \n` + 
+        `  Info: ${currentVideoInfo ? 'Exists' : 'null'}`
+      );
+
       if (!currentOverlayElement) {
-          if (isOverlayVisible && !isContextInvalidated) {
+          if (currentIsOverlayVisible && !isContextInvalidated) {
              console.error("CONTENT.JS: updateOverlayDOM - Overlay element missing! Attempting to recreate.");
              createOverlayDOMIfNotExists(); 
              const newOverlayElement = document.getElementById('wp-overlay-timer');
@@ -311,14 +353,16 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       }
       if (overlayContainer !== currentOverlayElement) overlayContainer = currentOverlayElement;
 
-      console.log(`CONTENT.JS: updateOverlayDOM START - Mode: ${overlayMode}, TimeDisplay: ${currentTimeDisplayMode}, Green: ${isGreenscreenActive}, Visible: ${isOverlayVisible}, Fetching: ${isFetchingActive}, Info: ${currentVideoInfo ? JSON.stringify(currentVideoInfo) : 'null'}`);
+      console.log(`CONTENT.JS: updateOverlayDOM START - Mode: ${currentOverlayMode}, Theme: ${currentOverlayTheme}, TimeDisplay: ${currentTimeDisplayMode}, Visible: ${currentIsOverlayVisible}, Fetching: ${currentIsFetchingActive}, Info: ${currentVideoInfo ? JSON.stringify(currentVideoInfo) : 'null'}`);
 
-      overlayContainer.style.display = isOverlayVisible ? 'flex' : 'none';
-      if (!isOverlayVisible) return;
+      overlayContainer.style.display = currentIsOverlayVisible ? 'flex' : 'none';
+      if (!currentIsOverlayVisible) return;
 
-      overlayContainer.classList.remove('normal-mode', 'compact-mode', 'greenscreen-active', 'compact-no-time');
+      // Reset classes for mode, position, and compact-no-time first
+      overlayContainer.classList.remove('normal-mode', 'compact-mode', 'compact-no-time', 'position-left', 'position-right');
       
-      if (overlayMode === 'compact') {
+      // Apply mode class
+      if (currentOverlayMode === 'compact') {
         overlayContainer.classList.add('compact-mode');
         if (currentTimeDisplayMode === 'none') {
           overlayContainer.classList.add('compact-no-time');
@@ -327,8 +371,45 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
         overlayContainer.classList.add('normal-mode');
       }
       
-      if (isGreenscreenActive) {
-        overlayContainer.classList.add('greenscreen-active');
+      // Apply position class
+      if (currentOverlayPositionSide === 'left') {
+        overlayContainer.classList.add('position-left');
+      } else {
+        overlayContainer.classList.add('position-right'); 
+      }
+
+      // Apply theme class separately
+      const themeClasses = ['theme-light', 'theme-dark', 'theme-greenscreen-white-text', 'theme-greenscreen-black-text'];
+      themeClasses.forEach(cls => overlayContainer.classList.remove(cls)); // Remove all theme classes
+      
+      console.log(`CONTENT.JS: updateOverlayDOM - Applying theme. currentOverlayTheme from background = "${currentOverlayTheme}", type: ${typeof currentOverlayTheme}`);
+      console.log(`CONTENT.JS: updateOverlayDOM - Defined themeClasses array for matching: [${themeClasses.join(', ')}]`);
+      
+      let themeApplied = false;
+      // Construct the expected full CSS class name from the theme name received from background
+      const expectedCssClass = "theme-" + currentOverlayTheme;
+      console.log(`CONTENT.JS: updateOverlayDOM - Constructed expected CSS class: "${expectedCssClass}"`);
+
+      for (let i = 0; i < themeClasses.length; i++) {
+        const themeClassToCompareInArray = themeClasses[i];
+        const comparisonResult = (themeClassToCompareInArray === expectedCssClass);
+        console.log(`CONTENT.JS: updateOverlayDOM - Comparing constructed CSS class "${expectedCssClass}" with themeClasses[${i}] "${themeClassToCompareInArray}": ${comparisonResult}`);
+        if (comparisonResult) {
+          overlayContainer.classList.add(expectedCssClass); // Add the successfully matched CSS class
+          console.log(`CONTENT.JS: updateOverlayDOM - Added theme class: "${expectedCssClass}"`);
+          themeApplied = true;
+          break; 
+        }
+      }
+
+      if (!themeApplied) {
+         overlayContainer.classList.add('theme-light'); // Fallback to light theme
+         console.log(`CONTENT.JS: updateOverlayDOM - Added FALLBACK theme class: theme-light (currentOverlayTheme was: "${currentOverlayTheme}", constructed expectedCssClass was: "${expectedCssClass}")`);
+      }
+
+      // Force a reflow to help ensure styles are applied, especially for theme changes.
+      if (overlayContainer) {
+        void overlayContainer.offsetWidth;
       }
 
       const infoToDisplay = currentVideoInfo;
@@ -342,7 +423,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       const compactTimeSpanEl = overlayContainer.querySelector('#wp-overlay-compact-time');
 
       let timeTextToDisplay = '';
-      const isLoading = isFetchingActive && !infoToDisplay;
+      const isLoading = currentIsFetchingActive && !infoToDisplay;
 
       if (currentTimeDisplayMode !== 'none') {
         if (infoToDisplay && infoToDisplay.currentSeconds !== undefined && infoToDisplay.durationSeconds !== undefined) {
@@ -356,7 +437,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
              console.warn("CONTENT.JS: Unexpected currentTimeDisplayMode in time text generation (info exists):", currentTimeDisplayMode);
              timeTextToDisplay = "ERR_MODE";
           }
-        } else if (isFetchingActive) {
+        } else if (currentIsFetchingActive) {
           if (currentTimeDisplayMode === 'current_duration') {
             timeTextToDisplay = '--:-- / --:--';
           } else if (currentTimeDisplayMode === 'current_only') {
@@ -370,7 +451,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
       console.log(`CONTENT.JS: updateOverlayDOM - Generated timeTextToDisplay: '${timeTextToDisplay}' for mode: ${currentTimeDisplayMode}`);
       
-      if (overlayMode === 'compact') {
+      if (currentOverlayMode === 'compact') {
         if (seriesEl) seriesEl.style.display = 'none';
         if (episodeEl) episodeEl.style.display = 'none';
         if (timeContainerEl) timeContainerEl.style.display = 'none';
@@ -423,7 +504,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
     function fetchAndSendVideoInfo() {
       if (checkAndHandleInvalidatedContext("fetchAndSendVideoInfo_PreFetch")) return;
-      if (!isFetchingActive || !currentSiteConfig) { // Also check for currentSiteConfig
+      if (!currentIsFetchingActive || !currentSiteConfig) { // Also check for currentSiteConfig
         // console.log("CONTENT.JS: Fetching not active or no site config.");
         return;
       }
@@ -459,7 +540,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     function startFetching() {
       if (checkAndHandleInvalidatedContext("startFetching")) return;
       if (fetchIntervalId) clearInterval(fetchIntervalId); // Clear existing before starting new
-      isFetchingActive = true;
+      currentIsFetchingActive = true;
       fetchIntervalId = setInterval(fetchAndSendVideoInfo, 1000);
       fetchAndSendVideoInfo();
       console.log("CONTENT.JS: Started video info fetching. Interval ID:", fetchIntervalId);
@@ -467,7 +548,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
     function stopFetching() {
       if (fetchIntervalId) clearInterval(fetchIntervalId);
-      isFetchingActive = false;
+      currentIsFetchingActive = false;
       fetchIntervalId = null;
       console.log("CONTENT.JS: Stopped video info fetching.");
     }
@@ -489,86 +570,78 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           } else {
             stopFetching();
           }
-          response.isFetchingActive = isFetchingActive;
+          response.isFetchingActive = currentIsFetchingActive;
           break;
         case 'TOGGLE_VISIBILITY':
-          isOverlayVisible = message.action === 'show';
+          currentIsOverlayVisible = message.action === 'show';
           if (overlayContainer) {
-            overlayContainer.style.display = isOverlayVisible ? 'flex' : 'none';
+            overlayContainer.style.display = currentIsOverlayVisible ? 'flex' : 'none';
           }
-          response.isOverlayVisible = isOverlayVisible;
+          response.isOverlayVisible = currentIsOverlayVisible;
           break;
         case 'TOGGLE_OVERLAY_MODE': // 'normal', 'compact' 모드 변경
-          overlayMode = message.mode;
+          currentOverlayMode = message.mode;
           updateOverlayDOM();
-          response.overlayMode = overlayMode;
+          response.overlayMode = currentOverlayMode;
           break;
-        case 'TOGGLE_GREENSCREEN_MODE': // 그린스크린 모드 독립 토글
-          isGreenscreenActive = message.isActive;
-          updateOverlayDOM();
-          response.isGreenscreenActive = isGreenscreenActive;
-          break;
-        /* CYCLE_TIME_DISPLAY_MODE 핸들러는 background.js에서 BACKGROUND_STATE_UPDATE로 통합 관리합니다.
-        case 'CYCLE_TIME_DISPLAY_MODE':
-          // ... 기존 로직 ...
-          updateOverlayDOM(); // 시간 표시 모드가 변경되면 DOM 업데이트 필요
-          response.timeDisplayMode = currentTimeDisplayMode;
-          break;
-        */
-        // case 'CYCLE_OVERLAY_POSITION': // 제거 (관련 기능 삭제)
-        //   cycleOverlayPosition();
-        //   response.overlayPositionSide = currentOverlayPositionSide;
-        //   break;
         case 'GET_CONTENT_STATUS':
-          response.isFetchingActive = isFetchingActive;
-          response.isOverlayVisible = isOverlayVisible;
-          response.overlayMode = overlayMode;
-          response.isGreenscreenActive = isGreenscreenActive; // 상태 응답에 추가
+          response.isFetchingActive = currentIsFetchingActive;
+          response.isOverlayVisible = currentIsOverlayVisible;
+          response.overlayMode = currentOverlayMode;
           response.timeDisplayMode = currentTimeDisplayMode;
+          response.overlayPositionSide = currentOverlayPositionSide;
+          response.overlayTheme = currentOverlayTheme;
           response.lastVideoInfo = currentVideoInfo;
           break;
         case 'BACKGROUND_STATE_UPDATE': // background로부터 전체 상태 업데이트 수신
-          console.log("CONTENT.JS: Received BACKGROUND_STATE_UPDATE", message.data);
-          isFetchingActive = message.data.isFetchingActive !== undefined ? message.data.isFetchingActive : isFetchingActive;
-          isOverlayVisible = message.data.isOverlayVisible !== undefined ? message.data.isOverlayVisible : isOverlayVisible;
-          overlayMode = message.data.overlayMode || overlayMode;
-          isGreenscreenActive = message.data.isGreenscreenActive !== undefined ? message.data.isGreenscreenActive : isGreenscreenActive;
-          console.log("CONTENT.JS: BACKGROUND_STATE_UPDATE - typeof message.data.timeDisplayMode:", typeof message.data.timeDisplayMode);
-          console.log("CONTENT.JS: BACKGROUND_STATE_UPDATE - value of message.data.timeDisplayMode:", message.data.timeDisplayMode);
+          console.log("CONTENT.JS: Received BACKGROUND_STATE_UPDATE. Full data:", JSON.parse(JSON.stringify(message.data)));
+          currentIsFetchingActive = message.data.isFetchingActive !== undefined ? message.data.isFetchingActive : currentIsFetchingActive;
+          currentIsOverlayVisible = message.data.isOverlayVisible !== undefined ? message.data.isOverlayVisible : currentIsOverlayVisible;
+          currentOverlayMode = message.data.overlayMode || currentOverlayMode;
           currentTimeDisplayMode = message.data.timeDisplayMode || currentTimeDisplayMode;
-          console.log("CONTENT.JS: BACKGROUND_STATE_UPDATE - currentTimeDisplayMode JUST SET TO:", currentTimeDisplayMode);
+          currentOverlayPositionSide = message.data.overlayPositionSide || currentOverlayPositionSide; 
+          
+          const oldTheme = currentOverlayTheme;
+          console.log(`CONTENT.JS: BACKGROUND_STATE_UPDATE - Received raw overlayTheme from background: "${message.data.overlayTheme}", type: ${typeof message.data.overlayTheme}`);
+          currentOverlayTheme = message.data.overlayTheme || currentOverlayTheme; 
+          console.log(`CONTENT.JS: BACKGROUND_STATE_UPDATE - currentOverlayTheme was: "${oldTheme}", NOW: "${currentOverlayTheme}", type: ${typeof currentOverlayTheme}`);
+          
           currentVideoInfo = message.data.lastVideoInfo !== undefined ? message.data.lastVideoInfo : currentVideoInfo; 
           
-          if (isOverlayVisible && !document.getElementById('wp-overlay-timer')) {
+          if (currentIsOverlayVisible && !document.getElementById('wp-overlay-timer')) {
+            console.log("CONTENT.JS: BACKGROUND_STATE_UPDATE - Overlay should be visible but DOM element not found. Creating it.");
             createOverlayDOMIfNotExists(); 
           } else {
             const existingOverlay = document.getElementById('wp-overlay-timer');
             if (existingOverlay) {
-                existingOverlay.style.display = isOverlayVisible ? 'flex' : 'none';
+                console.log(`CONTENT.JS: BACKGROUND_STATE_UPDATE - Overlay DOM exists. Setting display to: ${currentIsOverlayVisible ? 'flex' : 'none'}`);
+                existingOverlay.style.display = currentIsOverlayVisible ? 'flex' : 'none';
             }
           }
-          updateOverlayDOM();
+          console.log("CONTENT.JS: BACKGROUND_STATE_UPDATE - Calling updateOverlayDOM() due to state update.");
+          updateOverlayDOM(); // Crucial call to refresh the overlay with all current states
           break;
         case 'SYNC_INITIAL_BG_STATE': // background로부터 초기 전체 상태 동기화 (신규 추가)
           console.log("CONTENT.JS: Received SYNC_INITIAL_BG_STATE", message.data);
-          isFetchingActive = message.data.isFetchingActive !== undefined ? message.data.isFetchingActive : isFetchingActive;
-          isOverlayVisible = message.data.isOverlayVisible !== undefined ? message.data.isOverlayVisible : isOverlayVisible;
-          overlayMode = message.data.overlayMode || overlayMode;
-          isGreenscreenActive = message.data.isGreenscreenActive !== undefined ? message.data.isGreenscreenActive : isGreenscreenActive;
+          currentIsFetchingActive = message.data.isFetchingActive !== undefined ? message.data.isFetchingActive : currentIsFetchingActive;
+          currentIsOverlayVisible = message.data.isOverlayVisible !== undefined ? message.data.isOverlayVisible : currentIsOverlayVisible;
+          currentOverlayMode = message.data.overlayMode || currentOverlayMode;
           console.log("CONTENT.JS: SYNC_INITIAL_BG_STATE - typeof message.data.timeDisplayMode:", typeof message.data.timeDisplayMode);
           console.log("CONTENT.JS: SYNC_INITIAL_BG_STATE - value of message.data.timeDisplayMode:", message.data.timeDisplayMode);
           currentTimeDisplayMode = message.data.timeDisplayMode || currentTimeDisplayMode;
           console.log("CONTENT.JS: SYNC_INITIAL_BG_STATE - currentTimeDisplayMode JUST SET TO:", currentTimeDisplayMode);
+          currentOverlayPositionSide = message.data.overlayPositionSide || currentOverlayPositionSide;
+          currentOverlayTheme = message.data.overlayTheme || currentOverlayTheme;
           if (message.data.lastVideoInfo !== undefined) { 
             currentVideoInfo = message.data.lastVideoInfo;
           }
           
-          if (isOverlayVisible && !document.getElementById('wp-overlay-timer')) {
+          if (currentIsOverlayVisible && !document.getElementById('wp-overlay-timer')) {
             createOverlayDOMIfNotExists(); 
           } else {
             const existingOverlay = document.getElementById('wp-overlay-timer');
             if (existingOverlay) {
-                existingOverlay.style.display = isOverlayVisible ? 'flex' : 'none';
+                existingOverlay.style.display = currentIsOverlayVisible ? 'flex' : 'none';
             }
           }
           updateOverlayDOM(); 

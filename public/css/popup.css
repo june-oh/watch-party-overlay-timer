@@ -1,34 +1,115 @@
 :root {
-  --button-default-bg: #2196F3; /* Default Blue */
-  --button-default-hover-brightness: 85%;
-  --button-active-bg: #4CAF50; /* Green */
+  /* --button-default-bg: #2196F3; */ /* Default Blue - REMOVED TO AVOID CONFLICTS */
+  /* --button-default-hover-brightness: 85%; */ /* REMOVED */
+  --button-active-bg: #4CAF50; /* Green - Keep for active state reference */
   --button-error-bg: #ff9800; /* Orange */
   --button-error-hover-bg: #fb8c00;
 
+  /* These seem specific and might be okay if still used by #toggleFetchingBtn and #toggleVisibilityBtn directly */
   --button-fetch-start-bg: #87CEEB; /* Light Sky Blue */
   --button-fetch-stop-bg: #ADD8E6; /* Lighter Blue */
-
   --button-visibility-show-bg: #90ee90; /* Light Green */
   --button-visibility-hide-bg: #32cd32; /* Lime Green */
   
-  --button-time-cycle-bg: #1565C0; /* Darker Blue for Time Cycle Button */
-  --button-time-cycle-hover-brightness: 85%;
+  /* --button-time-cycle-bg: #1565C0; */ /* Darker Blue for Time Cycle Button - REMOVED (old button) */
+  /* --button-time-cycle-hover-brightness: 85%; */ /* REMOVED */
 
   --text-color-light: white;
   --text-color-dark: #333;
   --popup-bg: #f9f9f9;
   --container-bg: #fff;
   --border-color: #eee;
+
+  /* Variables for new .controls button styling - for clarity */
+  --popup-button-default-bg: #f0f0f0; /* Light Grey for default buttons in .controls */
+  --popup-button-default-text: #333;   /* Dark Grey text for default buttons */
+  --popup-button-default-border: #ccc;
+  --popup-button-hover-bg: #e0e0e0;    /* Slightly darker grey on hover */
+
+  --popup-button-active-bg: #4CAF50;   /* Green for active buttons */
+  --popup-button-active-text: white;
+  --popup-button-active-border: #45a049;
 }
 
 body {
   font-family: sans-serif;
   width: 280px;
-  padding: 10px;
+  padding: 5px 10px;
   font-size: 13px;
   background-color: var(--popup-bg);
   color: var(--text-color-dark);
 }
+
+/* General button styles - Applied to all buttons unless overridden */
+button {
+  width: 100%;
+  padding: 6px;
+  margin-top: 4px;
+  border: 1px solid var(--popup-button-default-border, #ccc); /* Default border */
+  border-radius: 4px;
+  color: var(--popup-button-default-text, #333); /* Default text color */
+  background-color: var(--popup-button-default-bg, #f0f0f0); /* Default background */
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease-in-out, filter 0.2s ease-in-out;
+  box-sizing: border-box; /* Ensure padding and border are part of the width/height */
+}
+
+button:hover {
+  background-color: var(--popup-button-hover-bg, #e0e0e0);
+  filter: none; /* Remove brightness filter if general hover is background change */
+}
+
+
+/* Styles for buttons DIRECTLY inside .controls or .button-group */
+/* These will override the general button style if more specific or loaded later */
+.controls button,
+.button-group button {
+  background-color: var(--popup-button-default-bg); 
+  color: var(--popup-button-default-text);
+  border: 1px solid var(--popup-button-default-border);
+  margin-top: 3px;
+}
+
+.button-group button {
+  margin-top: 0; /* Buttons in a group have no top margin */
+  flex-grow: 1;
+}
+
+.controls button:hover,
+.button-group button:hover {
+  background-color: var(--popup-button-hover-bg);
+}
+
+/* Active button style - This should be the primary one used by JS */
+/* Applied to #toggleFetchingBtn, #toggleVisibilityBtn, and buttons in .button-group */
+button.active-button {
+  background-color: var(--popup-button-active-bg) !important; /* Green */
+  color: var(--popup-button-active-text) !important; /* White text */
+  border-color: var(--popup-button-active-border) !important; /* Darker green border */
+}
+
+/* Specific styles for Fetching/Visibility buttons if they differ beyond active/default */
+/* For example, if their non-active, non-hover states are unique colors */
+#toggleFetchingBtn {
+  /* Default state will use .controls button style (grey) */
+  /* Active state will use .active-button (green) */
+}
+
+#toggleVisibilityBtn {
+  /* Default state will use .controls button style (grey) */
+  /* Active state will use .active-button (green) */
+}
+
+/* Error state for any button */
+button.error {
+  background-color: var(--button-error-bg) !important;
+  color: var(--text-color-light) !important;
+}
+button.error:hover {
+  background-color: var(--button-error-hover-bg) !important;
+}
+
 
 .info-item {
   margin-bottom: 6px;
@@ -45,38 +126,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 2px 0;
-}
-
-button, .control-button /* Apply general button styles to .control-button class too */
-{
-  width: 100%;
-  padding: 8px;
-  margin-top: 8px;
-  border: none;
-  border-radius: 4px;
-  color: var(--text-color-light);
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s ease-in-out, filter 0.2s ease-in-out;
-}
-
-button:hover, .control-button:hover {
-  filter: brightness(var(--button-default-hover-brightness));
-}
-
-/* Generic Start/Stop button colors (not used by all, but as a fallback example if needed) */
-/* button.start { background-color: var(--button-active-bg); } */
-/* button.stop { background-color: #f44336; } */
-
-button.error,
-button.start.error,
-button.stop.error {
-  background-color: var(--button-error-bg);
-}
-button.error:hover,
-button.start.error:hover,
-button.stop.error:hover {
-  background-color: var(--button-error-hover-bg);
 }
 
 .status {
@@ -148,51 +197,31 @@ h3, h4 {
   text-shadow: 0px 0px 2px white;
 }
 
-/* Specific Button Styles using CSS Variables */
-#toggleFetchingBtn {
-  background-color: var(--button-fetch-start-bg);
-}
-#toggleFetchingBtn.stop {
-  background-color: var(--button-fetch-stop-bg);
-}
-#toggleFetchingBtn.error {
-   background-color: var(--button-error-bg);
-}
-
-#toggleVisibilityBtn {
-  background-color: var(--button-visibility-show-bg); 
-}
-#toggleVisibilityBtn.stop {
-  background-color: var(--button-visibility-hide-bg);
-}
-#toggleVisibilityBtn.error {
-    background-color: var(--button-error-bg);
-}
-
 /* Mode Buttons Default Styles */
 #setNormalModeBtn,
 #setCompactModeBtn,
-#toggleGreenscreenModeBtn {
-  background-color: var(--button-default-bg);
+#toggleGreenscreenModeBtn { /* This ID might be unused if greenscreen is part of theme select */
+  /* background-color: var(--button-default-bg); */ /* REMOVED - covered by .controls button */
 }
 
 /* Active Mode Button Style */
-button.active-mode {
-  background-color: var(--button-active-bg) !important; 
-}
+/* button.active-mode { */ /* REMOVED - Consolidated to .active-button */
+  /* background-color: var(--button-active-bg) !important; */ 
+/* } */
 
 /* Time Cycle Button */
 #cycleTimeDisplayModeBtn {
-  background-color: var(--button-time-cycle-bg);
+  /* background-color: var(--button-time-cycle-bg); */ /* REMOVED - Old button */
 }
-#cycleTimeDisplayModeBtn:hover {
-  filter: brightness(var(--button-time-cycle-hover-brightness));
-}
+/* #cycleTimeDisplayModeBtn:hover { */ /* REMOVED */
+  /* filter: brightness(var(--button-time-cycle-hover-brightness)); */
+/* } */
 
 .controls-section {
   margin-top: 15px;
   padding-top: 10px;
   border-top: 1px solid var(--border-color);
+  color: var(--popup-text-color, #333);
 }
 
 .thanks-section {
@@ -209,4 +238,114 @@ button.active-mode {
 .thanks-section strong {
     font-weight: normal;
     color: var(--text-color-dark);
-} 
+}
+
+/* 기본 컨테이너 및 제어 그룹 스타일 */
+body {
+  font-family: sans-serif;
+  width: 280px; /* 팝업 너비 고정 또는 필요에 따라 조절 */
+  padding: 5px 10px;
+  background-color: var(--popup-bg-color, #f9f9f9);
+  color: var(--popup-text-color, #333);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+h2 {
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 5px;
+  color: var(--popup-header-color, #1a73e8);
+}
+
+.status-section, .controls, .info-section, .thanks-section {
+  padding: 6px;
+  border: 1px solid var(--popup-border-color, #ddd);
+  border-radius: 4px;
+  background-color: var(--popup-section-bg-color, #fff);
+}
+
+/* Combined .controls button and select styles */
+.controls button,
+.controls select {
+  width: 100%;
+  padding: 6px;
+  margin-top: 3px;
+  box-sizing: border-box;
+  border: 1px solid var(--popup-button-default-border, #ccc); /* Use refined var */
+  border-radius: 3px;
+  background-color: var(--popup-button-default-bg, #f0f0f0); /* Use refined var */
+  color: var(--popup-button-default-text, #333); /* Use refined var */
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.controls button:hover,
+.controls select:hover /* Added select hover */ {
+  background-color: var(--popup-button-hover-bg, #e0e0e0); /* Use refined var */
+}
+
+/* 활성화된 버튼 스타일 - This is the primary active style */
+.controls button.active-button {
+  background-color: var(--popup-button-active-bg, #4CAF50); 
+  color: var(--popup-button-active-text, white);
+  border-color: var(--popup-button-active-border, #45a049);
+}
+
+.control-group {
+  margin-bottom: 5px;
+}
+
+.control-group label {
+  display: block;
+  margin-bottom: 3px;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+
+/* 버튼 그룹 (모드, 위치 변경용) */
+.button-group {
+  display: flex;
+  gap: 5px; /* 버튼 간 간격 */
+}
+
+.button-group button {
+  flex-grow: 1; /* 버튼들이 공간을 균등하게 차지하도록 */
+  margin-top: 0; /* 버튼 그룹 내에서는 상단 마진 제거 */
+}
+
+/* 드롭다운 메뉴 스타일 */
+.controls select {
+  background-color: var(--popup-select-bg-color, #fff);
+  /* 필요시 추가 스타일링 */
+}
+
+.info-section p, .thanks-section p {
+  margin: 5px 0;
+  font-size: 0.9em;
+}
+
+.info-section strong {
+  color: var(--popup-info-strong-color, #555);
+}
+
+.status-section strong {
+    font-weight: bold;
+}
+
+#statusText {
+    font-style: italic;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--popup-hr-color, #eee);
+  margin: 10px 0;
+}
+
+/* 기존의 .active-mode, .active 등은 .active-button 으로 통합 고려 */
+/* 예시: .active-mode를 .active-button으로 변경하거나, .active-mode 스타일을 .active-button에 맞게 조정 */ 

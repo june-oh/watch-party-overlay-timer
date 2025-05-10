@@ -1,133 +1,46 @@
 document.addEventListener('DOMContentLoaded', () => {
-  console.log("POPUP.JS: DOMContentLoaded, script running."); // 스크립트 시작 확인
-  // DOM 요소
-  const generalStatusEl = document.getElementById('generalStatus');
-  const episodeTitleEl = document.getElementById('videoTitle');
-  const seriesTitleEl = document.getElementById('videoSeries');
-  const timeInfoEl = document.getElementById('videoTime');
+  console.log("POPUP.JS: DOMContentLoaded, script running.");
+
+  // --- DOM Element References ---
+  // Status and Site Info
+  const statusTextEl = document.getElementById('statusText');
+  const currentSiteHostEl = document.getElementById('currentSiteHost');
+
+  // Main Toggles
   const toggleFetchingBtn = document.getElementById('toggleFetchingBtn');
   const toggleVisibilityBtn = document.getElementById('toggleVisibilityBtn');
+
+  // Mode Controls
   const setNormalModeBtn = document.getElementById('setNormalModeBtn');
   const setCompactModeBtn = document.getElementById('setCompactModeBtn');
-  const toggleGreenscreenModeBtn = document.getElementById('toggleGreenscreenModeBtn');
-  const currentSiteHostEl = document.getElementById('currentSiteHost'); // Added for current site host
-  const cycleTimeDisplayModeBtn = document.getElementById('cycleTimeDisplayModeBtn'); // Added for time display mode
-  
-  // 프리뷰 요소
-  const previewContainerEl = document.getElementById('previewContainer');
-  const previewTitleEl = document.getElementById('previewTitle');
-  const previewSeriesEl = document.getElementById('previewSeries');
-  const previewTimeEl = document.getElementById('previewTime');
-  
-  // 상태 변수
-  let currentIsFetchingActive = false;
-  let currentIsOverlayVisible = false;
-  let currentOverlayMode = 'normal';
-  let currentIsGreenscreenActive = false;
-  let currentTimeDisplayMode = 'current_duration'; // Default: show current/duration
-  let currentIsError = false;
-  let currentVideoInfo = null;
-  let currentActiveTabHostname = 'N/A'; // Added to store hostname
+  const currentOverlayModeLabel = document.getElementById('currentOverlayModeLabel');
 
-  // UI 업데이트 함수
-  function updatePopupUI(data) {
-    console.log("POPUP.JS: updatePopupUI called with data:", data); // UI 업데이트 함수 호출 및 데이터 확인
-    currentIsFetchingActive = data.isFetchingActive;
-    currentIsOverlayVisible = data.isOverlayVisible;
-    currentOverlayMode = data.overlayMode;
-    currentIsGreenscreenActive = data.isGreenscreenActive !== undefined ? data.isGreenscreenActive : currentIsGreenscreenActive;
-    currentTimeDisplayMode = data.timeDisplayMode || currentTimeDisplayMode; // Update time display mode
-    currentIsError = data.isError || false;
-    currentVideoInfo = data.lastVideoInfo;
-    currentActiveTabHostname = data.activeTabHostname || currentActiveTabHostname; // Update hostname, keep if not provided
-    
-    if (currentSiteHostEl) {
-      currentSiteHostEl.textContent = currentActiveTabHostname;
-    }
+  // Position Controls
+  const setPositionLeftBtn = document.getElementById('setPositionLeftBtn');
+  const setPositionRightBtn = document.getElementById('setPositionRightBtn');
+  const currentOverlayPositionLabel = document.getElementById('currentOverlayPositionLabel');
 
-    if (currentIsError) {
-      generalStatusEl.textContent = '오류! (새로고침 또는 탭 확인)';
-      generalStatusEl.className = 'status error';
-      toggleFetchingBtn.textContent = currentIsFetchingActive ? '정보 가져오기 중지 (오류)' : '정보 가져오기 시작 (오류)';
-      toggleFetchingBtn.className = currentIsFetchingActive ? 'stop error' : 'start error';
-    } else {
-      generalStatusEl.textContent = currentIsFetchingActive ? '정보 업데이트 중...' : '정보 가져오기 중지됨';
-      generalStatusEl.className = 'status';
-      toggleFetchingBtn.textContent = currentIsFetchingActive ? '정보 가져오기 중지' : '정보 가져오기 시작';
-      toggleFetchingBtn.className = currentIsFetchingActive ? 'stop' : 'start';
-    }
-    
-    toggleVisibilityBtn.textContent = currentIsOverlayVisible ? '오버레이 숨기기' : '오버레이 보이기';
-    toggleVisibilityBtn.className = currentIsOverlayVisible ? 'stop' : 'start';
-    
-    // Reset all mode button styles
-    const modeButtons = [setNormalModeBtn, setCompactModeBtn];
-    modeButtons.forEach(btn => {
-      if (btn) {
-        btn.classList.remove('active-mode');
-      }
-    });
+  // Time Display Controls
+  const selectTimeDisplay = document.getElementById('selectTimeDisplay');
+  const currentTimeDisplayModeLabel = document.getElementById('currentTimeDisplayModeLabel');
 
-    // Highlight the active mode button (Normal or Compact)
-    if (currentOverlayMode === 'normal' && setNormalModeBtn) {
-      setNormalModeBtn.classList.add('active-mode');
-    } else if (currentOverlayMode === 'compact' && setCompactModeBtn) {
-      setCompactModeBtn.classList.add('active-mode');
-    }
-    
-    // Highlight Greenscreen button based on its independent state
-    if (toggleGreenscreenModeBtn) {
-      if (currentIsGreenscreenActive) {
-        toggleGreenscreenModeBtn.classList.add('active-mode');
-      } else {
-        toggleGreenscreenModeBtn.classList.remove('active-mode');
-      }
-    }
-    
-    if(previewContainerEl) {
-        previewContainerEl.className = `preview ${currentOverlayMode}`;
-        if (currentIsGreenscreenActive) {
-            previewContainerEl.classList.add('greenscreen');
-        } else {
-            previewContainerEl.classList.remove('greenscreen');
-        }
-    }
-    
-    // 시간 형식 변경 버튼 텍스트 업데이트
-    if (cycleTimeDisplayModeBtn) {
-      let timeButtonText = '';
-      if (currentTimeDisplayMode === 'current_duration') {
-        timeButtonText = '현재 시간만 (예: 12:34)';
-      } else if (currentTimeDisplayMode === 'current_only') {
-        timeButtonText = '시간 숨김 (없음)';
-      } else { // 'none'
-        timeButtonText = '현재/전체시간 (예: 12:34 / 56:00)';
-      }
-      cycleTimeDisplayModeBtn.textContent = timeButtonText;
-    }
-    
-    if (currentVideoInfo) {
-      if(episodeTitleEl) episodeTitleEl.textContent = currentVideoInfo.episode || 'N/A';
-      if(seriesTitleEl) seriesTitleEl.textContent = currentVideoInfo.series || 'N/A';
-      const currentTime = formatTime(currentVideoInfo.currentSeconds);
-      const duration = formatTime(currentVideoInfo.durationSeconds);
-      if(timeInfoEl) timeInfoEl.textContent = `${currentTime} / ${duration}`;
-      
-      if(previewTitleEl) previewTitleEl.textContent = currentVideoInfo.episode || '에피소드 제목';
-      if(previewSeriesEl) previewSeriesEl.textContent = currentVideoInfo.series || '';
-      if(previewTimeEl) previewTimeEl.textContent = `${currentTime} / ${duration}`;
-    } else {
-      if(episodeTitleEl) episodeTitleEl.textContent = '-';
-      if(seriesTitleEl) seriesTitleEl.textContent = '-';
-      if(timeInfoEl) timeInfoEl.textContent = '-';
-      
-      if(previewTitleEl) previewTitleEl.textContent = '에피소드 제목';
-      if(previewSeriesEl) previewSeriesEl.textContent = '시리즈 제목';
-      if(previewTimeEl) previewTimeEl.textContent = '00:00 / 00:00';
-    }
-  }
+  // Theme Controls
+  const selectTheme = document.getElementById('selectTheme');
+  const currentOverlayThemeLabel = document.getElementById('currentOverlayThemeLabel');
+
+  // Video Info Display
+  const videoTitleEl = document.getElementById('videoTitle');
+  const videoSeriesEl = document.getElementById('videoSeries');
+  const videoTimeEl = document.getElementById('videoTime');
   
-  function formatTime(totalSeconds) { // Added formatTime if it's used by UI and not defined elsewhere
+  // Preview Elements (Optional - can be removed if preview is fully deprecated)
+  // const previewContainerEl = document.getElementById('previewContainer');
+  // const previewTitleEl = document.getElementById('previewTitle');
+  // const previewSeriesEl = document.getElementById('previewSeries');
+  // const previewTimeEl = document.getElementById('previewTime');
+
+  // --- Helper Functions ---
+  function formatTime(totalSeconds) {
     if (isNaN(totalSeconds) || totalSeconds < 0) return '--:--';
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -140,132 +53,254 @@ document.addEventListener('DOMContentLoaded', () => {
     return timeString;
   }
 
+  // --- UI Update Function ---
+  function updatePopupUI(data) {
+    console.log("POPUP.JS: updatePopupUI called with data:", JSON.parse(JSON.stringify(data)));
+    // Log the specific troublesome state value
+    console.log(`POPUP.JS: updatePopupUI - Received overlayPositionSide: ${data.overlayPositionSide}, overlayTheme: ${data.overlayTheme}, timeDisplayMode: ${data.timeDisplayMode}`);
+
+    const {
+      isFetchingActive,
+      isOverlayVisible,
+      overlayMode,
+      timeDisplayMode,
+      overlayPositionSide,
+      overlayTheme,
+      lastVideoInfo,
+      isError,
+      errorMessage,
+      activeTabHostname
+    } = data;
+
+    // 1. Update Status Text (General Status)
+    if (statusTextEl) {
+      if (isError) {
+        statusTextEl.textContent = `오류: ${errorMessage || '알 수 없는 오류'}`;
+        statusTextEl.style.color = 'red';
+      } else if (isFetchingActive) {
+        statusTextEl.textContent = lastVideoInfo ? '정보 업데이트 중...' : '정보 수집 대기 중...';
+        statusTextEl.style.color = 'green';
+      } else {
+        statusTextEl.textContent = '정보 수집 중지됨.';
+        statusTextEl.style.color = 'grey';
+      }
+    }
+
+    // 2. Update Current Site Host
+    if (currentSiteHostEl) {
+      currentSiteHostEl.textContent = activeTabHostname || 'N/A';
+    }
+    
+    // 3. Update Video Info Section
+    if (videoTitleEl) {
+      videoTitleEl.textContent = lastVideoInfo && lastVideoInfo.episode ? lastVideoInfo.episode : 'N/A';
+    }
+    if (videoSeriesEl) {
+      videoSeriesEl.textContent = lastVideoInfo && lastVideoInfo.series ? lastVideoInfo.series : 'N/A';
+    }
+    if (videoTimeEl) {
+      if (lastVideoInfo && lastVideoInfo.currentSeconds !== undefined && lastVideoInfo.durationSeconds !== undefined) {
+        const currentS = parseFloat(lastVideoInfo.currentSeconds);
+        const durationS = parseFloat(lastVideoInfo.durationSeconds);
+        if (timeDisplayMode === 'current_duration') {
+          videoTimeEl.textContent = `${formatTime(currentS)} / ${formatTime(durationS)}`;
+        } else if (timeDisplayMode === 'current_only') {
+          videoTimeEl.textContent = formatTime(currentS);
+        } else { // 'none'
+          videoTimeEl.textContent = '숨김';
+        }
+      } else {
+        videoTimeEl.textContent = 'N/A';
+      }
+    }
+
+    // 4. Update Toggle Buttons (Fetching, Visibility)
+    if (toggleFetchingBtn) {
+      toggleFetchingBtn.textContent = isFetchingActive ? '정보 수집 중지' : '정보 수집 시작';
+      toggleFetchingBtn.classList.toggle('active-button', isFetchingActive === true);
+    }
+    if (toggleVisibilityBtn) {
+      toggleVisibilityBtn.textContent = isOverlayVisible ? '오버레이 숨기기' : '오버레이 보이기';
+      toggleVisibilityBtn.classList.toggle('active-button', isOverlayVisible === true);
+    }
+    
+    // 5. Update Mode Controls (Buttons & Label)
+    if (setNormalModeBtn) {
+      setNormalModeBtn.classList.toggle('active-button', overlayMode === 'normal');
+    }
+    if (setCompactModeBtn) {
+      setCompactModeBtn.classList.toggle('active-button', overlayMode === 'compact');
+    }
+    if (currentOverlayModeLabel) {
+      currentOverlayModeLabel.textContent = overlayMode === 'normal' ? '일반' : '컴팩트';
+    }
+    
+    // 6. Update Position Controls (Buttons & Label)
+    if (setPositionLeftBtn) {
+      setPositionLeftBtn.classList.toggle('active-button', overlayPositionSide === 'left');
+    }
+    if (setPositionRightBtn) {
+      setPositionRightBtn.classList.toggle('active-button', overlayPositionSide === 'right');
+    }
+    if (currentOverlayPositionLabel) {
+      currentOverlayPositionLabel.textContent = overlayPositionSide === 'left' ? '왼쪽' : '오른쪽';
+    }
+
+    // 7. Update Time Display Controls (Dropdown & Label)
+    if (selectTimeDisplay) {
+      selectTimeDisplay.value = timeDisplayMode;
+    }
+    if (currentTimeDisplayModeLabel) {
+      let timeDisplayModeText = '현재/전체'; // Default for current_duration
+      if (timeDisplayMode === 'current_only') timeDisplayModeText = '현재 시간만';
+      else if (timeDisplayMode === 'none') timeDisplayModeText = '숨김';
+      currentTimeDisplayModeLabel.textContent = timeDisplayModeText;
+    }
+
+    // 8. Update Theme Controls (Dropdown & Label)
+    if (selectTheme) {
+      selectTheme.value = overlayTheme;
+    }
+    if (currentOverlayThemeLabel) {
+      let themeText = '라이트'; // Default for light
+      if (overlayTheme === 'dark') themeText = '다크';
+      else if (overlayTheme === 'greenscreen-white-text') themeText = '그린스크린 (흰 글씨)';
+      else if (overlayTheme === 'greenscreen-black-text') themeText = '그린스크린 (검은 글씨)';
+      currentOverlayThemeLabel.textContent = themeText;
+    }
+    
+    // 9. Preview update logic (If preview elements exist and are intended to be used)
+    // if(previewContainerEl && previewTitleEl && previewSeriesEl && previewTimeEl) {
+    //   previewContainerEl.className = 'preview'; 
+    //   if (overlayMode) previewContainerEl.classList.add(overlayMode);
+    //   if (overlayTheme && overlayTheme.startsWith('greenscreen')) {
+    //     previewContainerEl.classList.add('greenscreen-preview');
+    //   }
+    //   previewTitleEl.textContent = lastVideoInfo && lastVideoInfo.episode ? lastVideoInfo.episode : '에피소드 제목';
+    //   previewSeriesEl.textContent = lastVideoInfo && lastVideoInfo.series ? lastVideoInfo.series : '';
+    //   // ... (rest of preview time logic) ...
+    // }
+  }
+  
+  // --- Message Handling ---
   function handleResponse(response, type) {
     if (chrome.runtime.lastError) {
-      console.error(`Popup: Error in ${type}:`, chrome.runtime.lastError.message);
+      console.error(`POPUP.JS: Error in ${type}:`, chrome.runtime.lastError.message);
+      if (statusTextEl) {
+        statusTextEl.textContent = `오류 (${type}): ${chrome.runtime.lastError.message}`;
+        statusTextEl.style.color = 'red';
+      }
       return;
     }
     if (response && !response.success && response.error) {
-      console.warn(`Popup: Received non-success response for ${type}: ${response.error}`);
+      console.warn(`POPUP.JS: Received non-success response for ${type}: ${response.error}`);
+      if (statusTextEl) {
+        statusTextEl.textContent = `경고 (${type}): ${response.error}`;
+        statusTextEl.style.color = 'orange';
+      }
     }
+    // Background will send BACKGROUND_STATE_UPDATE, popup updates UI via that.
   }
   
-  // 오버레이 토글 버튼 클릭 핸들러
-  if(toggleFetchingBtn){ 
+  // --- Event Listeners ---
+  if (toggleFetchingBtn) {
     toggleFetchingBtn.addEventListener('click', () => {
-      console.log("POPUP.JS: toggleFetchingBtn clicked."); 
-      const action = currentIsFetchingActive ? 'stop' : 'start';
-      console.log(`POPUP.JS: Sending POPUP_TOGGLE_FETCHING with action: ${action}`); 
-      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_FETCHING', action: action }, (response) => {
+      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_FETCHING' }, (response) => {
         handleResponse(response, "POPUP_TOGGLE_FETCHING");
       });
     });
-  } else {
-    console.error("POPUP.JS: toggleFetchingBtn not found!");
   }
 
-  if(toggleVisibilityBtn){ 
+  if (toggleVisibilityBtn) {
     toggleVisibilityBtn.addEventListener('click', () => {
-      console.log("POPUP.JS: toggleVisibilityBtn clicked.");
-      const action = currentIsOverlayVisible ? 'hide' : 'show';
-      console.log(`POPUP.JS: Sending POPUP_TOGGLE_VISIBILITY with action: ${action}`);
-      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_VISIBILITY', action: action }, (response) => {
-          handleResponse(response, "POPUP_TOGGLE_VISIBILITY");
+      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_VISIBILITY' }, (response) => {
+        handleResponse(response, "POPUP_TOGGLE_VISIBILITY");
       });
     });
-  } else {
-      console.error("POPUP.JS: toggleVisibilityBtn not found!");
   }
   
-  // Event Listeners for new mode buttons
-  if(setNormalModeBtn) {
+  if (setNormalModeBtn) {
     setNormalModeBtn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_MODE', mode: 'normal' }, (response) => {
-        handleResponse(response, "POPUP_TOGGLE_MODE_NORMAL");
+      chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_MODE', mode: 'normal' }, (response) => {
+        handleResponse(response, "POPUP_SET_OVERLAY_MODE_NORMAL");
       });
     });
   }
 
-  if(setCompactModeBtn) {
+  if (setCompactModeBtn) {
     setCompactModeBtn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_MODE', mode: 'compact' }, (response) => {
-        handleResponse(response, "POPUP_TOGGLE_MODE_COMPACT");
+      chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_MODE', mode: 'compact' }, (response) => {
+        handleResponse(response, "POPUP_SET_OVERLAY_MODE_COMPACT");
+      });
+    });
+  }
+  
+  if (setPositionLeftBtn) {
+    setPositionLeftBtn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_POSITION', position: 'left' }, (response) => {
+        handleResponse(response, "POPUP_SET_OVERLAY_POSITION_LEFT");
       });
     });
   }
 
-  if(toggleGreenscreenModeBtn) {
-    toggleGreenscreenModeBtn.addEventListener('click', () => {
-      const newGreenscreenState = !currentIsGreenscreenActive;
-      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_GREENSCREEN', isActive: newGreenscreenState }, (response) => {
-        handleResponse(response, "POPUP_TOGGLE_GREENSCREEN");
+  if (setPositionRightBtn) {
+    setPositionRightBtn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_POSITION', position: 'right' }, (response) => {
+        handleResponse(response, "POPUP_SET_OVERLAY_POSITION_RIGHT");
+      });
+    });
+  }
+
+  if (selectTimeDisplay) {
+    selectTimeDisplay.addEventListener('change', (event) => {
+      chrome.runtime.sendMessage({ type: 'POPUP_SET_TIME_DISPLAY_MODE', mode: event.target.value }, (response) => {
+        handleResponse(response, "POPUP_SET_TIME_DISPLAY_MODE");
+      });
+    });
+  }
+
+  if (selectTheme) {
+    selectTheme.addEventListener('change', (event) => {
+      chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_THEME', theme: event.target.value }, (response) => {
+        handleResponse(response, "POPUP_SET_OVERLAY_THEME");
       });
     });
   }
   
-  if(cycleTimeDisplayModeBtn) {
-    cycleTimeDisplayModeBtn.addEventListener('click', () => {
-      console.log("POPUP.JS: cycleTimeDisplayModeBtn clicked.");
-      chrome.runtime.sendMessage({ type: 'POPUP_CYCLE_TIME_DISPLAY_MODE' }, (response) => {
-        handleResponse(response, "POPUP_CYCLE_TIME_DISPLAY_MODE");
-        // The UI (e.g., button text) might be updated via BACKGROUND_STATE_UPDATE if needed
-      });
-    });
-  }
-  
-  // 배경 스크립트로부터 상태 업데이트 받기
+  // --- Listener for Updates from Background ---
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'BACKGROUND_STATE_UPDATE') {
+      console.log("POPUP.JS: Received BACKGROUND_STATE_UPDATE from background:", JSON.parse(JSON.stringify(message.data)));
       updatePopupUI(message.data);
     }
-    return true;
+    sendResponse({ received: true }); 
+    return true; 
   });
   
-  // 초기 데이터 요청
-  console.log("POPUP.JS: Requesting GET_POPUP_INITIAL_DATA from background."); 
+  // --- Request Initial State ---
+  console.log("POPUP.JS: Requesting GET_POPUP_INITIAL_DATA from background.");
   chrome.runtime.sendMessage({ type: 'GET_POPUP_INITIAL_DATA' }, (response) => {
-    console.log("POPUP.JS: Received response for GET_POPUP_INITIAL_DATA:", response); // Log the raw response
-
     if (chrome.runtime.lastError) {
-      console.error('Popup: Error getting initial data:', chrome.runtime.lastError.message);
+      console.error('POPUP.JS: Error getting initial data:', chrome.runtime.lastError.message);
       updatePopupUI({ 
-        isFetchingActive: false, 
-        isOverlayVisible: false, 
-        overlayMode: 'normal', 
-        isGreenscreenActive: false,
-        lastVideoInfo: null, 
-        isError: true, 
-        activeTabHostname: 'Error retrieving host', // Show error for hostname
-        timeDisplayMode: 'current_duration' // Default on error
+        isFetchingActive: false, isOverlayVisible: false, overlayMode: 'normal', 
+        timeDisplayMode: 'current_duration', overlayPositionSide: 'right', overlayTheme: 'light',
+        lastVideoInfo: null, activeTabHostname: 'N/A',
+        isError: true, errorMessage: chrome.runtime.lastError.message
       });
       return;
     }
 
     if (response && typeof response === 'object') {
-      // Ensure all expected properties are at least defaulted if not present in response
-      // though background.js should always send them.
-      const dataToUpdate = {
-        isFetchingActive: response.isFetchingActive !== undefined ? response.isFetchingActive : false,
-        isOverlayVisible: response.isOverlayVisible !== undefined ? response.isOverlayVisible : false,
-        overlayMode: response.overlayMode || 'normal',
-        isGreenscreenActive: response.isGreenscreenActive !== undefined ? response.isGreenscreenActive : false,
-        timeDisplayMode: response.timeDisplayMode || 'current_duration', // Add timeDisplayMode
-        lastVideoInfo: response.lastVideoInfo || null,
-        isError: response.isError !== undefined ? response.isError : false, // Default to false if isError is missing
-        activeTabHostname: response.activeTabHostname || 'N/A' // Process hostname
-      };
-      updatePopupUI(dataToUpdate);
+      console.log("POPUP.JS: Received response for GET_POPUP_INITIAL_DATA:", JSON.parse(JSON.stringify(response)));
+      updatePopupUI(response);
     } else {
-      console.warn("POPUP.JS: No valid data object received from background for GET_POPUP_INITIAL_DATA. Response:", response);
+      console.warn("POPUP.JS: No valid data object received for GET_POPUP_INITIAL_DATA. Response:", response);
       updatePopupUI({ 
-        isFetchingActive: false, 
-        isOverlayVisible: false, 
-        overlayMode: 'normal', 
-        isGreenscreenActive: false,
-        lastVideoInfo: null, 
-        isError: true, // Treat as an error if response is not a valid object
-        activeTabHostname: 'Error retrieving host', // Show error for hostname
-        timeDisplayMode: 'current_duration' // Default on error
+        isFetchingActive: false, isOverlayVisible: false, overlayMode: 'normal', 
+        timeDisplayMode: 'current_duration', overlayPositionSide: 'right', overlayTheme: 'light',
+        lastVideoInfo: null, activeTabHostname: 'N/A',
+        isError: true, errorMessage: '초기 데이터 수신 실패'
       });
     }
   });

@@ -10,25 +10,47 @@
     <h2>Watch Party Overlay Timer</h2>
     
     <div class="status-section">
-      <strong>Status:</strong> <span id="generalStatus">Initializing...</span><br>
+      <strong>Status:</strong> <span id="statusText">Initializing...</span><br>
       <strong>Current Site:</strong> <span id="currentSiteHost">N/A</span>
     </div>
 
     <div class="controls">
-      <button id="toggleFetchingBtn">Start Info Fetching</button>
-      <button id="toggleVisibilityBtn">Show Overlay</button>
+      <button id="toggleFetchingBtn">정보 수집 시작</button>
+      <button id="toggleVisibilityBtn">오버레이 보이기</button>
       
-      <div style="display: flex; justify-content: space-between; margin-top: 5px;">
-        <button id="setNormalModeBtn" style="flex-grow: 1; margin-right: 2.5px;">Normal Mode</button>
-        <button id="setCompactModeBtn" style="flex-grow: 1; margin-left: 2.5px;">Compact Mode</button>
-      </div>
-      
-      <div style="margin-top: 5px;">
-        <button id="toggleGreenscreenModeBtn" style="width: 100%;">Greenscreen</button>
-      </div>
       <div class="control-group">
-        <label for="cycleTimeDisplayModeBtn">시간 표시 형식:</label>
-        <button id="cycleTimeDisplayModeBtn" class="control-button">로드 중...</button>
+        <label for="setNormalModeBtn">모드: <span id="currentOverlayModeLabel" class="label-value">(일반)</span></label>
+        <div class="button-group">
+          <button id="setNormalModeBtn" data-mode="normal">일반</button>
+          <button id="setCompactModeBtn" data-mode="compact">컴팩트</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label for="setPositionLeftBtn">위치: <span id="currentOverlayPositionLabel" class="label-value">(오른쪽)</span></label>
+        <div class="button-group">
+          <button id="setPositionLeftBtn" data-position="left">왼쪽</button>
+          <button id="setPositionRightBtn" data-position="right">오른쪽</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label for="selectTimeDisplay">시간 표시: <span id="currentTimeDisplayModeLabel" class="label-value">(현재/전체)</span></label>
+        <select id="selectTimeDisplay">
+          <option value="current_duration">현재/전체 시간</option>
+          <option value="current_only">현재 시간만</option>
+          <option value="none">숨김</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="selectTheme">테마: <span id="currentOverlayThemeLabel" class="label-value">(라이트)</span></label>
+        <select id="selectTheme">
+          <option value="light">라이트</option>
+          <option value="dark">다크</option>
+          <option value="greenscreen-white-text">그린스크린 (흰 글씨)</option>
+          <option value="greenscreen-black-text">그린스크린 (검은 글씨)</option>
+        </select>
       </div>
     </div>
 

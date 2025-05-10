@@ -1,62 +1,82 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Noto+Sans+Mono:wght@400;700&family=Open+Sans:wght@400;700&family=Roboto+Mono&display=swap');
 
 :root {
-  /* Overlay Container Variables */
+  /* Positioning */
   --wp-overlay-top: 8px;
   --wp-overlay-right: 8px;
-  /* --wp-overlay-width: 200px; /* REMOVED - Using auto width now */
-  --wp-overlay-max-width: 350px; /* NEW - Max width for the overlay */
-  --wp-overlay-min-width: 150px; /* NEW - Min width to prevent excessive shrinking */
-  --wp-overlay-bg-color: rgba(18, 18, 18, 0.8);
-  --wp-overlay-text-color: white;
-  --wp-overlay-padding: 5px 8px; /* Adjusted padding slightly */
-  --wp-overlay-border-radius: 8px;
-  --wp-overlay-font-family: 'Noto Sans KR', 'Open Sans', Arial, sans-serif;
-  /* New position offset variables */
   --wp-overlay-left: 8px;
-  --wp-overlay-bottom: 8px;
+  --wp-overlay-bottom: 8px; /* Not currently used for top positioning */
 
-  /* Series Text Variables */
+  /* Sizing */
+  --wp-overlay-max-width: 350px; 
+  --wp-overlay-min-width: 150px; 
+  --wp-overlay-padding: 5px 8px; 
+  --wp-overlay-border-radius: 8px;
+
+  /* Base Theme (Light by default) */
+  --wp-theme-bg: rgba(223, 223, 223, 0.80); /* Lighter and slightly more opaque */
+  --wp-theme-text: #151515; /* Darker text for better contrast on light bg */
+  --wp-theme-series-opacity: 0.8;
+  --wp-theme-hostname-opacity: 0.65;
+
+  /* Dark Theme Variables */
+  --wp-theme-dark-bg: rgba(28, 28, 30, 0.8); /* Darker and slightly more opaque */
+  --wp-theme-dark-text: #ffffff; /* Lighter text for dark bg */
+  --wp-theme-dark-series-opacity: 0.75;
+  --wp-theme-dark-hostname-opacity: 0.6;
+
+  /* Font Families & Sizes (remain mostly theme-agnostic) */
+  --wp-overlay-font-family: 'Arial', sans-serif;
   --wp-series-font-size: 10px;
-  --wp-series-opacity: 0.9;
-  --wp-series-margin-bottom: 2px;
-
-  /* Episode Text Variables */
   --wp-episode-font-size: 14px;
   --wp-episode-font-weight: bold;
-  --wp-episode-margin-bottom: 2px;
-
-  /* Time Text Variables */
   --wp-time-font-size: 16px;
   --wp-time-font-weight: bold;
-  --wp-time-font-family: 'Roboto Mono', 'Noto Sans Mono', 'Courier New', monospace;
-  --wp-time-margin-bottom : 2px;
+  --wp-time-font-family: "Azeret Mono", "Cutive Mono", "Nanum Gothic Coding", monospace;
+  
+  /* Margins (remain theme-agnostic) */
+  --wp-series-margin-bottom: 2px;
+  --wp-episode-margin-bottom: 2px;
+  --wp-time-margin-bottom : 2px; /* Currently applied via #wp-overlay-time-text-container indirectly */
 
-  /* Greenscreen Mode Variables */
+  /* Greenscreen Mode (Overrides themes) */
   --wp-greenscreen-bg-color: rgb(0, 177, 64);
-  --wp-greenscreen-border-color: rgb(0, 177, 64);
+  --wp-greenscreen-border-color: rgb(0, 177, 64); /* Kept for consistency */
   --wp-greenscreen-text-color: black;
   --wp-greenscreen-text-shadow: 0px 0px 2px white, 0px 0px 3px white, 0px 0px 4px white;
 
-  /* Compact Mode Specific Variables */
-  /* --wp-compact-overlay-width: calc(var(--wp-overlay-width) * 1.5); /* REMOVED - Using auto width */
-  --wp-compact-overlay-max-width: 300px; /* NEW - Max width for compact mode */
-  --wp-compact-overlay-min-width: 120px; /* NEW - Min width for compact mode */
+  /* Compact Mode Sizing */
+  --wp-compact-overlay-max-width: 300px; 
+  --wp-compact-overlay-min-width: 120px; 
 
-  --wp-overlay-default-height-approx: 60px; /* Approximate default height for calculation */
+  /* Light Theme Defaults (can be overridden by .theme-light or other theme classes) */
+  --wp-light-bg-color: rgba(20, 20, 20, 0.75);
+  --wp-light-text-color: #FFFFFF;
+  --wp-light-series-text-color: rgba(255, 255, 255, 0.7);
+  --wp-light-hostname-text-color: rgba(255, 255, 255, 0.6);
+
+  /* Dark Theme Defaults */
+  --wp-dark-bg-color: rgba(230, 230, 230, 0.85);
+  --wp-dark-text-color: #000000;
+  --wp-dark-series-text-color: rgba(0, 0, 0, 0.7);
+  --wp-dark-hostname-text-color: rgba(0, 0, 0, 0.6);
+  
+  /* Greenscreen Theme Variables - NEW */
+  --wp-greenscreen-bg: #00FF00;
+  --wp-greenscreen-text-color-light: #FFFFFF;
+  --wp-greenscreen-text-color-dark: #000000;
+  --wp-greenscreen-text-shadow-light: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  /* No specific shadow defined for dark text on green, assuming it has enough contrast */
+
+  /* Default overlay variables (will be set by theme classes) */
+  --wp-overlay-bg-color: var(--wp-light-bg-color); 
 }
 
 .wp-overlay-container {
   position: absolute;
-  top: var(--wp-overlay-top);
-  right: var(--wp-overlay-right);
-  left: auto; /* Default to right alignment */
-  bottom: auto; /* Default to top alignment */
-  width: auto; /* CHANGED from var(--wp-overlay-width) */
+  width: auto; 
   min-width: var(--wp-overlay-min-width);
   max-width: var(--wp-overlay-max-width);
-  background-color: var(--wp-overlay-bg-color);
-  color: var(--wp-overlay-text-color);
   padding: var(--wp-overlay-padding);
   border-radius: var(--wp-overlay-border-radius);
   z-index: 9999;
@@ -65,17 +85,51 @@
   user-select: none;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box; /* Add box-sizing */
+  box-sizing: border-box; 
+
+  /* Default to top-right positioning and light theme */
+  top: var(--wp-overlay-top);
+  right: var(--wp-overlay-right);
+  left: auto;
+  bottom: auto;
+  background-color: var(--wp-theme-bg); /* Uses light theme bg by default */
+  color: var(--wp-theme-text);       /* Uses light theme text by default */
 }
 
+/* Position Classes */
+.wp-overlay-container.position-left {
+  left: var(--wp-overlay-left);
+  right: auto;
+}
+.wp-overlay-container.position-right {
+  right: var(--wp-overlay-right);
+  left: auto;
+}
+
+/* Theme Classes - MODIFIED to use direct values */
+.wp-overlay-container.theme-dark {
+  background-color: rgba(28, 28, 30, 0.8); /* Direct value for --wp-theme-dark-bg */
+  color: #ffffff;                       /* Direct value for --wp-theme-dark-text */
+}
+.wp-overlay-container.theme-light {
+  background-color: rgba(223, 223, 223, 0.80); /* Direct value for --wp-theme-bg */
+  color: #151515;                            /* Direct value for --wp-theme-text */
+}
+
+/* Text Element Styling (Applied regardless of theme, color comes from container) */
 .wp-overlay-series-text {
   font-size: var(--wp-series-font-size);
-  opacity: var(--wp-series-opacity);
   margin-bottom: var(--wp-series-margin-bottom);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%; /* Ensure it doesn't overflow container */
+  max-width: 100%; 
+}
+.wp-overlay-container.theme-light .wp-overlay-series-text {
+  opacity: 0.8; /* Direct value for --wp-theme-series-opacity */
+}
+.wp-overlay-container.theme-dark .wp-overlay-series-text {
+  opacity: 0.75; /* Direct value for --wp-theme-dark-series-opacity */
 }
 
 .wp-overlay-episode-text {
@@ -85,70 +139,96 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%; /* Ensure it doesn't overflow container */
+  max-width: 100%; 
 }
 
-/* #wp-overlay-time-text is now #wp-overlay-time-text-container */
-
-/* NEW: Styles for the time and hostname container */
 #wp-overlay-time-text-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%; /* Ensure it takes full available width for space-between */
-  font-family: var(--wp-time-font-family);
-  font-size: var(--wp-time-font-size);
-  font-weight: var(--wp-time-font-weight);
-  /* Adding ellipsis support for time if it ever becomes too long, though unlikely with current format */
+  width: 100%; 
+  font-family: var(--wp-overlay-font-family);
+  font-size: var(--wp-series-font-size);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis; 
+  margin-bottom: var(--wp-time-margin-bottom); /* Added margin here */
 }
 
 #wp-overlay-actual-time {
-  /* Default alignment is left, which is fine */
-  /* Potentially add ellipsis here too if individual parts could be long */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis; 
 }
 
 #wp-overlay-hostname-display {
-  /* Default alignment is right due to space-between on parent */
   font-family: 'Noto Sans KR', var(--wp-overlay-font-family);
   font-size: calc(var(--wp-time-font-size) * 0.65);
-  opacity: 0.7;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis; 
-  padding-left: 5px; /* Add some space between time and hostname */
+  padding-left: 5px; 
+}
+.wp-overlay-container.theme-light #wp-overlay-hostname-display {
+  opacity: 0.65; /* Direct value for --wp-theme-hostname-opacity */
+}
+.wp-overlay-container.theme-dark #wp-overlay-hostname-display {
+  opacity: 0.6; /* Direct value for --wp-theme-dark-hostname-opacity */
 }
 
-/* Greenscreen Mode */
-.wp-overlay-container.greenscreen-active {
-  background-color: var(--wp-greenscreen-bg-color);
-  border: 1px solid var(--wp-greenscreen-border-color);
+/* Greenscreen Theme with Light Text - NEW */
+.wp-overlay-container.theme-greenscreen-white-text {
+  background-color: var(--wp-greenscreen-bg);
+  color: var(--wp-greenscreen-text-color-light);
+}
+.wp-overlay-container.theme-greenscreen-white-text .wp-text,
+.wp-overlay-container.theme-greenscreen-white-text .wp-title,
+.wp-overlay-container.theme-greenscreen-white-text .wp-series,
+.wp-overlay-container.theme-greenscreen-white-text .wp-time,
+.wp-overlay-container.theme-greenscreen-white-text .wp-hostname {
+  color: var(--wp-greenscreen-text-color-light); /* Ensure main text color is white */
+  text-shadow: var(--wp-greenscreen-text-shadow-light);
+}
+/* Opacity for series/hostname can be achieved by defining specific rgba colors or by an opacity property */
+.wp-overlay-container.theme-greenscreen-white-text .wp-series {
+  /* Example: If you want slight transparency for series on greenscreen */
+  /* color: rgba(255, 255, 255, 0.85); */ 
+}
+.wp-overlay-container.theme-greenscreen-white-text .wp-hostname {
+  /* Example: If you want slight transparency for hostname on greenscreen */
+  /* color: rgba(255, 255, 255, 0.75); */
 }
 
-.wp-overlay-container.greenscreen-active .wp-overlay-series-text,
-.wp-overlay-container.greenscreen-active .wp-overlay-episode-text,
-.wp-overlay-container.greenscreen-active #wp-overlay-time-text-container, /* Apply to container for children */
-.wp-overlay-container.greenscreen-active #wp-overlay-time-text-container #wp-overlay-actual-time,
-.wp-overlay-container.greenscreen-active #wp-overlay-time-text-container #wp-overlay-hostname-display {
-  color: var(--wp-greenscreen-text-color);
-  text-shadow: var(--wp-greenscreen-text-shadow);
+
+/* Greenscreen Theme with Dark Text - NEW */
+.wp-overlay-container.theme-greenscreen-black-text {
+  background-color: var(--wp-greenscreen-bg);
+  color: var(--wp-greenscreen-text-color-dark);
+}
+.wp-overlay-container.theme-greenscreen-black-text .wp-text,
+.wp-overlay-container.theme-greenscreen-black-text .wp-title,
+.wp-overlay-container.theme-greenscreen-black-text .wp-series,
+.wp-overlay-container.theme-greenscreen-black-text .wp-time,
+.wp-overlay-container.theme-greenscreen-black-text .wp-hostname {
+  color: var(--wp-greenscreen-text-color-dark); /* Ensure main text color is black */
+  text-shadow: none; /* Explicitly remove shadow if not needed for dark text */
+}
+.wp-overlay-container.theme-greenscreen-black-text .wp-series {
+  /* color: rgba(0, 0, 0, 0.85); */
+}
+.wp-overlay-container.theme-greenscreen-black-text .wp-hostname {
+  /* color: rgba(0, 0, 0, 0.75); */
 }
 
 /* Compact Mode Styles */
 .wp-overlay-container.compact {
   padding: 4px 8px;
-  width: auto; /* CHANGED */
   min-width: var(--wp-compact-overlay-min-width);
   max-width: var(--wp-compact-overlay-max-width);
 }
 
 .wp-overlay-compact-text-container {
-  display: flex; /* Added display flex */
+  display: flex; 
   justify-content: space-between;
   align-items: center;
   width: 100%;
@@ -166,23 +246,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin-right: 8px;
-  /* max-width: calc(100% - 80px); /* Example: Reserve space for time if time is shown */
 }
 
 .wp-overlay-compact-time {
   flex-shrink: 0;
   text-align: right;
-  font-family: var(--wp-time-font-family);
-  font-size: var(--wp-time-font-size);
-  font-weight: var(--wp-time-font-weight);
-  white-space: nowrap; /* Ensure time doesn't wrap */
+  font-family: var(--wp-overlay-font-family);
+  font-size: var(--wp-series-font-size);
+  white-space: nowrap; 
 }
 
-.wp-overlay-container.compact.greenscreen-active .wp-overlay-compact-text-container, /* Apply to container */
+.wp-overlay-container.compact.greenscreen-active .wp-overlay-compact-text-container, 
 .wp-overlay-container.compact.greenscreen-active .wp-overlay-compact-info,
 .wp-overlay-container.compact.greenscreen-active .wp-overlay-compact-time {
-  color: var(--wp-greenscreen-text-color);
+  color: var(--wp-greenscreen-text-color) !important;  /* Ensure override */
   text-shadow: var(--wp-greenscreen-text-shadow);
+  opacity: 1 !important; /* Ensure full opacity for greenscreen text */
 }
 
 /* Compact mode with no time */
@@ -193,13 +272,7 @@
 
 .wp-overlay-container.compact.compact-no-time .wp-overlay-compact-info {
   margin-right: 0; 
-  max-width: 100%; /* Allow full width if no time */
-}
-
-/* Left positioning */
-.wp-overlay-container.position-left {
-  right: auto;
-  left: var(--wp-overlay-left);
+  max-width: 100%; 
 }
 
 /* END OF FILE */ 

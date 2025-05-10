@@ -1,10 +1,10 @@
 // 전역 상태
 let isFetchingActive = false; // 정보 가져오기 활성화 상태 (초기값 false)
 let isOverlayVisible = false;  // 오버레이 화면 표시 상태 (초기값 false)
-let overlayMode = 'normal'; // 'normal', 'compact' (greenscreen은 별도 상태로 분리)
-let isGreenscreenActive = false; // 그린스크린 활성화 상태
-let currentTimeDisplayMode = 'current_duration'; // 'current_duration', 'current_only', 'none'
-let overlayPositionSide = 'right'; // Added: 'left' or 'right'
+let overlayMode = 'normal'; // 'normal', 'compact'
+let timeDisplayMode = 'current_duration'; // 'current_duration', 'current_only', 'none'
+let overlayPositionSide = 'right'; // 'left', 'right'
+let overlayTheme = 'light'; // 'light', 'dark', 'greenscreen-white-text', 'greenscreen-black-text'
 let lastVideoInfo = null;
 let currentTabId = null;
 let isError = false; // This global error should reflect persistent/serious issues
@@ -44,19 +44,21 @@ function updateActionIcon() {
   }
 }
 
-function sendStateToPopup() {
+function sendStateToPopup(tabId) {
+  const stateForPopup = {
+    isFetchingActive,
+    isOverlayVisible,
+    overlayMode,
+    timeDisplayMode,
+    overlayPositionSide,
+    overlayTheme,
+    lastVideoInfo,
+    activeTabHostname: currentHostname,
+    isError: isError
+  };
   chrome.runtime.sendMessage({
     type: 'BACKGROUND_STATE_UPDATE',
-    data: {
-      isFetchingActive: isFetchingActive,
-      isOverlayVisible: isOverlayVisible,
-      overlayMode: overlayMode, // 'normal', 'compact'
-      isGreenscreenActive: isGreenscreenActive, // 그린스크린 상태 추가
-      timeDisplayMode: currentTimeDisplayMode,
-      overlayPositionSide: overlayPositionSide, // Added
-      lastVideoInfo: lastVideoInfo,
-      isError: isError
-    }
+    data: stateForPopup
   }).catch(e => { /* 팝업이 열려있지 않으면 무시 */ });
 }
 
@@ -101,7 +103,7 @@ async function ensureContentScriptAndSendMessage(tabId, message) {
         console.error(`BG: ensureCS - Failed to inject CS or send message after injection to tab ${tabId}: ${injErrMsg}`, "Original message:", JSON.stringify(message));
         isError = true; // Injection failure is a more significant error
         updateActionIcon();
-        sendStateToPopup(); 
+        sendStateToPopup(tabId); 
         throw new Error(injErrMsg); // Propagate a new Error object
       }
     } else {
@@ -126,290 +128,274 @@ async function ensureContentScriptAndSendMessage(tabId, message) {
 // --- Message Handling ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
-    let responsePayload = { success: false, error: null, type: message.type + "_RESPONSE" };
-
-    if (message.type === 'POPUP_TOGGLE_FETCHING') {
-      const newFetchingState = message.action === 'start';
-      // console.log(`BG: POPUP_TOGGLE_FETCHING - Requested action: ${message.action}. New state will be: ${newFetchingState}`);
-      if (currentTabId) {
+    let responsePayload = { success: true, error: null, type: message.type + "_RESPONSE" };
+    // 중요: currentTabId가 설정되어 있는지 확인하고, 없으면 활성 탭에서 가져오려는 시도
+    if (!currentTabId && sender && sender.tab && sender.tab.id) {
+        currentTabId = sender.tab.id;
+        console.log(`BG: currentTabId was not set, updated from sender to: ${currentTabId}`);
+    } else if (!currentTabId) {
         try {
-          await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: message.action });
-          isFetchingActive = newFetchingState;
-          isError = false; // Successful toggle implies no current operational error for fetching
-          responsePayload.success = true;
-          responsePayload.isFetchingActive = isFetchingActive;
-        } catch (e) { 
-          responsePayload.error = e.message || "Failed to toggle fetching in content script";
-          console.error("BG: Error during POPUP_TOGGLE_FETCHING -> ensureContentScriptAndSendMessage:", responsePayload.error);
-          // isError might be set by ensureContentScriptAndSendMessage if injection failed.
-          // If it was just a send error, don't set global isError here.
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0] && tabs[0].id) {
+                currentTabId = tabs[0].id;
+                console.log(`BG: currentTabId was not set, updated from query to: ${currentTabId}`);
+            }
+        } catch (e) {
+            console.warn("BG: Failed to query active tab to set currentTabId", e.message);
         }
-      } else {
-        responsePayload.error = "No active tab to toggle fetching on";
-        console.warn("BG: POPUP_TOGGLE_FETCHING - currentTabId is not set.");
-        // isError = true; // Or perhaps not, if no tab is not a global error state
-      }
-      updateActionIcon();
-      sendStateToPopup(); 
-      sendResponse(responsePayload);
+    }
 
-    } else if (message.type === 'POPUP_TOGGLE_VISIBILITY') {
-      const newVisibilityState = message.action === 'show';
-      // console.log(`BG: POPUP_TOGGLE_VISIBILITY - Requested action: ${message.action}. New state will be: ${newVisibilityState}`);
-      if (currentTabId) {
-        try {
-          await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_VISIBILITY', action: message.action });
-          isOverlayVisible = newVisibilityState;
-          // isError state should not be affected by visibility toggle alone unless communication fails badly
-          responsePayload.success = true;
-          responsePayload.isOverlayVisible = isOverlayVisible;
-        } catch (e) { 
-          responsePayload.error = e.message || "Failed to toggle visibility in content script";
-          console.error("BG: Error during POPUP_TOGGLE_VISIBILITY -> ensureContentScriptAndSendMessage:", responsePayload.error);
-        }
-      } else {
-        responsePayload.error = "No active tab to toggle visibility on";
-        console.warn("BG: POPUP_TOGGLE_VISIBILITY - currentTabId is not set.");
-      }
-      updateActionIcon(); // Icon might change if visibility is part of its state logic (e.g. active vs inactive)
-      sendStateToPopup();
-      sendResponse(responsePayload);
-
-    } else if (message.type === 'POPUP_TOGGLE_MODE') {
-      const newMode = message.mode;
-      // 유효한 모드는 'normal', 'compact' 만 해당. greenscreen은 별도 처리.
-      if (newMode === 'normal' || newMode === 'compact') {
+    switch (message.type) {
+      case 'POPUP_TOGGLE_FETCHING':
+        isFetchingActive = !isFetchingActive; // 현재 상태를 반전
         if (currentTabId) {
           try {
-            await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_OVERLAY_MODE', mode: newMode });
-            overlayMode = newMode; // isGreenscreenActive 상태는 변경하지 않음
-            responsePayload.success = true;
-            responsePayload.overlayMode = overlayMode;
+            // content.js에 전달하는 action은 변경된 isFetchingActive 상태에 따름
+            await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: isFetchingActive ? 'start' : 'stop' });
+            isError = false; 
+            responsePayload.isFetchingActive = isFetchingActive;
           } catch (e) { 
-              responsePayload.error = e.message || "Failed to toggle mode in content script";
-              console.error("BG: Error during POPUP_TOGGLE_MODE -> ensureContentScriptAndSendMessage:", responsePayload.error);
+            responsePayload.success = false;
+            responsePayload.error = e.message || "Failed to toggle fetching in content script";
+            isFetchingActive = !isFetchingActive; // 실패 시 상태 원복
           }
         } else {
-          responsePayload.error = "No active tab to toggle mode on";
-          console.warn("BG: POPUP_TOGGLE_MODE - currentTabId is not set.");
+          responsePayload.success = false;
+          responsePayload.error = "No active tab to toggle fetching on";
+          isFetchingActive = !isFetchingActive; // 실패 시 상태 원복
         }
-      } else {
-        responsePayload.error = "Invalid overlay mode requested: " + newMode;
-        console.warn("BG: POPUP_TOGGLE_MODE - Invalid mode: ", newMode);
-      }
-      sendStateToPopup();
-      sendResponse(responsePayload);
+        break;
 
-    } else if (message.type === 'POPUP_TOGGLE_GREENSCREEN') { // 새 메시지 타입 핸들러
-      isGreenscreenActive = message.isActive;
-      if (currentTabId) {
-        try {
-          await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_GREENSCREEN_MODE', isActive: isGreenscreenActive });
-          responsePayload.success = true;
-        } catch (e) {
-          responsePayload.error = e.message || "Failed to toggle greenscreen in content script";
-          console.error("BG: Error during POPUP_TOGGLE_GREENSCREEN -> ensureContentScriptAndSendMessage:", responsePayload.error);
-        }
-      } else {
-        responsePayload.error = "No active tab to toggle greenscreen on";
-        console.warn("BG: POPUP_TOGGLE_GREENSCREEN - currentTabId is not set.");
-      }
-      // 아이콘 상태 변경은 그린스크린과 직접적인 관련이 없을 수 있으므로 updateActionIcon() 호출은 생략 가능
-      sendStateToPopup();
-      sendResponse(responsePayload);
-
-    } else if (message.type === 'POPUP_CYCLE_TIME_DISPLAY_MODE') {
-      // Cycle through a predefined order
-      if (currentTimeDisplayMode === 'current_duration') {
-        currentTimeDisplayMode = 'current_only';
-      } else if (currentTimeDisplayMode === 'current_only') {
-        currentTimeDisplayMode = 'none';
-      } else { // 'none'
-        currentTimeDisplayMode = 'current_duration';
-      }
-      responsePayload.success = true;
-      responsePayload.timeDisplayMode = currentTimeDisplayMode;
-
-      if (currentTabId) {
-        const globalStateForContent = {
-          isFetchingActive,
-          isOverlayVisible,
-          overlayMode,
-          isGreenscreenActive,
-          timeDisplayMode: currentTimeDisplayMode, // 변경된 값 및 키 이름 수정
-          // overlayPositionSide, // content.js는 이 값을 직접 사용하지 않음
-          lastVideoInfo, // content.js는 이 값을 BACKGROUND_STATE_UPDATE에서 사용함
-          isError // content.js는 이 값을 직접 사용하지 않지만, 일관성을 위해 포함 가능
-        };
-        ensureContentScriptAndSendMessage(currentTabId, { type: 'BACKGROUND_STATE_UPDATE', data: globalStateForContent })
-          .catch(e => console.warn(`BG: Error sending BACKGROUND_STATE_UPDATE to content script for time cycle: ${e.message}`));
-      }
-      sendStateToPopup(); 
-      sendResponse(responsePayload);
-
-    } else if (message.type === 'GET_POPUP_INITIAL_DATA') {
-      let contentStatus = {};
-      let csResponse;
-      let didInitialContentScriptCommunicationFail = false;
-
-      if (currentTabId) {
-        try {
-          csResponse = await ensureContentScriptAndSendMessage(currentTabId, { type: 'GET_CONTENT_STATUS' });
-          if (csResponse && typeof csResponse === 'object') contentStatus = csResponse; // Assuming csResponse is the direct status object
-          else didInitialContentScriptCommunicationFail = true;
-        } catch (error) {
-          console.warn(`BG: GET_POPUP_INITIAL_DATA - Error getting CS status from currentTabId ${currentTabId}: ${error.message}`);
-          didInitialContentScriptCommunicationFail = true;
-        }
-      } else {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs[0] && tabs[0].id) {
-          currentTabId = tabs[0].id;
+      case 'POPUP_TOGGLE_VISIBILITY':
+        isOverlayVisible = !isOverlayVisible; // 현재 상태를 반전
+        if (currentTabId) {
           try {
-            csResponse = await ensureContentScriptAndSendMessage(currentTabId, { type: 'GET_CONTENT_STATUS' });
-            if (csResponse && typeof csResponse === 'object') contentStatus = csResponse;
-            else didInitialContentScriptCommunicationFail = true;
-          } catch (e) {
-            console.warn(`BG: GET_POPUP_INITIAL_DATA - Error getting CS status from new tabId ${currentTabId}: ${e.message}`);
-            didInitialContentScriptCommunicationFail = true;
+            // content.js에 전달하는 action은 변경된 isOverlayVisible 상태에 따름
+            await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_VISIBILITY', action: isOverlayVisible ? 'show' : 'hide' });
+            responsePayload.isOverlayVisible = isOverlayVisible;
+          } catch (e) { 
+            responsePayload.success = false;
+            responsePayload.error = e.message || "Failed to toggle visibility in content script";
+            isOverlayVisible = !isOverlayVisible; // 실패 시 상태 원복
           }
         } else {
-          console.warn("BG: GET_POPUP_INITIAL_DATA - No active tab found.");
-          didInitialContentScriptCommunicationFail = true; // No tab to query is a form of communication failure for this purpose
+          responsePayload.success = false;
+          responsePayload.error = "No active tab to toggle visibility on";
+          isOverlayVisible = !isOverlayVisible; // 실패 시 상태 원복
         }
-      }
+        break;
 
-      // Fetch active tab hostname regardless of content script communication success
-      let activeTabHostname = 'N/A';
-      try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs && tabs.length > 0 && tabs[0] && tabs[0].url) {
-          activeTabHostname = new URL(tabs[0].url).hostname;
-        } else if (tabs && tabs.length > 0 && tabs[0] && !tabs[0].url) {
-            activeTabHostname = 'URL not available'; // E.g. chrome://extensions page
+      case 'POPUP_SET_OVERLAY_MODE': // 변경된 메시지 타입
+        if (['normal', 'compact'].includes(message.mode)) {
+          overlayMode = message.mode;
+          if (currentTabId) {
+            try {
+              await ensureContentScriptAndSendMessage(currentTabId, { type: 'SET_OVERLAY_MODE', mode: overlayMode });
+              responsePayload.overlayMode = overlayMode;
+            } catch (e) { 
+              responsePayload.success = false;
+              responsePayload.error = e.message || "Failed to set mode in content script";
+              // 참고: 이전 overlayMode로 상태 원복 로직은 복잡성을 야기할 수 있어 일단 생략
+            }
+          } else {
+            responsePayload.success = false;
+            responsePayload.error = "No active tab to set mode on";
+          }
         } else {
-            activeTabHostname = 'No active tab found';
+          responsePayload.success = false;
+          responsePayload.error = "Invalid overlay mode requested: " + message.mode;
         }
-      } catch (e) {
-        console.warn("BG: GET_POPUP_INITIAL_DATA - Error parsing URL for hostname", e);
-        activeTabHostname = 'Error fetching host';
-      }
+        break;
 
-      if (Object.keys(contentStatus).length > 0 && !didInitialContentScriptCommunicationFail) {
-        isFetchingActive = contentStatus.isFetching !== undefined ? contentStatus.isFetching : isFetchingActive;
-        isOverlayVisible = contentStatus.isVisible !== undefined ? contentStatus.isVisible : isOverlayVisible;
-        overlayMode = contentStatus.mode || overlayMode;
-        lastVideoInfo = contentStatus.videoInfo || lastVideoInfo;
-        // Only clear global isError if content script confirms it is NOT in an error state AND we successfully got info
-        // For now, let VIDEO_INFO_UPDATE be the main clearer of global isError.
-      } else {
-        // console.log("BG: GET_POPUP_INITIAL_DATA - No definitive CS status. Using current BG state for popup.");
-      }
+      case 'POPUP_SET_TIME_DISPLAY_MODE': // Renamed from POPUP_CYCLE_TIME_DISPLAY_MODE
+        if (['current_duration', 'current_only', 'none'].includes(message.mode)) {
+          timeDisplayMode = message.mode; // Directly set the mode
+          responsePayload.timeDisplayMode = timeDisplayMode;
+          // No direct message to content.js here; sendStateToAllConnectedScriptsAndPopup will handle it.
+        } else {
+          responsePayload.success = false;
+          responsePayload.error = "Invalid time display mode requested: " + message.mode;
+        }
+        break;
 
-      const initialData = {
-        isFetchingActive: isFetchingActive,
-        isOverlayVisible: isOverlayVisible,
-        overlayMode: overlayMode,
-        isGreenscreenActive: isGreenscreenActive, // 그린스크린 상태 추가
-        timeDisplayMode: currentTimeDisplayMode,
-        overlayPositionSide: overlayPositionSide, // Added
-        lastVideoInfo: lastVideoInfo || (contentStatus ? contentStatus.lastVideoInfo : null),
-        isError: didInitialContentScriptCommunicationFail, // Popup specific error for this attempt
-        activeTabHostname: activeTabHostname // Add hostname to the initial data
-      };
-      sendResponse(initialData);
+      case 'POPUP_SET_OVERLAY_POSITION': // Renamed from POPUP_TOGGLE_OVERLAY_POSITION
+        if (['left', 'right'].includes(message.position)) {
+          overlayPositionSide = message.position; // Directly set the position
+          responsePayload.overlayPositionSide = overlayPositionSide;
+          // No direct message to content.js here; sendStateToAllConnectedScriptsAndPopup will handle it.
+        } else {
+          responsePayload.success = false;
+          responsePayload.error = "Invalid overlay position requested: " + message.position;
+        }
+        break;
 
-    } else if (message.type === 'VIDEO_INFO_UPDATE') {
-      if (message.data) {
-        lastVideoInfo = message.data;
-        isError = false; // Successful info update means we are not in an error state from content script
-        updateActionIcon();
-        sendStateToPopup();
-        responsePayload.success = true;
-      } else if (message.error) {
-        console.warn("BG: VIDEO_INFO_UPDATE received an error state from content script: ", message.error);
-        isError = true; // Content script explicitly reported an error
-        lastVideoInfo = null;
-        updateActionIcon();
-        sendStateToPopup();
-        responsePayload.success = false; // Indicate failure due to content script error
-        responsePayload.error = message.error;
-      } else {
-        // This case should ideally not happen if content.js always sends data or error
-        console.warn("BG: VIDEO_INFO_UPDATE received without data or error field.");
+      case 'POPUP_SET_OVERLAY_THEME': // Renamed from POPUP_CYCLE_OVERLAY_THEME
+        if (['light', 'dark', 'greenscreen-white-text', 'greenscreen-black-text'].includes(message.theme)) {
+          overlayTheme = message.theme; // Directly set the theme
+          responsePayload.overlayTheme = overlayTheme;
+          // No direct message to content.js here; sendStateToAllConnectedScriptsAndPopup will handle it.
+        } else {
+          responsePayload.success = false;
+          responsePayload.error = "Invalid overlay theme requested: " + message.theme;
+        }
+        break;
+
+      case 'GET_POPUP_INITIAL_DATA':
+        // ... (기존 GET_POPUP_INITIAL_DATA 로직 유지,但 hostname 가져오는 부분은 sendStateToAllConnectedScriptsAndPopup 이전으로 이동) ...
+        // 이 핸들러는 마지막에 sendResponse(initialData)를 직접 호출하므로 아래 로직을 타지 않음
+        // 따라서 아래 sendStateToAllConnectedScriptsAndPopup는 호출되지 않도록 주의.
+        // 기존 로직:
+        let contentStatus = {};
+        let csResponse;
+        let didInitialContentScriptCommunicationFail = false;
+        let activeTabHostname = 'N/A'; // 먼저 초기화
+
+        if (currentTabId) {
+            try {
+                const tab = await chrome.tabs.get(currentTabId);
+                if (tab && tab.url) activeTabHostname = new URL(tab.url).hostname;
+            } catch (e) { console.warn("BG: Error getting hostname for currentTabId", e.message); }
+            try {
+                csResponse = await ensureContentScriptAndSendMessage(currentTabId, { type: 'GET_CONTENT_STATUS' });
+                if (csResponse && typeof csResponse === 'object') contentStatus = csResponse;
+                else didInitialContentScriptCommunicationFail = true;
+            } catch (error) {
+                didInitialContentScriptCommunicationFail = true;
+            }
+        } else {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0] && tabs[0].id) {
+                currentTabId = tabs[0].id;
+                if (tabs[0].url) activeTabHostname = new URL(tabs[0].url).hostname;
+                try {
+                    csResponse = await ensureContentScriptAndSendMessage(currentTabId, { type: 'GET_CONTENT_STATUS' });
+                    if (csResponse && typeof csResponse === 'object') contentStatus = csResponse;
+                    else didInitialContentScriptCommunicationFail = true;
+                } catch (e) {
+                    didInitialContentScriptCommunicationFail = true;
+                }
+            } else {
+                didInitialContentScriptCommunicationFail = true;
+            }
+        }
+
+        if (Object.keys(contentStatus).length > 0 && !didInitialContentScriptCommunicationFail) {
+            isFetchingActive = contentStatus.isFetchingActive !== undefined ? contentStatus.isFetchingActive : isFetchingActive;
+            isOverlayVisible = contentStatus.isOverlayVisible !== undefined ? contentStatus.isOverlayVisible : isOverlayVisible;
+            overlayMode = contentStatus.overlayMode || overlayMode;
+            timeDisplayMode = contentStatus.timeDisplayMode || timeDisplayMode; // CS로부터 받은 값으로 BG 상태 업데이트
+            overlayPositionSide = contentStatus.overlayPositionSide || overlayPositionSide;
+            overlayTheme = contentStatus.overlayTheme || overlayTheme;
+            lastVideoInfo = contentStatus.lastVideoInfo || lastVideoInfo;
+        }
+
+        const initialData = {
+            isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, 
+            overlayPositionSide, overlayTheme, lastVideoInfo,
+            isError: didInitialContentScriptCommunicationFail, 
+            activeTabHostname 
+        };
+        sendResponse(initialData);
+        return; // 여기서 종료하여 아래 sendStateToAllConnectedScriptsAndPopup 호출 방지
+
+      case 'VIDEO_INFO_UPDATE':
+        if (message.data) {
+          lastVideoInfo = message.data;
+          isError = false; 
+        } else if (message.error) {
+          isError = true; 
+          lastVideoInfo = null;
+          responsePayload.success = false;
+          responsePayload.error = message.error;
+        } else {
+          responsePayload.success = false;
+          responsePayload.error = "Malformed VIDEO_INFO_UPDATE";
+        }
+        break;
+
+      case 'CONTENT_SCRIPT_READY':
+        const tabIdForReady = sender.tab.id;
+        if(tabIdForReady) currentTabId = tabIdForReady;
+        // SYNC_INITIAL_BG_STATE를 content.js에 보내는 것은 sendStateToAllConnectedScriptsAndPopup에서 처리.
+        // isError = false; // 성공적인 통신 후 오류 상태 해제
+        break; // 아래 공통 로직으로 넘어감
+
+      default:
+        console.warn("BG: Received unknown message type:", message.type);
         responsePayload.success = false;
-        responsePayload.error = "Malformed VIDEO_INFO_UPDATE from content script";
-      }
-      sendResponse(responsePayload); 
-
-    } else if (message.type === 'CONTENT_SCRIPT_READY') {
-      const tabId = sender.tab.id;
-      if(tabId) currentTabId = tabId;
-      else console.warn("BG: CONTENT_SCRIPT_READY - sender.tab.id is undefined!");
-      
-      // console.log(`BG: CONTENT_SCRIPT_READY from tab: ${tabId}. Syncing initial state.`);
-      try {
-        if(tabId){
-            // Send current background state to the newly ready content script
-            // No need to await these if content script doesn't send a meaningful response for them.
-            ensureContentScriptAndSendMessage(tabId, { 
-                type: 'SYNC_INITIAL_BG_STATE', 
-                data: {
-                    isFetchingActive: isFetchingActive, 
-                    isOverlayVisible: isOverlayVisible, 
-                    overlayMode: overlayMode, 
-                    isGreenscreenActive: isGreenscreenActive,
-                    timeDisplayMode: currentTimeDisplayMode, 
-                    overlayPositionSide: overlayPositionSide,
-                    lastVideoInfo: lastVideoInfo
-                } 
-            });
-            isError = false; // Content script is ready and we sent sync, assume good for now
-            responsePayload.success = true; 
-        } else {
-            responsePayload.error = "No valid tabId for CONTENT_SCRIPT_READY sync";
-        }
-      } catch (e) { 
-        responsePayload.error = e.message || "Failed to sync state to content script after ready signal";
-        console.error(`BG: CONTENT_SCRIPT_READY - Error syncing state to tab ${tabId}:`, responsePayload.error);
-        // Potentially set isError = true here if sync is critical and fails
-      }
-      updateActionIcon();
-      sendStateToPopup();
-      // Content script doesn't typically need a response for CONTENT_SCRIPT_READY itself.
-      // If sendResponse is called here, ensure content.js isn't also trying to send one for this message.
-      // sendResponse(responsePayload); 
-
-    } else if (message.type === 'POPUP_CYCLE_OVERLAY_POSITION') { // New Handler
-      overlayPositionSide = overlayPositionSide === 'right' ? 'left' : 'right';
-      responsePayload.success = true;
-      responsePayload.newOverlayPositionSide = overlayPositionSide;
-
-      if (currentTabId) {
-        ensureContentScriptAndSendMessage(currentTabId, { 
-          type: 'SET_OVERLAY_POSITION_SIDE', 
-          positionSide: overlayPositionSide 
-        }).catch(e => console.warn("BG: Failed to send SET_OVERLAY_POSITION_SIDE to CS", e.message));
-      }
-      sendStateToPopup(); // Update popup with new position side
-      sendResponse(responsePayload);
-    } else {
-      console.warn("BG: Received unknown message type:", message.type);
-      responsePayload.success = false;
-      responsePayload.error = "Unknown message type in background";
-      sendResponse(responsePayload);
+        responsePayload.error = "Unknown message type in background";
+        sendResponse(responsePayload);
+        return; // 여기서 처리 종료
     }
+
+    updateActionIcon();
+    // 모든 상태 변경 후에는 연결된 모든 content script와 popup에 상태 전파
+    await sendStateToAllConnectedScriptsAndPopup();
+    sendResponse(responsePayload); // 최종 응답 전송
+
   })();
   return true; 
 });
+
+// 상태를 모든 활성 content script와 popup에 전파하는 함수
+async function sendStateToAllConnectedScriptsAndPopup() {
+  let currentActiveTabHostname = 'N/A';
+  if (currentTabId) {
+      try {
+          const tab = await chrome.tabs.get(currentTabId);
+          if (tab && tab.url) currentActiveTabHostname = new URL(tab.url).hostname;
+      } catch (e) { console.warn("BG: Error getting hostname for currentTabId in sendStateToAll", e.message); }
+  }
+
+  const stateForUpdate = {
+    isFetchingActive,
+    isOverlayVisible,
+    overlayMode,
+    timeDisplayMode,
+    overlayPositionSide,
+    overlayTheme,
+    lastVideoInfo,
+    activeTabHostname: currentActiveTabHostname, // 현재 활성 _탭_의 호스트네임
+    isError
+  };
+
+  // 1. 현재 활성 탭의 content script에 상태 전송 (가장 중요)
+  if (currentTabId) {
+    try {
+      // console.log(`BG: Sending BACKGROUND_STATE_UPDATE to currentTabId ${currentTabId}`);
+      await ensureContentScriptAndSendMessage(currentTabId, { type: 'BACKGROUND_STATE_UPDATE', data: stateForUpdate });
+    } catch (e) {
+      console.warn(`BG: Failed to send state to active content script (tab ${currentTabId}): ${e.message}`);
+    }
+  }
+
+  // 2. Popup으로 상태 전송 (Popup이 열려있을 경우)
+  try {
+    // console.log("BG: Sending BACKGROUND_STATE_UPDATE to popup.");
+    chrome.runtime.sendMessage({ type: 'BACKGROUND_STATE_UPDATE', data: stateForUpdate });
+  } catch(e) {
+    // 팝업이 열려있지 않으면 오류 발생, 무시
+    // console.log("BG: Popup not open or error sending state to popup.", e.message);
+  }
+
+  // 3. (선택적) 다른 활성 탭들의 content script에도 상태 전송 (만약 필요하다면)
+  // chrome.tabs.query({ active: false, status: 'complete' }, (tabs) => {
+  //   tabs.forEach((tab) => {
+  //     if (tab.id !== currentTabId && tab.url && (tab.url.startsWith('http:') || tab.url.startsWith('https://'))) {
+  //       ensureContentScriptAndSendMessage(tab.id, { type: 'BACKGROUND_STATE_UPDATE', data: { ...stateForUpdate, activeTabHostname: new URL(tab.url).hostname } })
+  //         .catch(e => console.warn(`BG: Failed to send state to inactive tab ${tab.id}: ${e.message}`));
+  //     }
+  //   });
+  // });
+}
 
 function initializeExtensionState() {
   isFetchingActive = false;
   isOverlayVisible = false;
   overlayMode = 'normal';
-  isGreenscreenActive = false; // 초기 상태 추가
-  currentTimeDisplayMode = 'current_duration';
-  overlayPositionSide = 'right'; // 제거 예정
+  timeDisplayMode = 'current_duration';
+  overlayPositionSide = 'right'; // NEW: Initialize
+  overlayTheme = 'light'; // NEW: Initialize
   lastVideoInfo = null;
   // currentTabId = null; // Best not to reset currentTabId on generic init, only on startup/install
   isError = false;
@@ -432,3 +418,76 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 initializeExtensionState();
 // console.log("Background Script Loaded and Initialized."); 
+
+// Global state
+let currentHostname = "N/A"; // Added for hostname tracking
+
+function sendStateToAllTabs(additionalData = {}) {
+  const state = {
+    isFetchingActive,
+    isOverlayVisible,
+    overlayMode,
+    timeDisplayMode,
+    overlayPositionSide,
+    overlayTheme,
+    lastVideoInfo,
+    activeTabHostname: currentHostname
+  };
+  state.isFetchingActive = state.isFetchingActive !== undefined ? state.isFetchingActive : isFetchingActive;
+  state.isOverlayVisible = state.isOverlayVisible !== undefined ? state.isOverlayVisible : isOverlayVisible;
+  state.overlayMode = state.overlayMode !== undefined ? state.overlayMode : overlayMode;
+  state.timeDisplayMode = state.timeDisplayMode !== undefined ? state.timeDisplayMode : timeDisplayMode;
+  state.overlayPositionSide = state.overlayPositionSide !== undefined ? state.overlayPositionSide : overlayPositionSide;
+  state.overlayTheme = state.overlayTheme !== undefined ? state.overlayTheme : overlayTheme;
+  state.lastVideoInfo = state.lastVideoInfo !== undefined ? state.lastVideoInfo : lastVideoInfo;
+  state.activeTabHostname = state.activeTabHostname !== undefined ? state.activeTabHostname : currentHostname;
+
+  chrome.tabs.query({}, (tabs) => {
+    tabs.forEach((tab) => {
+      if (tab.id !== currentTabId) {
+        sendStateToPopup(tab.id);
+      }
+    });
+  });
+}
+
+function saveStateToStorage() {
+  chrome.storage.local.set({
+    isFetchingActive,
+    isOverlayVisible,
+    overlayMode,
+    timeDisplayMode,
+    overlayPositionSide,
+    overlayTheme,
+    lastVideoInfo
+  });
+}
+
+function updateGlobalState(newState) {
+  isFetchingActive = newState.isFetchingActive !== undefined ? newState.isFetchingActive : isFetchingActive;
+  isOverlayVisible = newState.isOverlayVisible !== undefined ? newState.isOverlayVisible : isOverlayVisible;
+  overlayMode = newState.overlayMode !== undefined ? newState.overlayMode : overlayMode;
+  timeDisplayMode = newState.timeDisplayMode !== undefined ? newState.timeDisplayMode : timeDisplayMode;
+  overlayPositionSide = newState.overlayPositionSide !== undefined ? newState.overlayPositionSide : overlayPositionSide;
+  overlayTheme = newState.overlayTheme !== undefined ? newState.overlayTheme : overlayTheme;
+  lastVideoInfo = newState.lastVideoInfo !== undefined ? newState.lastVideoInfo : lastVideoInfo;
+
+  sendStateToAllTabs();
+  saveStateToStorage();
+}
+
+// Ensure currentHostname is updated when tabs change or update
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  currentTabId = activeInfo.tabId;
+  // console.log(`BG: Tab activated: ${currentTabId}. Updating states.`);
+  await sendStateToAllConnectedScriptsAndPopup(); // 활성 탭 변경 시 모든 곳에 상태 전파
+  updateActionIcon(); // 아이콘도 업데이트
+});
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (tabId === currentTabId && (changeInfo.status === 'complete' || changeInfo.url)) {
+    // console.log(`BG: Tab updated: ${tabId}, Status: ${changeInfo.status}, URL changed: ${!!changeInfo.url}. Updating states.`);
+    await sendStateToAllConnectedScriptsAndPopup(); // 현재 탭 업데이트 시 모든 곳에 상태 전파
+    updateActionIcon();
+  }
+}); 
