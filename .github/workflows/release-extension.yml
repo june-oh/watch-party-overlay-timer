@@ -64,29 +64,26 @@ jobs:
           TAG_NAME="${{ github.ref_name }}"
           CHANGELOG_VERSION_MARKER="[${TAG_NAME#v}]"
           echo "Generated CHANGELOG_VERSION_MARKER: ${CHANGELOG_VERSION_MARKER}"
+          
+          # awk에 전달할 전체 헤더 시작 문자열 (예: "## [1.0.0]")
+          AWK_MARKER_TEXT="## ${CHANGELOG_VERSION_MARKER}"
+          echo "AWK will search for lines starting with: ${AWK_MARKER_TEXT}"
 
           echo "--- First 10 lines of CHANGELOG.md ---"
           head -n 10 CHANGELOG.md
           echo "--- End of first 10 lines ---"
-
-          echo "Searching for lines starting with: '## ${CHANGELOG_VERSION_MARKER}'"
-          echo "--- Lines in CHANGELOG.md potentially matching header pattern ---"
-          grep "^## ${CHANGELOG_VERSION_MARKER}" CHANGELOG.md || echo "No lines found with grep for ^## ${CHANGELOG_VERSION_MARKER}"
-          # 이전 grep 패턴에서 [ ]가 쉘에 의해 해석되는 것을 방지하기 위해 따옴표 수정 및 변수 사용 방식 변경
-          # 정확한 패턴 매칭을 위해 grep -E (확장 정규식) 사용 및 패턴을 좀 더 명확히 함
-          EXPECTED_HEADER_PATTERN="^## \[${TAG_NAME#v}\]"
-          echo "Revised grep search for pattern: ${EXPECTED_HEADER_PATTERN}"
-          grep -E "${EXPECTED_HEADER_PATTERN}" CHANGELOG.md || echo "No lines found with revised grep for ${EXPECTED_HEADER_PATTERN}"
-          echo "--- End of grep output ---"
-
-          RAW_NOTES=$(awk -v marker="$CHANGELOG_VERSION_MARKER" '
-            $0 ~ ("^## " marker) { 
+          
+          RAW_NOTES=$(awk -v marker_text="${AWK_MARKER_TEXT}" '
+            # 현재 줄의 시작 부분이 marker_text 문자열과 일치하는지 확인
+            index($0, marker_text) == 1 { 
               in_section=1
               next 
             }
+            # 다음 섹션 헤더를 만나면 종료
             in_section && /^## / { 
               exit 
             }
+            # 현재 섹션에 속하는 내용이면 출력
             in_section { 
               print 
             }
@@ -103,7 +100,7 @@ jobs:
           echo "--- End of cleaned notes ---"
 
           if [ -z "$CLEANED_NOTES" ]; then
-            echo "Release notes for ${TAG_NAME} (looking for section starting with ''## ${CHANGELOG_VERSION_MARKER}'') not found or empty in CHANGELOG.md."
+            echo "Release notes for ${TAG_NAME} (looking for section starting with ''${AWK_MARKER_TEXT}'') not found or empty in CHANGELOG.md."
             echo "notes=See CHANGELOG.md for details." >> $GITHUB_OUTPUT
           else
             echo "Successfully extracted notes for ${TAG_NAME}."
