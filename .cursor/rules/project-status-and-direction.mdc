@@ -1,0 +1,79 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 프로젝트 개요 및 진행 방향: Watch Party Overlay Timer
+
+## 1. 알고 있어야 할 점 (현재 상태)
+
+### 1.1. 프로젝트 목표
+웹 브라우저에서 재생되는 비디오 위에 시간 및 사용자 정의 정보를 오버레이하여 OBS 등의 화면 캡처 프로그램에서 손쉽게 사용할 수 있도록 하는 브라우저 확장 프로그램 "Watch Party Overlay Timer"를 개발합니다.
+*   주요 설정 파일: [manifest.json](mdc:manifest.json)
+
+### 1.2. 주요 구현 기능
+*   **시간 및 제목 오버레이**: 현재 재생 시간, 전체 시간, 시리즈 제목, 에피소드 제목 등을 표시합니다.
+    *   관련 로직: [src/content.js](mdc:src/content.js)
+*   **다양한 오버레이 모드**:
+    *   일반 모드 (Normal): 시리즈, 에피소드, 시간, 현재 사이트 호스트 이름 표시.
+    *   컴팩트 모드 (Compact): 에피소드 제목과 현재 시간만 간결하게 표시.
+    *   그린스크린 모드 (Greenscreen): 크로마키 처리를 위한 녹색 배경 및 텍스트 외곽선.
+    *   관련 파일: [src/content.js](mdc:src/content.js) (모드별 DOM 조작), [public/css/overlay.css](mdc:public/css/overlay.css) (모드별 스타일)
+*   **오버레이 제어**:
+    *   정보 가져오기 시작/중지 토글.
+    *   오버레이 표시/숨기기 토글.
+    *   팝업 UI ([public/popup.html](mdc:public/popup.html), [src/popup.js](mdc:src/popup.js))를 통한 모든 기능 제어.
+*   **3단계 시간 표시 모드**: 사용자의 선택에 따라 다음 세 가지 형태로 시간 정보를 표시합니다.
+    1.  현재 시간 / 전체 시간
+    2.  현재 시간만
+    3.  시간 정보 숨김
+    *   관련 파일: [src/popup.js](mdc:src/popup.js), [src/background.js](mdc:src/background.js), [src/content.js](mdc:src/content.js)
+*   **오버레이 좌/우 위치 변경**: 오버레이를 화면 좌측 상단 또는 우측 상단으로 토글하여 위치시킵니다. (현재 CSS 수정 후 JS 로직으로 활성화 진행 중)
+    *   관련 파일: [public/popup.html](mdc:public/popup.html), [src/popup.js](mdc:src/popup.js), [src/background.js](mdc:src/background.js), [src/content.js](mdc:src/content.js), [public/css/overlay.css](mdc:public/css/overlay.css)
+
+### 1.3. 해결된 주요 버그
+*   **Laftel.net 제목 표시 문제**: Laftel 사이트에서 에피소드 및 시리즈 제목이 올바르게 표시되지 않던 문제 해결.
+    *   수정 파일: [src/content.js](mdc:src/content.js) (siteSelectors 업데이트)
+*   **chzzk.naver.com 초기 오류**: chzzk 사이트 접속 시 발생하던 권한 문제 및 VOD 제목 선택자 오류 해결.
+    *   수정 파일: [manifest.json](mdc:manifest.json) (호스트 권한 추가), [src/content.js](mdc:src/content.js) (siteSelectors 업데이트)
+
+### 1.4. 제거된 기능
+*   오버레이 텍스트 클립보드 복사 기능
+*   오버레이 모서리 상세 위치 선택 기능 (상/하/좌/우 조합)
+*   오버레이 내부 패딩(여백) 조절 기능
+*   세로 모드 (Vertical Mode)
+
+## 2. 알아야 할 점 (주요 파일 및 개념)
+
+### 2.1. 주요 파일 및 역할
+*   `[manifest.json](mdc:manifest.json)`: 확장 프로그램의 기본 설정 (이름, 버전, 설명), 필요한 권한 (scripting, tabs, 특정 호스트 등), 컨텐츠 스크립트가 실행될 사이트 목록 등을 정의합니다.
+*   `[public/popup.html](mdc:public/popup.html)`: 사용자가 확장 프로그램 아이콘을 클릭했을 때 나타나는 팝업 창의 HTML 구조를 정의합니다.
+*   `[src/popup.js](mdc:src/popup.js)`: 팝업 UI의 동작 로직을 담당합니다. 사용자 인터랙션(버튼 클릭 등)을 감지하고, `background.js`와 메시지를 주고받아 상태를 변경하거나 UI를 업데이트합니다.
+*   `[src/background.js](mdc:src/background.js)`: 확장 프로그램의 백그라운드에서 실행되며, 전역적인 상태(정보 가져오기 활성화 여부, 오버레이 표시 여부, 현재 오버레이 모드, 시간 표시 모드, 오버레이 위치 등)를 관리합니다. `content.js` 및 `popup.js`와 메시지를 통해 통신하며 상태 동기화를 담당합니다.
+*   `[src/content.js](mdc:src/content.js)`: `manifest.json`에 명시된 웹 페이지에 직접 삽입되어 실행됩니다. 페이지 내 DOM 요소에 접근하여 비디오 정보를 추출하고, 오버레이 UI를 생성 및 업데이트하며, `background.js`와 통신하여 상태를 동기화합니다.
+*   `[public/css/overlay.css](mdc:public/css/overlay.css)`: 웹 페이지에 표시되는 오버레이의 모든 시각적 스타일(색상, 폰트, 크기, 레이아웃 등)을 정의합니다.
+*   `[public/css/popup.css](mdc:public/css/popup.css)`: 팝업 UI의 스타일을 정의합니다.
+
+### 2.2. 상태 관리 흐름
+1.  **사용자 액션 (팝업)**: `popup.js`에서 버튼 클릭 등의 사용자 액션이 발생하면, `background.js`로 해당 액션에 대한 메시지를 전송합니다.
+2.  **상태 변경 (백그라운드)**: `background.js`는 메시지를 수신하여 내부 상태 변수(예: `isOverlayVisible`, `overlayMode`)를 변경합니다.
+3.  **상태 전파 (백그라운드 -> 컨텐츠/팝업)**: `background.js`는 변경된 상태를 `content.js`와 `popup.js`로 브로드캐스트하여 모든 부분이 최신 상태를 반영하도록 합니다.
+4.  **정보 업데이트 (컨텐츠 -> 백그라운드 -> 팝업)**: `content.js`가 주기적으로 비디오 정보를 가져와 변경 사항이 있으면 `background.js`로 전송하고, 이는 다시 `popup.js`로 전달되어 UI에 표시됩니다.
+
+### 2.3. 사이트별 설정
+`src/content.js` 내의 `siteSelectors` 객체를 통해 지원하는 각 스트리밍 사이트(Laftel, Chzzk 등)별로 에피소드 제목, 시리즈 제목, 현재 시간, 전체 시간 등을 가져오기 위한 CSS 선택자를 다르게 정의하여 관리합니다.
+
+## 3. 앞으로의 개발 방향
+
+*   **오버레이 좌/우 위치 변경 기능 안정화**: 현재 CSS(`[public/css/overlay.css](mdc:public/css/overlay.css)`)의 수동 수정이 필요하며, 이후 JavaScript 로직([src/popup.js](mdc:src/popup.js), [src/background.js](mdc:src/background.js), [src/content.js](mdc:src/content.js))을 통해 기능이 완전히 동작하도록 합니다.
+*   **시간 숨김 시 UI 최적화**: 오버레이의 시간 표시 모드가 'none' (숨김)으로 설정될 경우,
+    *   오버레이 내 텍스트(에피소드 제목 등)를 우측으로 정렬합니다.
+    *   오버레이 박스 크기를 현재 컴팩트 모드보다 더 작게 조절합니다. (정확한 수치는 사용자 피드백 후 결정)
+    *   관련 파일: [src/content.js](mdc:src/content.js), [public/css/overlay.css](mdc:public/css/overlay.css)
+*   **시간 표시 숫자 폰트 변경**:
+    *   사용자 요청 폰트: "Azeret Mono" 또는 "Cutive Mono", "Nanum Gothic Coding" 등.
+    *   `[public/css/overlay.css](mdc:public/css/overlay.css)` 파일 상단의 `@import` 규칙을 수정하여 웹 폰트를 추가하고, `--wp-time-font-family` CSS 변수의 값을 변경합니다.
+*   **"Special Thanks To" 섹션 문구 확인**: `[public/popup.html](mdc:public/popup.html)`에 "Created by RiceBerry" 문구가 이미 사용자에 의해 추가된 것으로 보입니다. 최종 확인.
+*   **팝업 내 프리뷰 기능 정리**: 현재 `[src/popup.js](mdc:src/popup.js)` 및 `[public/css/popup.css](mdc:public/css/popup.css)`에는 프리뷰 관련 코드가 있으나, `[public/popup.html](mdc:public/popup.html)`에는 해당 HTML 요소가 없습니다. 사용 의도를 명확히 하여 코드를 유지하거나 제거합니다.
+*   **잔여 코드 정리**: `src/content.js` 내에서 언급된 "minimal" 모드 등 현재 사용되지 않거나 정의되지 않은 기능 관련 코드를 정리합니다.
+

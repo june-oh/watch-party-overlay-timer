@@ -1,8 +1,9 @@
 // 전역 상태
 let isFetchingActive = false; // 정보 가져오기 활성화 상태 (초기값 false)
 let isOverlayVisible = false;  // 오버레이 화면 표시 상태 (초기값 false)
-let overlayMode = 'normal';
+let overlayMode = 'normal'; // 'normal', 'compact', 'greenscreen'
 let currentTimeDisplayMode = 'current_duration'; // 'current_duration', 'current_only', 'none'
+let overlayPositionSide = 'right'; // Added: 'left' or 'right'
 let lastVideoInfo = null;
 let currentTabId = null;
 let isError = false; // This global error should reflect persistent/serious issues
@@ -50,6 +51,7 @@ function sendStateToPopup() {
       isOverlayVisible: isOverlayVisible,
       overlayMode: overlayMode,
       timeDisplayMode: currentTimeDisplayMode, // Add time display mode
+      overlayPositionSide: overlayPositionSide, // Added
       lastVideoInfo: lastVideoInfo,
       isError: isError
     }
@@ -174,19 +176,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'POPUP_TOGGLE_MODE') {
       const newMode = message.mode;
       // console.log(`BG: POPUP_TOGGLE_MODE - Requested mode: ${newMode}`);
-      if (currentTabId) {
-        try {
-          await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_OVERLAY_MODE', mode: newMode });
-          overlayMode = newMode;
-          responsePayload.success = true;
-          responsePayload.overlayMode = overlayMode;
-        } catch (e) { 
-            responsePayload.error = e.message || "Failed to toggle mode in content script";
-            console.error("BG: Error during POPUP_TOGGLE_MODE -> ensureContentScriptAndSendMessage:", responsePayload.error);
+      // Ensure newMode is not 'vertical' as it's removed.
+      // Valid modes are 'normal', 'compact', 'greenscreen'
+      if (newMode === 'normal' || newMode === 'compact' || newMode === 'greenscreen') {
+        if (currentTabId) {
+          try {
+            await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_OVERLAY_MODE', mode: newMode });
+            overlayMode = newMode;
+            responsePayload.success = true;
+            responsePayload.overlayMode = overlayMode;
+          } catch (e) { 
+              responsePayload.error = e.message || "Failed to toggle mode in content script";
+              console.error("BG: Error during POPUP_TOGGLE_MODE -> ensureContentScriptAndSendMessage:", responsePayload.error);
+          }
+        } else {
+          responsePayload.error = "No active tab to toggle mode on";
+          console.warn("BG: POPUP_TOGGLE_MODE - currentTabId is not set.");
         }
       } else {
-        responsePayload.error = "No active tab to toggle mode on";
-        console.warn("BG: POPUP_TOGGLE_MODE - currentTabId is not set.");
+        responsePayload.error = "Invalid overlay mode requested: " + newMode;
+        console.warn("BG: POPUP_TOGGLE_MODE - Invalid mode: ", newMode);
       }
       sendStateToPopup();
       sendResponse(responsePayload);
@@ -255,6 +264,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         isOverlayVisible: isOverlayVisible,
         overlayMode: overlayMode,
         timeDisplayMode: currentTimeDisplayMode, // Add current time display mode
+        overlayPositionSide: overlayPositionSide, // Added
         lastVideoInfo: lastVideoInfo,
         isError: didInitialContentScriptCommunicationFail, // Popup specific error for this attempt
         activeTabHostname: activeTabHostname // Add hostname to the initial data
@@ -300,7 +310,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     isFetchingActive: isFetchingActive, 
                     isOverlayVisible: isOverlayVisible, 
                     overlayMode: overlayMode, // Ensure current overlayMode is sent
-                    timeDisplayMode: currentTimeDisplayMode // Send current time display mode
+                    timeDisplayMode: currentTimeDisplayMode, // Send current time display mode
+                    overlayPositionSide: overlayPositionSide // Added
                 } 
             });
             isError = false; // Content script is ready and we sent sync, assume good for now
@@ -339,6 +350,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       sendStateToPopup(); // Update popup with new mode
       sendResponse(responsePayload);
+    } else if (message.type === 'POPUP_CYCLE_OVERLAY_POSITION') { // New Handler
+      overlayPositionSide = overlayPositionSide === 'right' ? 'left' : 'right';
+      responsePayload.success = true;
+      responsePayload.newOverlayPositionSide = overlayPositionSide;
+
+      if (currentTabId) {
+        ensureContentScriptAndSendMessage(currentTabId, { 
+          type: 'SET_OVERLAY_POSITION_SIDE', 
+          positionSide: overlayPositionSide 
+        }).catch(e => console.warn("BG: Failed to send SET_OVERLAY_POSITION_SIDE to CS", e.message));
+      }
+      sendStateToPopup(); // Update popup with new position side
+      sendResponse(responsePayload);
     } else {
       console.warn("BG: Received unknown message type:", message.type);
       responsePayload.success = false;
@@ -354,6 +378,7 @@ function initializeExtensionState() {
   isOverlayVisible = false;
   overlayMode = 'normal'; // Default to normal mode
   currentTimeDisplayMode = 'current_duration'; // Default time display mode
+  overlayPositionSide = 'right'; // Added default
   lastVideoInfo = null;
   // currentTabId = null; // Best not to reset currentTabId on generic init, only on startup/install
   isError = false;

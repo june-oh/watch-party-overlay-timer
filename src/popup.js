@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const setNormalModeBtn = document.getElementById('setNormalModeBtn');
   const setCompactModeBtn = document.getElementById('setCompactModeBtn');
   const toggleGreenscreenModeBtn = document.getElementById('toggleGreenscreenModeBtn');
-  const setVerticalModeBtn = document.getElementById('setVerticalModeBtn');
+  const toggleOverlayPositionBtn = document.getElementById('toggleOverlayPositionBtn');
   const currentSiteHostEl = document.getElementById('currentSiteHost'); // Added for current site host
   const cycleTimeDisplayModeBtn = document.getElementById('cycleTimeDisplayModeBtn'); // Added for time display mode
   
@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentIsOverlayVisible = false;
   let currentOverlayMode = 'normal';
   let currentTimeDisplayMode = 'current_duration'; // Default: show current/duration
+  let currentOverlayPositionSide = 'right'; // Added: 'left' or 'right'
   let currentIsError = false;
   let currentVideoInfo = null;
   let currentActiveTabHostname = 'N/A'; // Added to store hostname
@@ -36,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentIsOverlayVisible = data.isOverlayVisible;
     currentOverlayMode = data.overlayMode;
     currentTimeDisplayMode = data.timeDisplayMode || currentTimeDisplayMode; // Update time display mode
+    currentOverlayPositionSide = data.overlayPositionSide || currentOverlayPositionSide; // Update position
     currentIsError = data.isError || false;
     currentVideoInfo = data.lastVideoInfo;
     currentActiveTabHostname = data.activeTabHostname || currentActiveTabHostname; // Update hostname, keep if not provided
@@ -60,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleVisibilityBtn.className = currentIsOverlayVisible ? 'stop' : 'start';
     
     // Reset all mode button styles
-    const modeButtons = [setNormalModeBtn, setCompactModeBtn, toggleGreenscreenModeBtn, setVerticalModeBtn];
+    const modeButtons = [setNormalModeBtn, setCompactModeBtn, toggleGreenscreenModeBtn];
     modeButtons.forEach(btn => {
       if (btn) {
         btn.classList.remove('active-mode');
@@ -76,8 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
       setCompactModeBtn.classList.add('active-mode');
     } else if (currentOverlayMode === 'greenscreen' && toggleGreenscreenModeBtn) {
       toggleGreenscreenModeBtn.classList.add('active-mode');
-    } else if (currentOverlayMode === 'vertical' && setVerticalModeBtn) {
-      setVerticalModeBtn.classList.add('active-mode');
     }
     
     if(previewContainerEl) previewContainerEl.className = `preview ${currentOverlayMode}`;
@@ -180,11 +180,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  if(setVerticalModeBtn){ 
-    setVerticalModeBtn.addEventListener('click', () => {
-      const newMode = currentOverlayMode === 'vertical' ? 'normal' : 'vertical';
-      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_MODE', mode: newMode }, (response) => {
-        handleResponse(response, "POPUP_TOGGLE_MODE_VERTICAL");
+  if(toggleOverlayPositionBtn) {
+    toggleOverlayPositionBtn.addEventListener('click', () => {
+      console.log("POPUP.JS: toggleOverlayPositionBtn clicked.");
+      chrome.runtime.sendMessage({ type: 'POPUP_CYCLE_OVERLAY_POSITION' }, (response) => {
+        handleResponse(response, "POPUP_CYCLE_OVERLAY_POSITION");
       });
     });
   }
@@ -218,6 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isFetchingActive: false, 
         isOverlayVisible: false, 
         overlayMode: 'normal', 
+        overlayPositionSide: 'right',
         lastVideoInfo: null, 
         isError: true, 
         activeTabHostname: 'Error retrieving host', // Show error for hostname
@@ -234,6 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isOverlayVisible: response.isOverlayVisible !== undefined ? response.isOverlayVisible : false,
         overlayMode: response.overlayMode || 'normal',
         timeDisplayMode: response.timeDisplayMode || 'current_duration', // Add timeDisplayMode
+        overlayPositionSide: response.overlayPositionSide || 'right', // Get position side
         lastVideoInfo: response.lastVideoInfo || null,
         isError: response.isError !== undefined ? response.isError : false, // Default to false if isError is missing
         activeTabHostname: response.activeTabHostname || 'N/A' // Process hostname
@@ -245,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isFetchingActive: false, 
         isOverlayVisible: false, 
         overlayMode: 'normal', 
+        overlayPositionSide: 'right',
         lastVideoInfo: null, 
         isError: true, // Treat as an error if response is not a valid object
         activeTabHostname: 'Error retrieving host', // Show error for hostname

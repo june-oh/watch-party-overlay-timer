@@ -25,7 +25,7 @@
   --wp-episode-margin-bottom: 2px;
 
   /* Time Text Variables */
-  --wp-time-font-size: 18px;
+  --wp-time-font-size: 16px;
   --wp-time-font-weight: bold;
   --wp-time-font-family: 'Roboto Mono', 'Noto Sans Mono', 'Courier New', monospace;
   --wp-time-margin-bottom : 2px;
@@ -39,11 +39,7 @@
   /* Compact Mode Specific Variables */
   --wp-compact-overlay-width: calc(var(--wp-overlay-width) * 1.5);
 
-  /* Vertical Mode Dimensions - TO BE REMOVED */
-  /* --wp-vertical-mode-width: var(--wp-compact-overlay-width); */
-  /* --wp-vertical-mode-height: var(--wp-overlay-width); */
-  /* --wp-vertical-mode-width: 60px; */
-  /* --wp-vertical-mode-height: 200px; */
+  /* Vertical Mode CSS Variables REMOVED */
 
   --wp-overlay-default-height-approx: 60px; /* Approximate default height for calculation */
 }
@@ -65,7 +61,6 @@
   user-select: none;
   display: flex;
   flex-direction: column;
-  /* text-shadow: var(--wp-greenscreen-text-shadow); -- This was incorrectly placed here */
 }
 
 .wp-overlay-series-text {
@@ -106,6 +101,7 @@
 }
 
 #wp-overlay-hostname-display {
+  /* Default alignment is right due to space-between on parent */
   font-family: 'Noto Sans KR', var(--wp-overlay-font-family);
   font-size: calc(var(--wp-time-font-size) * 0.65);
   opacity: 0.7;
@@ -127,8 +123,8 @@
 
 /* Compact Mode Styles */
 .wp-overlay-container.compact {
-  padding: 4px 8px;
-  width: var(--wp-compact-overlay-width);
+  padding: 4px 8px; 
+  width: var(--wp-compact-overlay-width); 
 }
 
 .wp-overlay-compact-text-container {
@@ -136,7 +132,7 @@
   align-items: center;
   width: 100%;
   font-family: var(--wp-overlay-font-family);
-  font-size: var(--wp-episode-font-size);
+  font-size: var(--wp-episode-font-size); 
 }
 
 .wp-overlay-compact-info {
@@ -145,17 +141,18 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-right: 8px;
+  margin-right: 8px; 
 }
 
 .wp-overlay-compact-time {
   flex-shrink: 0;
   text-align: right;
   font-family: var(--wp-time-font-family);
-  font-size: var(--wp-time-font-size);
+  font-size: var(--wp-time-font-size); 
   font-weight: var(--wp-time-font-weight);
 }
 
+/* Ensure compact mode text also respects greenscreen text color */
 .wp-overlay-container.compact.greenscreen .wp-overlay-compact-info,
 .wp-overlay-container.compact.greenscreen .wp-overlay-compact-time {
   color: var(--wp-greenscreen-text-color);
@@ -168,7 +165,7 @@
   left: var(--wp-overlay-left);
 }
 
-/* All .vertical styles have been removed */
+/* All styles related to Vertical Mode have been REMOVED. */
 
 /* NEW: Styles for the time and hostname container */
 #wp-overlay-time-text-container {
