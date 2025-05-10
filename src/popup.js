@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const setNormalModeBtn = document.getElementById('setNormalModeBtn');
   const setCompactModeBtn = document.getElementById('setCompactModeBtn');
   const toggleGreenscreenModeBtn = document.getElementById('toggleGreenscreenModeBtn');
-  const toggleOverlayPositionBtn = document.getElementById('toggleOverlayPositionBtn');
   const currentSiteHostEl = document.getElementById('currentSiteHost'); // Added for current site host
   const cycleTimeDisplayModeBtn = document.getElementById('cycleTimeDisplayModeBtn'); // Added for time display mode
   
@@ -24,8 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentIsFetchingActive = false;
   let currentIsOverlayVisible = false;
   let currentOverlayMode = 'normal';
+  let currentIsGreenscreenActive = false;
   let currentTimeDisplayMode = 'current_duration'; // Default: show current/duration
-  let currentOverlayPositionSide = 'right'; // Added: 'left' or 'right'
   let currentIsError = false;
   let currentVideoInfo = null;
   let currentActiveTabHostname = 'N/A'; // Added to store hostname
@@ -36,8 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
     currentIsFetchingActive = data.isFetchingActive;
     currentIsOverlayVisible = data.isOverlayVisible;
     currentOverlayMode = data.overlayMode;
+    currentIsGreenscreenActive = data.isGreenscreenActive !== undefined ? data.isGreenscreenActive : currentIsGreenscreenActive;
     currentTimeDisplayMode = data.timeDisplayMode || currentTimeDisplayMode; // Update time display mode
-    currentOverlayPositionSide = data.overlayPositionSide || currentOverlayPositionSide; // Update position
     currentIsError = data.isError || false;
     currentVideoInfo = data.lastVideoInfo;
     currentActiveTabHostname = data.activeTabHostname || currentActiveTabHostname; // Update hostname, keep if not provided
@@ -62,25 +61,50 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleVisibilityBtn.className = currentIsOverlayVisible ? 'stop' : 'start';
     
     // Reset all mode button styles
-    const modeButtons = [setNormalModeBtn, setCompactModeBtn, toggleGreenscreenModeBtn];
+    const modeButtons = [setNormalModeBtn, setCompactModeBtn];
     modeButtons.forEach(btn => {
       if (btn) {
         btn.classList.remove('active-mode');
-        // Reset to default button styling (handled by CSS general button rules or specific ID rules now)
-        // btn.style.backgroundColor = ''; // This line can be removed
       }
     });
 
-    // Highlight the active mode button by adding the class
+    // Highlight the active mode button (Normal or Compact)
     if (currentOverlayMode === 'normal' && setNormalModeBtn) {
       setNormalModeBtn.classList.add('active-mode');
     } else if (currentOverlayMode === 'compact' && setCompactModeBtn) {
       setCompactModeBtn.classList.add('active-mode');
-    } else if (currentOverlayMode === 'greenscreen' && toggleGreenscreenModeBtn) {
-      toggleGreenscreenModeBtn.classList.add('active-mode');
     }
     
-    if(previewContainerEl) previewContainerEl.className = `preview ${currentOverlayMode}`;
+    // Highlight Greenscreen button based on its independent state
+    if (toggleGreenscreenModeBtn) {
+      if (currentIsGreenscreenActive) {
+        toggleGreenscreenModeBtn.classList.add('active-mode');
+      } else {
+        toggleGreenscreenModeBtn.classList.remove('active-mode');
+      }
+    }
+    
+    if(previewContainerEl) {
+        previewContainerEl.className = `preview ${currentOverlayMode}`;
+        if (currentIsGreenscreenActive) {
+            previewContainerEl.classList.add('greenscreen');
+        } else {
+            previewContainerEl.classList.remove('greenscreen');
+        }
+    }
+    
+    // 시간 형식 변경 버튼 텍스트 업데이트
+    if (cycleTimeDisplayModeBtn) {
+      let timeButtonText = '';
+      if (currentTimeDisplayMode === 'current_duration') {
+        timeButtonText = '현재 시간만 (예: 12:34)';
+      } else if (currentTimeDisplayMode === 'current_only') {
+        timeButtonText = '시간 숨김 (없음)';
+      } else { // 'none'
+        timeButtonText = '현재/전체시간 (예: 12:34 / 56:00)';
+      }
+      cycleTimeDisplayModeBtn.textContent = timeButtonText;
+    }
     
     if (currentVideoInfo) {
       if(episodeTitleEl) episodeTitleEl.textContent = currentVideoInfo.episode || 'N/A';
@@ -172,19 +196,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if(toggleGreenscreenModeBtn) {
     toggleGreenscreenModeBtn.addEventListener('click', () => {
-      // Simple toggle: if not greenscreen, switch to it. If already greenscreen, switch to normal.
-      const newMode = currentOverlayMode === 'greenscreen' ? 'normal' : 'greenscreen';
-      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_MODE', mode: newMode }, (response) => {
-        handleResponse(response, "POPUP_TOGGLE_MODE_GREENSCREEN");
-      });
-    });
-  }
-  
-  if(toggleOverlayPositionBtn) {
-    toggleOverlayPositionBtn.addEventListener('click', () => {
-      console.log("POPUP.JS: toggleOverlayPositionBtn clicked.");
-      chrome.runtime.sendMessage({ type: 'POPUP_CYCLE_OVERLAY_POSITION' }, (response) => {
-        handleResponse(response, "POPUP_CYCLE_OVERLAY_POSITION");
+      const newGreenscreenState = !currentIsGreenscreenActive;
+      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_GREENSCREEN', isActive: newGreenscreenState }, (response) => {
+        handleResponse(response, "POPUP_TOGGLE_GREENSCREEN");
       });
     });
   }
@@ -218,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isFetchingActive: false, 
         isOverlayVisible: false, 
         overlayMode: 'normal', 
-        overlayPositionSide: 'right',
+        isGreenscreenActive: false,
         lastVideoInfo: null, 
         isError: true, 
         activeTabHostname: 'Error retrieving host', // Show error for hostname
@@ -234,8 +248,8 @@ document.addEventListener('DOMContentLoaded', () => {
         isFetchingActive: response.isFetchingActive !== undefined ? response.isFetchingActive : false,
         isOverlayVisible: response.isOverlayVisible !== undefined ? response.isOverlayVisible : false,
         overlayMode: response.overlayMode || 'normal',
+        isGreenscreenActive: response.isGreenscreenActive !== undefined ? response.isGreenscreenActive : false,
         timeDisplayMode: response.timeDisplayMode || 'current_duration', // Add timeDisplayMode
-        overlayPositionSide: response.overlayPositionSide || 'right', // Get position side
         lastVideoInfo: response.lastVideoInfo || null,
         isError: response.isError !== undefined ? response.isError : false, // Default to false if isError is missing
         activeTabHostname: response.activeTabHostname || 'N/A' // Process hostname
@@ -247,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isFetchingActive: false, 
         isOverlayVisible: false, 
         overlayMode: 'normal', 
-        overlayPositionSide: 'right',
+        isGreenscreenActive: false,
         lastVideoInfo: null, 
         isError: true, // Treat as an error if response is not a valid object
         activeTabHostname: 'Error retrieving host', // Show error for hostname

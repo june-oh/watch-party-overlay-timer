@@ -12,10 +12,10 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     let isOverlayVisible = false;
     let overlayContainer = null;
     let overlayMode = 'normal';
+    let isGreenscreenActive = false;
     let currentVideoInfo = null;
     let isContextInvalidated = false;
     let currentTimeDisplayMode = 'current_duration';
-    let currentOverlayPositionSide = 'right';
 
     // Define selectors for different sites
     const siteSelectors = {
@@ -201,6 +201,15 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       if (checkAndHandleInvalidatedContext("createOverlayDOMIfNotExists")) return;
       if (document.getElementById('wp-overlay-timer')) {
         overlayContainer = document.getElementById('wp-overlay-timer');
+        // 초기 클래스 설정 (모드 및 그린스크린 상태 반영)
+        overlayContainer.classList.remove('normal-mode', 'compact-mode', 'greenscreen-mode', 'greenscreen-active');
+        if (overlayMode === 'compact') {
+          overlayContainer.classList.add('compact-mode');
+        } else {
+          overlayContainer.classList.add('normal-mode');
+        }
+        overlayContainer.classList.toggle('greenscreen-active', isGreenscreenActive);
+        overlayContainer.classList.toggle('compact-no-time', overlayMode === 'compact' && currentTimeDisplayMode === 'none');
         updateOverlayDOM(); 
         return;
       }
@@ -268,6 +277,13 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           targetParent.style.position = 'relative';
         }
         targetParent.appendChild(overlayContainer);
+        // Verify append and log initial display style
+        if (targetParent.contains(overlayContainer)) {
+            console.log("CONTENT.JS: createOverlayDOMIfNotExists - Overlay successfully appended to target parent:", targetParent);
+            console.log("CONTENT.JS: createOverlayDOMIfNotExists - Overlay display style after append (should be empty or set by CSS initially, then by updateOverlayDOM):", window.getComputedStyle(overlayContainer).display);
+        } else {
+            console.error("CONTENT.JS: createOverlayDOMIfNotExists - Failed to append overlay to target parent or overlay not found in parent!");
+        }
         updateOverlayDOM();
       } else {
         console.error("CONTENT.JS: createOverlayDOMIfNotExists - Suitable target parent not found.");
@@ -279,182 +295,129 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       const currentOverlayElement = document.getElementById('wp-overlay-timer');
 
       if (!currentOverlayElement) {
-          if (isOverlayVisible && !isContextInvalidated) { // Only try to recreate if supposed to be visible and context is OK
+          if (isOverlayVisible && !isContextInvalidated) {
              console.error("CONTENT.JS: updateOverlayDOM - Overlay element missing! Attempting to recreate.");
              createOverlayDOMIfNotExists(); 
-             // After recreation, overlayContainer might be updated, re-query
              const newOverlayElement = document.getElementById('wp-overlay-timer');
              if(newOverlayElement) {
                 overlayContainer = newOverlayElement;
-                newOverlayElement.style.display = 'block';
-                // (rest of info population logic as before)
-                const infoToDisplay = currentVideoInfo; 
-                if (infoToDisplay) {
-                    const seriesEl = newOverlayElement.querySelector('#wp-overlay-series-text');
-                    const episodeEl = newOverlayElement.querySelector('#wp-overlay-episode-text');
-                    const timeContainerEl = newOverlayElement.querySelector('#wp-overlay-time-text-container');
-                    const actualTimeSpanEl = newOverlayElement.querySelector('#wp-overlay-actual-time');
-                    const hostnameSpanEl = newOverlayElement.querySelector('#wp-overlay-hostname-display');
-                    if(seriesEl) seriesEl.textContent = infoToDisplay.series || '';
-                    if(episodeEl) episodeEl.textContent = infoToDisplay.episode || infoToDisplay.title || 'N/A';
-                    if(timeContainerEl) {
-                        const currentS = parseFloat(infoToDisplay.currentSeconds);
-                        const durationS = parseFloat(infoToDisplay.durationSeconds);
-                        actualTimeSpanEl.textContent = `${formatTime(currentS)} / ${formatTime(durationS)}`;
-                    }
-                    if (overlayMode === 'normal' && hostnameSpanEl) {
-                        const currentHostname = window.location.hostname;
-                        let displayHostname = 'N/A';
-                        if (currentHostname) {
-                            try {
-                                displayHostname = currentHostname.toUpperCase().replace('WWW.', '').split('.')[0];
-                            } catch (e) {
-                                console.warn("CONTENT.JS: Error formatting hostname", e);
-                                displayHostname = 'HOST_ERR';
-                            }
-                        }
-                        hostnameSpanEl.textContent = displayHostname;
-                        hostnameSpanEl.style.display = 'inline';
-                    } else if (hostnameSpanEl) {
-                        hostnameSpanEl.textContent = '';
-                        hostnameSpanEl.style.display = 'none';
-                    }
-                }
              } else {
-                console.warn("CONTENT.JS: updateOverlayDOM - Failed to recreate overlay.");
+                console.warn("CONTENT.JS: updateOverlayDOM - Failed to recreate overlay, cannot update.");
+                return;
              }
+          } else {
+            return; 
           }
-          return;
       }
       if (overlayContainer !== currentOverlayElement) overlayContainer = currentOverlayElement;
 
-      const expectedDisplay = isOverlayVisible ? 'block' : 'none';
-      currentOverlayElement.style.display = expectedDisplay;
+      console.log(`CONTENT.JS: updateOverlayDOM START - Mode: ${overlayMode}, TimeDisplay: ${currentTimeDisplayMode}, Green: ${isGreenscreenActive}, Visible: ${isOverlayVisible}, Fetching: ${isFetchingActive}, Info: ${currentVideoInfo ? JSON.stringify(currentVideoInfo) : 'null'}`);
 
-      // Restore default position based on CSS (or set explicitly if needed later)
-      currentOverlayElement.style.top = 'var(--wp-overlay-top)';
-      currentOverlayElement.style.right = 'var(--wp-overlay-right)';
-      currentOverlayElement.style.bottom = 'auto';
-      currentOverlayElement.style.left = 'auto';
+      overlayContainer.style.display = isOverlayVisible ? 'flex' : 'none';
+      if (!isOverlayVisible) return;
 
-      // Restore default padding based on CSS
-      currentOverlayElement.style.padding = 'var(--wp-overlay-padding)';
-
-      let baseClassName = 'wp-overlay-container';
-      if (overlayMode === 'greenscreen') baseClassName += ' greenscreen';
-      else if (overlayMode === 'minimal') baseClassName += ' minimal';
-      else if (overlayMode === 'compact') baseClassName += ' compact';
-      else if (overlayMode === 'vertical') baseClassName += ' vertical';
-      if (currentOverlayPositionSide === 'left') {
-        baseClassName += ' position-left';
+      overlayContainer.classList.remove('normal-mode', 'compact-mode', 'greenscreen-active', 'compact-no-time');
+      
+      if (overlayMode === 'compact') {
+        overlayContainer.classList.add('compact-mode');
+        if (currentTimeDisplayMode === 'none') {
+          overlayContainer.classList.add('compact-no-time');
+        }
+      } else { 
+        overlayContainer.classList.add('normal-mode');
       }
-      if (currentOverlayElement.className !== baseClassName) currentOverlayElement.className = baseClassName;
+      
+      if (isGreenscreenActive) {
+        overlayContainer.classList.add('greenscreen-active');
+      }
 
       const infoToDisplay = currentVideoInfo;
-      if (infoToDisplay) {
-        const seriesEl = currentOverlayElement.querySelector('#wp-overlay-series-text');
-        const episodeEl = currentOverlayElement.querySelector('#wp-overlay-episode-text');
-        const timeContainerEl = currentOverlayElement.querySelector('#wp-overlay-time-text-container');
-        const actualTimeSpanEl = currentOverlayElement.querySelector('#wp-overlay-actual-time');
-        const hostnameSpanEl = currentOverlayElement.querySelector('#wp-overlay-hostname-display');
-        const compactContainerEl = currentOverlayElement.querySelector('#wp-overlay-compact-text-container');
-        const compactInfoSpanEl = currentOverlayElement.querySelector('#wp-overlay-compact-info');
-        const compactTimeSpanEl = currentOverlayElement.querySelector('#wp-overlay-compact-time');
+      const seriesEl = overlayContainer.querySelector('#wp-overlay-series-text');
+      const episodeEl = overlayContainer.querySelector('#wp-overlay-episode-text');
+      const timeContainerEl = overlayContainer.querySelector('#wp-overlay-time-text-container');
+      const actualTimeSpanEl = overlayContainer.querySelector('#wp-overlay-actual-time');
+      const hostnameSpanEl = overlayContainer.querySelector('#wp-overlay-hostname-display');
+      const compactContainerEl = overlayContainer.querySelector('#wp-overlay-compact-text-container');
+      const compactInfoSpanEl = overlayContainer.querySelector('#wp-overlay-compact-info');
+      const compactTimeSpanEl = overlayContainer.querySelector('#wp-overlay-compact-time');
 
-        // Time display logic based on currentTimeDisplayMode
-        let timeTextToDisplay = '';
-        const currentS = parseFloat(infoToDisplay.currentSeconds);
-        const durationS = parseFloat(infoToDisplay.durationSeconds);
+      let timeTextToDisplay = '';
+      const isLoading = isFetchingActive && !infoToDisplay;
 
-        if (currentTimeDisplayMode === 'current_duration') {
-          timeTextToDisplay = `${formatTime(currentS)} / ${formatTime(durationS)}`;
-        } else if (currentTimeDisplayMode === 'current_only') {
-          timeTextToDisplay = formatTime(currentS);
-        } else if (currentTimeDisplayMode === 'none') {
-          timeTextToDisplay = ''; // Or hide the time element entirely
+      if (currentTimeDisplayMode !== 'none') {
+        if (infoToDisplay && infoToDisplay.currentSeconds !== undefined && infoToDisplay.durationSeconds !== undefined) {
+          const currentS = parseFloat(infoToDisplay.currentSeconds);
+          const durationS = parseFloat(infoToDisplay.durationSeconds);
+          if (currentTimeDisplayMode === 'current_duration') {
+            timeTextToDisplay = `${formatTime(currentS)} / ${formatTime(durationS)}`;
+          } else if (currentTimeDisplayMode === 'current_only') {
+            timeTextToDisplay = formatTime(currentS);
+          } else {
+             console.warn("CONTENT.JS: Unexpected currentTimeDisplayMode in time text generation (info exists):", currentTimeDisplayMode);
+             timeTextToDisplay = "ERR_MODE";
+          }
+        } else if (isFetchingActive) {
+          if (currentTimeDisplayMode === 'current_duration') {
+            timeTextToDisplay = '--:-- / --:--';
+          } else if (currentTimeDisplayMode === 'current_only') {
+            timeTextToDisplay = '--:--';
+          } else {
+            console.warn("CONTENT.JS: Unexpected currentTimeDisplayMode in time text generation (loading):", currentTimeDisplayMode);
+            timeTextToDisplay = "ERR_LOAD";
+          }
+        }
+      }
+
+      console.log(`CONTENT.JS: updateOverlayDOM - Generated timeTextToDisplay: '${timeTextToDisplay}' for mode: ${currentTimeDisplayMode}`);
+      
+      if (overlayMode === 'compact') {
+        if (seriesEl) seriesEl.style.display = 'none';
+        if (episodeEl) episodeEl.style.display = 'none';
+        if (timeContainerEl) timeContainerEl.style.display = 'none';
+        if (compactContainerEl) compactContainerEl.style.display = 'flex';
+
+        if (compactInfoSpanEl) compactInfoSpanEl.textContent = isLoading ? 'Loading...' : (infoToDisplay ? (infoToDisplay.episode || infoToDisplay.title || 'N/A') : 'N/A');
+        if (compactTimeSpanEl) {
+            compactTimeSpanEl.textContent = timeTextToDisplay;
+            const newCompactTimeDisplay = currentTimeDisplayMode === 'none' ? 'none' : 'inline';
+            compactTimeSpanEl.style.display = newCompactTimeDisplay;
+            console.log(`CONTENT.JS: Compact Mode - Set compactTimeSpanEl.textContent to: '${timeTextToDisplay}', and display to: ${newCompactTimeDisplay}`);
+        }
+      } else { 
+        if (seriesEl) seriesEl.style.display = 'block';
+        if (episodeEl) episodeEl.style.display = 'block';
+        
+        const newNormalTimeContainerDisplay = currentTimeDisplayMode === 'none' ? 'none' : 'flex';
+        if (timeContainerEl) {
+            timeContainerEl.style.display = newNormalTimeContainerDisplay;
+            console.log("CONTENT.JS: Normal Mode - Set timeContainerEl.style.display to:", newNormalTimeContainerDisplay);
+        }
+        if (actualTimeSpanEl) {
+            actualTimeSpanEl.textContent = timeTextToDisplay;
+            console.log(`CONTENT.JS: Normal Mode - Set actualTimeSpanEl.textContent to: '${timeTextToDisplay}'`);
         }
 
-        if (overlayMode === 'compact') {
-          if (seriesEl) seriesEl.style.display = 'none';
-          if (episodeEl) episodeEl.style.display = 'none';
-          if (timeContainerEl) timeContainerEl.style.display = 'none';
-          if (compactContainerEl) compactContainerEl.style.display = 'flex';
+        if (compactContainerEl) compactContainerEl.style.display = 'none';
 
-          if (infoToDisplay && compactInfoSpanEl && compactTimeSpanEl) {
-            const episodeText = infoToDisplay.episode || infoToDisplay.title || 'N/A';
-            compactInfoSpanEl.textContent = episodeText;
-            compactTimeSpanEl.textContent = timeTextToDisplay;
-          } else if (isFetchingActive && compactInfoSpanEl && compactTimeSpanEl) {
-            compactInfoSpanEl.textContent = 'Loading...';
-            compactTimeSpanEl.textContent = currentTimeDisplayMode === 'none' ? '' : '--:--';
-          } else if (compactInfoSpanEl && compactTimeSpanEl) {
-            compactInfoSpanEl.textContent = 'N/A';
-            compactTimeSpanEl.textContent = currentTimeDisplayMode === 'none' ? '' : '--:--';
-          }
-        } else { // Normal, Greenscreen, Minimal modes
-          if (seriesEl) seriesEl.style.display = 'block';
-          if (episodeEl) episodeEl.style.display = 'block';
-          if (timeContainerEl) timeContainerEl.style.display = 'flex';
-          if (compactContainerEl) compactContainerEl.style.display = 'none';
-
-          // Display hostname in normal mode
-          if (overlayMode === 'normal' && hostnameSpanEl) {
+        if (seriesEl) seriesEl.textContent = isLoading ? 'Loading...' : (infoToDisplay ? (infoToDisplay.series || '') : '');
+        if (episodeEl) episodeEl.textContent = isLoading ? 'Loading...' : (infoToDisplay ? (infoToDisplay.episode || infoToDisplay.title || 'N/A') : 'N/A');
+        
+        if (hostnameSpanEl) {
+          if (isLoading || !infoToDisplay) {
+            hostnameSpanEl.textContent = '';
+            hostnameSpanEl.style.display = 'none';
+          } else {
             const currentHostname = window.location.hostname;
-            let displayHostname = 'N/A';
+            let displayHostname = '';
             if (currentHostname) {
                 try {
                     displayHostname = currentHostname.toUpperCase().replace('WWW.', '').split('.')[0];
-                } catch (e) {
-                    console.warn("CONTENT.JS: Error formatting hostname", e);
-                    displayHostname = 'HOST_ERR';
-                }
+              } catch (e) { displayHostname = 'HOST_ERR'; }
             }
             hostnameSpanEl.textContent = displayHostname;
             hostnameSpanEl.style.display = 'inline';
-          } else if (hostnameSpanEl) {
-            hostnameSpanEl.textContent = '';
-            hostnameSpanEl.style.display = 'none';
-          }
-
-          if (infoToDisplay) {
-            if (seriesEl) seriesEl.textContent = infoToDisplay.series || '';
-            if (episodeEl) episodeEl.textContent = infoToDisplay.episode || infoToDisplay.title || 'N/A';
-            if (actualTimeSpanEl) {
-                actualTimeSpanEl.textContent = timeTextToDisplay;
-                // Hide/show container based on whether time is displayed
-                if (timeContainerEl) timeContainerEl.style.display = currentTimeDisplayMode === 'none' ? 'none' : 'flex';
-            }
-          } else if (isFetchingActive) {
-            if (seriesEl) seriesEl.textContent = '';
-            if (episodeEl) episodeEl.textContent = 'Loading...';
-            if (actualTimeSpanEl) actualTimeSpanEl.textContent = currentTimeDisplayMode === 'none' ? '' : '--:-- / --:--';
-            if (timeContainerEl) timeContainerEl.style.display = currentTimeDisplayMode === 'none' ? 'none' : (isFetchingActive ? 'flex' : 'none');
-          } else { // Not fetching, no info, clear all text fields for these modes
-            if (seriesEl) seriesEl.textContent = '';
-            if (episodeEl) episodeEl.textContent = 'N/A';
-            if (actualTimeSpanEl) actualTimeSpanEl.textContent = currentTimeDisplayMode === 'none' ? '' : '--:-- / --:--';
-            if (timeContainerEl) timeContainerEl.style.display = currentTimeDisplayMode === 'none' ? 'none' : 'flex';
           }
         }
-      } else if (isFetchingActive) {
-        const seriesEl = currentOverlayElement.querySelector('#wp-overlay-series-text');
-        const episodeEl = currentOverlayElement.querySelector('#wp-overlay-episode-text');
-        const timeContainerEl = currentOverlayElement.querySelector('#wp-overlay-time-text-container');
-        const actualTimeSpanEl = currentOverlayElement.querySelector('#wp-overlay-actual-time');
-        const hostnameSpanEl = currentOverlayElement.querySelector('#wp-overlay-hostname-display');
-
-        if (seriesEl) seriesEl.textContent = '';
-        if (episodeEl) episodeEl.textContent = 'Loading...';
-        if (timeContainerEl) timeContainerEl.style.display = 'none';
-        if (actualTimeSpanEl) actualTimeSpanEl.textContent = '--:-- / --:--';
-        
-        // Clear hostname if fetching and not in normal mode or no info yet
-        if (hostnameSpanEl && overlayMode !== 'normal') {
-            hostnameSpanEl.textContent = '';
-            hostnameSpanEl.style.display = 'none';
-        }
-        // Handle time container display when fetching and no info yet
-        if (timeContainerEl) timeContainerEl.style.display = currentTimeDisplayMode === 'none' ? 'none' : 'flex'; 
       }
     }
 
@@ -510,188 +473,115 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     }
 
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      let responseData = { success: true, type: message.type + "_RESPONSE" }; 
-      let sentResponse = false;
-
-      // Initial check for context before any processing
-      if (checkAndHandleInvalidatedContext(`onMessage_Entry_Type_${message.type}`)) {
-        try {
-          sendResponse({ success: false, error: "Extension context invalidated in content script at entry.", contextInvalidated: true });
-          sentResponse = true;
-        } catch (e) { /* If sendResponse itself fails due to bad context, ignore further */ }
-        return true; // Indicate async if sendResponse might be called, or to stop further processing in Chrome.
+      if (checkAndHandleInvalidatedContext("onMessage_" + message.type)) {
+        sendResponse({ success: false, error: "Context invalidated", from: "content.js" });
+        return true;
       }
+      
+      // console.log("CONTENT.JS: Message received", message);
 
-      try {
-        if (message.type === 'TOGGLE_FETCHING') {
+      let response = { success: true, from: "content.js" };
+
+      switch (message.type) {
+        case 'TOGGLE_FETCHING':
           if (message.action === 'start') {
-            if (!isFetchingActive) startFetching();
-            responseData.status = "fetching_started";
-          } else if (message.action === 'stop') {
-            if (isFetchingActive) stopFetching();
-            responseData.status = "fetching_stopped";
-          }
-        } else if (message.type === 'TOGGLE_VISIBILITY') {
-          isOverlayVisible = message.action === 'show';
-          updateOverlayDOM();
-          responseData.status = isOverlayVisible ? "overlay_shown" : "overlay_hidden";
-          responseData.isOverlayVisible = isOverlayVisible;
-        } else if (message.type === 'TOGGLE_OVERLAY_MODE') {
-          console.log(`CONTENT.JS: Received TOGGLE_OVERLAY_MODE. New mode: ${message.mode}`);
-          overlayMode = message.mode;
-          updateOverlayDOM(); // Ensure DOM updates on mode change
-          responseData.status = "mode_toggled";
-          responseData.mode = overlayMode;
-        } else if (message.type === 'GET_CONTENT_STATUS') {
-          responseData = { 
-            isFetching: isFetchingActive,
-            isVisible: isOverlayVisible,
-            mode: overlayMode,
-            videoInfo: currentVideoInfo,
-            success: true
-          };
-        } else if (message.type === 'GET_OVERLAY_TEXT') {
-          let textToCopy = "N/A";
-          const seriesText = currentVideoInfo?.series || "";
-          const episodeText = currentVideoInfo?.episode || currentVideoInfo?.title || "N/A";
-          const currentTimeFormatted = formatTime(currentVideoInfo?.currentSeconds);
-          const durationTimeFormatted = formatTime(currentVideoInfo?.durationSeconds);
-
-          if (overlayMode === 'normal' || overlayMode === 'greenscreen') {
-            if (seriesText && seriesText !== "N/A") {
-              textToCopy = `${seriesText} - ${episodeText} - ${currentTimeFormatted}/${durationTimeFormatted}`;
-            } else {
-              textToCopy = `${episodeText} - ${currentTimeFormatted}/${durationTimeFormatted}`;
-            }
-          } else if (overlayMode === 'compact' || overlayMode === 'vertical') {
-            // For vertical mode, copy the readable horizontal version
-            textToCopy = `${episodeText} - ${currentTimeFormatted}`;
-          } else { // Minimal or other modes, default to episode and current time
-            textToCopy = `${episodeText} - ${currentTimeFormatted}`;
-          }
-          responseData.text = textToCopy;
-          responseData.success = true;
-        } else if (message.type === 'SYNC_INITIAL_BG_STATE') {
-          // --- DETAILED LOGGING ADDED ---
-          console.log('CONTENT.JS: Received SYNC_INITIAL_BG_STATE. Full message object:', JSON.stringify(message));
-          console.log('CONTENT.JS: Keys in received message:', message ? Object.keys(message) : 'message is null/undefined');
-          console.log('CONTENT.JS: Value of message.data:', message ? JSON.stringify(message.data) : 'message is null/undefined');
-          console.log('CONTENT.JS: Value of message.states (old key, for debug):', message ? JSON.stringify(message.states) : 'message is null/undefined');
-          // --- END OF DETAILED LOGGING ---
-
-          if (message && message.data) { // Check if message.data exists and is an object
-            isFetchingActive = message.data.isFetchingActive !== undefined ? message.data.isFetchingActive : false;
-            isOverlayVisible = message.data.isOverlayVisible !== undefined ? message.data.isOverlayVisible : false;
-            overlayMode = message.data.overlayMode || 'normal';
-            currentTimeDisplayMode = message.data.timeDisplayMode || 'current_duration'; // Sync time display mode
-            currentOverlayPositionSide = message.data.overlayPositionSide || 'right'; // Sync position side
-            currentVideoInfo = message.data.lastVideoInfo || null; // Sync last known video info
-            console.log('CONTENT.JS: SYNC_INITIAL_BG_STATE applied using message.data.');
-          } else if (message && message.states && typeof message.states === 'object') { // Fallback for old structure, for debugging
-            console.warn("CONTENT.JS: SYNC_INITIAL_BG_STATE received with 'states' key instead of 'data'. Using 'states'. THIS IS UNEXPECTED.");
-            isFetchingActive = message.states.isFetchingActive !== undefined ? message.states.isFetchingActive : false;
-            isOverlayVisible = message.states.isOverlayVisible !== undefined ? message.states.isOverlayVisible : false;
-            overlayMode = message.states.overlayMode || 'normal';
-            currentTimeDisplayMode = message.states.timeDisplayMode || 'current_duration'; // Sync time display mode (fallback)
-            currentOverlayPositionSide = message.states.overlayPositionSide || 'right'; // Sync position side (fallback)
-            currentVideoInfo = message.states.lastVideoInfo || null;
+            startFetching();
           } else {
-            console.error("CONTENT.JS: SYNC_INITIAL_BG_STATE received but message.data is missing or not an object. Defaulting states. Message:", JSON.stringify(message));
-            isFetchingActive = false; 
-            isOverlayVisible = false; 
-            overlayMode = 'normal'; 
-            currentTimeDisplayMode = 'current_duration'; // Default time display mode
-            currentOverlayPositionSide = 'right'; // Default position side
-            currentVideoInfo = null; 
+            stopFetching();
+          }
+          response.isFetchingActive = isFetchingActive;
+          break;
+        case 'TOGGLE_VISIBILITY':
+          isOverlayVisible = message.action === 'show';
+          if (overlayContainer) {
+            overlayContainer.style.display = isOverlayVisible ? 'flex' : 'none';
+          }
+          response.isOverlayVisible = isOverlayVisible;
+          break;
+        case 'TOGGLE_OVERLAY_MODE': // 'normal', 'compact' 모드 변경
+          overlayMode = message.mode;
+          updateOverlayDOM();
+          response.overlayMode = overlayMode;
+          break;
+        case 'TOGGLE_GREENSCREEN_MODE': // 그린스크린 모드 독립 토글
+          isGreenscreenActive = message.isActive;
+          updateOverlayDOM();
+          response.isGreenscreenActive = isGreenscreenActive;
+          break;
+        /* CYCLE_TIME_DISPLAY_MODE 핸들러는 background.js에서 BACKGROUND_STATE_UPDATE로 통합 관리합니다.
+        case 'CYCLE_TIME_DISPLAY_MODE':
+          // ... 기존 로직 ...
+          updateOverlayDOM(); // 시간 표시 모드가 변경되면 DOM 업데이트 필요
+          response.timeDisplayMode = currentTimeDisplayMode;
+          break;
+        */
+        // case 'CYCLE_OVERLAY_POSITION': // 제거 (관련 기능 삭제)
+        //   cycleOverlayPosition();
+        //   response.overlayPositionSide = currentOverlayPositionSide;
+        //   break;
+        case 'GET_CONTENT_STATUS':
+          response.isFetchingActive = isFetchingActive;
+          response.isOverlayVisible = isOverlayVisible;
+          response.overlayMode = overlayMode;
+          response.isGreenscreenActive = isGreenscreenActive; // 상태 응답에 추가
+          response.timeDisplayMode = currentTimeDisplayMode;
+          response.lastVideoInfo = currentVideoInfo;
+          break;
+        case 'BACKGROUND_STATE_UPDATE': // background로부터 전체 상태 업데이트 수신
+          console.log("CONTENT.JS: Received BACKGROUND_STATE_UPDATE", message.data);
+          isFetchingActive = message.data.isFetchingActive !== undefined ? message.data.isFetchingActive : isFetchingActive;
+          isOverlayVisible = message.data.isOverlayVisible !== undefined ? message.data.isOverlayVisible : isOverlayVisible;
+          overlayMode = message.data.overlayMode || overlayMode;
+          isGreenscreenActive = message.data.isGreenscreenActive !== undefined ? message.data.isGreenscreenActive : isGreenscreenActive;
+          console.log("CONTENT.JS: BACKGROUND_STATE_UPDATE - typeof message.data.timeDisplayMode:", typeof message.data.timeDisplayMode);
+          console.log("CONTENT.JS: BACKGROUND_STATE_UPDATE - value of message.data.timeDisplayMode:", message.data.timeDisplayMode);
+          currentTimeDisplayMode = message.data.timeDisplayMode || currentTimeDisplayMode;
+          console.log("CONTENT.JS: BACKGROUND_STATE_UPDATE - currentTimeDisplayMode JUST SET TO:", currentTimeDisplayMode);
+          currentVideoInfo = message.data.lastVideoInfo !== undefined ? message.data.lastVideoInfo : currentVideoInfo; 
+          
+          if (isOverlayVisible && !document.getElementById('wp-overlay-timer')) {
+            createOverlayDOMIfNotExists(); 
+          } else {
+            const existingOverlay = document.getElementById('wp-overlay-timer');
+            if (existingOverlay) {
+                existingOverlay.style.display = isOverlayVisible ? 'flex' : 'none';
+            }
+          }
+          updateOverlayDOM();
+          break;
+        case 'SYNC_INITIAL_BG_STATE': // background로부터 초기 전체 상태 동기화 (신규 추가)
+          console.log("CONTENT.JS: Received SYNC_INITIAL_BG_STATE", message.data);
+          isFetchingActive = message.data.isFetchingActive !== undefined ? message.data.isFetchingActive : isFetchingActive;
+          isOverlayVisible = message.data.isOverlayVisible !== undefined ? message.data.isOverlayVisible : isOverlayVisible;
+          overlayMode = message.data.overlayMode || overlayMode;
+          isGreenscreenActive = message.data.isGreenscreenActive !== undefined ? message.data.isGreenscreenActive : isGreenscreenActive;
+          console.log("CONTENT.JS: SYNC_INITIAL_BG_STATE - typeof message.data.timeDisplayMode:", typeof message.data.timeDisplayMode);
+          console.log("CONTENT.JS: SYNC_INITIAL_BG_STATE - value of message.data.timeDisplayMode:", message.data.timeDisplayMode);
+          currentTimeDisplayMode = message.data.timeDisplayMode || currentTimeDisplayMode;
+          console.log("CONTENT.JS: SYNC_INITIAL_BG_STATE - currentTimeDisplayMode JUST SET TO:", currentTimeDisplayMode);
+          if (message.data.lastVideoInfo !== undefined) { 
+            currentVideoInfo = message.data.lastVideoInfo;
           }
           
-          createOverlayDOMIfNotExists(); // Ensure DOM is there
-          updateOverlayDOM(currentVideoInfo, isOverlayVisible, overlayMode);
-
-          if (isFetchingActive && !fetchIntervalId && currentSiteConfig) {
-            fetchIntervalId = setInterval(fetchAndSendVideoInfo, 1000);
-            console.log('CONTENT.JS: SYNC: Restarted fetching interval due to background state.');
-          } else if (!isFetchingActive && fetchIntervalId) {
-            clearInterval(fetchIntervalId);
-            fetchIntervalId = null;
-            console.log('CONTENT.JS: SYNC: Cleared fetching interval due to background state.');
-          }
-          responseData.success = true;
-          responseData.mode = overlayMode;
-        } else if (message.type === 'SET_OVERLAY_PADDING') {
-          if (typeof message.padding === 'number') {
-            updateOverlayDOM();
-            responseData.success = true;
-            responseData.padding = message.padding;
-            console.log("CONTENT.JS: Overlay padding set to", message.padding);
+          if (isOverlayVisible && !document.getElementById('wp-overlay-timer')) {
+            createOverlayDOMIfNotExists(); 
           } else {
-            responseData.success = false;
-            responseData.error = "Invalid padding value";
-          }
-        } else if (message.type === 'SET_OVERLAY_POSITION') {
-          if (message.position) {
-            updateOverlayDOM();
-            responseData.success = true;
-            responseData.position = message.position;
-            console.log("CONTENT.JS: Overlay position set to", message.position);
-          } else {
-            responseData.success = false;
-            responseData.error = "Invalid position value";
-          }
-        } else if (message.type === 'SET_TIME_DISPLAY_MODE') {
-          if (message.mode) {
-            currentTimeDisplayMode = message.mode;
-            updateOverlayDOM();
-            responseData.success = true;
-            responseData.mode = currentTimeDisplayMode;
-            console.log("CONTENT.JS: Time display mode set to", currentTimeDisplayMode);
-          } else {
-            responseData.success = false;
-            responseData.error = "No time display mode provided";
-          }
-        } else if (message.type === 'SET_OVERLAY_POSITION_SIDE') {
-          if (message.positionSide === 'left' || message.positionSide === 'right') {
-            currentOverlayPositionSide = message.positionSide;
-            updateOverlayDOM();
-            responseData.success = true;
-            responseData.positionSide = currentOverlayPositionSide;
-            console.log("CONTENT.JS: Overlay position side set to", currentOverlayPositionSide);
-          } else {
-            responseData.success = false;
-            responseData.error = "Invalid positionSide value provided";
-          }
-        } else {
-          responseData.success = false;
-          responseData.error = "Unknown message type in content script";
-        }
-      } catch (e) {
-        console.error(`CONTENT.JS: Error processing message ${message.type}:`, e.message, e.stack);
-        responseData.success = false;
-        responseData.error = e.message || `Error in content script handling ${message.type}`;
-      } finally {
-        if (!sentResponse) {
-          // Re-check context just before sending response, as it might have changed during processing.
-          if (checkAndHandleInvalidatedContext(`onMessage_FinalSend_Type_${message.type}`)) {
-            try {
-              sendResponse({ success: false, error: "Extension context became invalidated during message processing.", contextInvalidated: true });
-              sentResponse = true;
-            } catch (e_sf) { /* ignore */ }
-          }
-          if (!sentResponse) {
-            try {
-              sendResponse(responseData);
-              sentResponse = true;
-            } catch (e_sr_final) {
-              console.warn(`CONTENT.JS: Error calling sendResponse for ${message.type} in finally: ${e_sr_final.message}.`);
-              // Don't call checkAndHandleInvalidatedContext again here to avoid loops if sendResponse itself is the problem source with context.
+            const existingOverlay = document.getElementById('wp-overlay-timer');
+            if (existingOverlay) {
+                existingOverlay.style.display = isOverlayVisible ? 'flex' : 'none';
             }
           }
-        }
+          updateOverlayDOM(); 
+          response.received_sync = true; // 응답 내용 변경
+          break;
+        default:
+          console.warn("CONTENT.JS: Unknown message type received:", message.type);
+          response.success = false;
+          response.error = "Unknown message type";
+          break;
       }
-      // All current paths call sendResponse synchronously. Return false.
-      // If any path were to become truly asynchronous (e.g. await before sendResponse),
-      // then this addListener should return true. For now, it's okay as false.
-      return false; 
+      sendResponse(response);
+      return true; // 비동기 응답을 위해 true 반환
     });
 
     function mainInitialization() {

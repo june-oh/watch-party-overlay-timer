@@ -1,7 +1,8 @@
 // 전역 상태
 let isFetchingActive = false; // 정보 가져오기 활성화 상태 (초기값 false)
 let isOverlayVisible = false;  // 오버레이 화면 표시 상태 (초기값 false)
-let overlayMode = 'normal'; // 'normal', 'compact', 'greenscreen'
+let overlayMode = 'normal'; // 'normal', 'compact' (greenscreen은 별도 상태로 분리)
+let isGreenscreenActive = false; // 그린스크린 활성화 상태
 let currentTimeDisplayMode = 'current_duration'; // 'current_duration', 'current_only', 'none'
 let overlayPositionSide = 'right'; // Added: 'left' or 'right'
 let lastVideoInfo = null;
@@ -47,10 +48,11 @@ function sendStateToPopup() {
   chrome.runtime.sendMessage({
     type: 'BACKGROUND_STATE_UPDATE',
     data: {
-      isFetchingActive: isFetchingActive, // isOverlayActive 대신 isFetchingActive
+      isFetchingActive: isFetchingActive,
       isOverlayVisible: isOverlayVisible,
-      overlayMode: overlayMode,
-      timeDisplayMode: currentTimeDisplayMode, // Add time display mode
+      overlayMode: overlayMode, // 'normal', 'compact'
+      isGreenscreenActive: isGreenscreenActive, // 그린스크린 상태 추가
+      timeDisplayMode: currentTimeDisplayMode,
       overlayPositionSide: overlayPositionSide, // Added
       lastVideoInfo: lastVideoInfo,
       isError: isError
@@ -175,14 +177,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     } else if (message.type === 'POPUP_TOGGLE_MODE') {
       const newMode = message.mode;
-      // console.log(`BG: POPUP_TOGGLE_MODE - Requested mode: ${newMode}`);
-      // Ensure newMode is not 'vertical' as it's removed.
-      // Valid modes are 'normal', 'compact', 'greenscreen'
-      if (newMode === 'normal' || newMode === 'compact' || newMode === 'greenscreen') {
+      // 유효한 모드는 'normal', 'compact' 만 해당. greenscreen은 별도 처리.
+      if (newMode === 'normal' || newMode === 'compact') {
         if (currentTabId) {
           try {
             await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_OVERLAY_MODE', mode: newMode });
-            overlayMode = newMode;
+            overlayMode = newMode; // isGreenscreenActive 상태는 변경하지 않음
             responsePayload.success = true;
             responsePayload.overlayMode = overlayMode;
           } catch (e) { 
@@ -198,6 +198,53 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.warn("BG: POPUP_TOGGLE_MODE - Invalid mode: ", newMode);
       }
       sendStateToPopup();
+      sendResponse(responsePayload);
+
+    } else if (message.type === 'POPUP_TOGGLE_GREENSCREEN') { // 새 메시지 타입 핸들러
+      isGreenscreenActive = message.isActive;
+      if (currentTabId) {
+        try {
+          await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_GREENSCREEN_MODE', isActive: isGreenscreenActive });
+          responsePayload.success = true;
+        } catch (e) {
+          responsePayload.error = e.message || "Failed to toggle greenscreen in content script";
+          console.error("BG: Error during POPUP_TOGGLE_GREENSCREEN -> ensureContentScriptAndSendMessage:", responsePayload.error);
+        }
+      } else {
+        responsePayload.error = "No active tab to toggle greenscreen on";
+        console.warn("BG: POPUP_TOGGLE_GREENSCREEN - currentTabId is not set.");
+      }
+      // 아이콘 상태 변경은 그린스크린과 직접적인 관련이 없을 수 있으므로 updateActionIcon() 호출은 생략 가능
+      sendStateToPopup();
+      sendResponse(responsePayload);
+
+    } else if (message.type === 'POPUP_CYCLE_TIME_DISPLAY_MODE') {
+      // Cycle through a predefined order
+      if (currentTimeDisplayMode === 'current_duration') {
+        currentTimeDisplayMode = 'current_only';
+      } else if (currentTimeDisplayMode === 'current_only') {
+        currentTimeDisplayMode = 'none';
+      } else { // 'none'
+        currentTimeDisplayMode = 'current_duration';
+      }
+      responsePayload.success = true;
+      responsePayload.timeDisplayMode = currentTimeDisplayMode;
+
+      if (currentTabId) {
+        const globalStateForContent = {
+          isFetchingActive,
+          isOverlayVisible,
+          overlayMode,
+          isGreenscreenActive,
+          timeDisplayMode: currentTimeDisplayMode, // 변경된 값 및 키 이름 수정
+          // overlayPositionSide, // content.js는 이 값을 직접 사용하지 않음
+          lastVideoInfo, // content.js는 이 값을 BACKGROUND_STATE_UPDATE에서 사용함
+          isError // content.js는 이 값을 직접 사용하지 않지만, 일관성을 위해 포함 가능
+        };
+        ensureContentScriptAndSendMessage(currentTabId, { type: 'BACKGROUND_STATE_UPDATE', data: globalStateForContent })
+          .catch(e => console.warn(`BG: Error sending BACKGROUND_STATE_UPDATE to content script for time cycle: ${e.message}`));
+      }
+      sendStateToPopup(); 
       sendResponse(responsePayload);
 
     } else if (message.type === 'GET_POPUP_INITIAL_DATA') {
@@ -263,9 +310,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         isFetchingActive: isFetchingActive,
         isOverlayVisible: isOverlayVisible,
         overlayMode: overlayMode,
-        timeDisplayMode: currentTimeDisplayMode, // Add current time display mode
+        isGreenscreenActive: isGreenscreenActive, // 그린스크린 상태 추가
+        timeDisplayMode: currentTimeDisplayMode,
         overlayPositionSide: overlayPositionSide, // Added
-        lastVideoInfo: lastVideoInfo,
+        lastVideoInfo: lastVideoInfo || (contentStatus ? contentStatus.lastVideoInfo : null),
         isError: didInitialContentScriptCommunicationFail, // Popup specific error for this attempt
         activeTabHostname: activeTabHostname // Add hostname to the initial data
       };
@@ -309,9 +357,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 data: {
                     isFetchingActive: isFetchingActive, 
                     isOverlayVisible: isOverlayVisible, 
-                    overlayMode: overlayMode, // Ensure current overlayMode is sent
-                    timeDisplayMode: currentTimeDisplayMode, // Send current time display mode
-                    overlayPositionSide: overlayPositionSide // Added
+                    overlayMode: overlayMode, 
+                    isGreenscreenActive: isGreenscreenActive,
+                    timeDisplayMode: currentTimeDisplayMode, 
+                    overlayPositionSide: overlayPositionSide,
+                    lastVideoInfo: lastVideoInfo
                 } 
             });
             isError = false; // Content script is ready and we sent sync, assume good for now
@@ -330,26 +380,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // If sendResponse is called here, ensure content.js isn't also trying to send one for this message.
       // sendResponse(responsePayload); 
 
-    } else if (message.type === 'POPUP_CYCLE_TIME_DISPLAY_MODE') {
-      // Cycle: current_duration -> current_only -> none -> current_duration
-      if (currentTimeDisplayMode === 'current_duration') {
-        currentTimeDisplayMode = 'current_only';
-      } else if (currentTimeDisplayMode === 'current_only') {
-        currentTimeDisplayMode = 'none';
-      } else { // 'none' or any other unexpected state
-        currentTimeDisplayMode = 'current_duration';
-      }
-      responsePayload.success = true;
-      responsePayload.newTimeDisplayMode = currentTimeDisplayMode;
-
-      if (currentTabId) {
-        ensureContentScriptAndSendMessage(currentTabId, { 
-          type: 'SET_TIME_DISPLAY_MODE', 
-          mode: currentTimeDisplayMode 
-        }).catch(e => console.warn("BG: Failed to send SET_TIME_DISPLAY_MODE to CS", e.message));
-      }
-      sendStateToPopup(); // Update popup with new mode
-      sendResponse(responsePayload);
     } else if (message.type === 'POPUP_CYCLE_OVERLAY_POSITION') { // New Handler
       overlayPositionSide = overlayPositionSide === 'right' ? 'left' : 'right';
       responsePayload.success = true;
@@ -376,9 +406,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 function initializeExtensionState() {
   isFetchingActive = false;
   isOverlayVisible = false;
-  overlayMode = 'normal'; // Default to normal mode
-  currentTimeDisplayMode = 'current_duration'; // Default time display mode
-  overlayPositionSide = 'right'; // Added default
+  overlayMode = 'normal';
+  isGreenscreenActive = false; // 초기 상태 추가
+  currentTimeDisplayMode = 'current_duration';
+  overlayPositionSide = 'right'; // 제거 예정
   lastVideoInfo = null;
   // currentTabId = null; // Best not to reset currentTabId on generic init, only on startup/install
   isError = false;

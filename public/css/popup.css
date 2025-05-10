@@ -1,10 +1,33 @@
+:root {
+  --button-default-bg: #2196F3; /* Default Blue */
+  --button-default-hover-brightness: 85%;
+  --button-active-bg: #4CAF50; /* Green */
+  --button-error-bg: #ff9800; /* Orange */
+  --button-error-hover-bg: #fb8c00;
+
+  --button-fetch-start-bg: #87CEEB; /* Light Sky Blue */
+  --button-fetch-stop-bg: #ADD8E6; /* Lighter Blue */
+
+  --button-visibility-show-bg: #90ee90; /* Light Green */
+  --button-visibility-hide-bg: #32cd32; /* Lime Green */
+  
+  --button-time-cycle-bg: #1565C0; /* Darker Blue for Time Cycle Button */
+  --button-time-cycle-hover-brightness: 85%;
+
+  --text-color-light: white;
+  --text-color-dark: #333;
+  --popup-bg: #f9f9f9;
+  --container-bg: #fff;
+  --border-color: #eee;
+}
+
 body {
   font-family: sans-serif;
   width: 280px;
   padding: 10px;
   font-size: 13px;
-  background-color: #f9f9f9;
-  color: #333;
+  background-color: var(--popup-bg);
+  color: var(--text-color-dark);
 }
 
 .info-item {
@@ -14,7 +37,7 @@ body {
 .info-item strong {
   display: inline-block;
   min-width: 70px;
-  color: #555;
+  color: #555; /* Consider var(--text-color-dark-secondary) if defined */
 }
 
 #videoInfo div {
@@ -24,45 +47,36 @@ body {
   padding: 2px 0;
 }
 
-button {
+button, .control-button /* Apply general button styles to .control-button class too */
+{
   width: 100%;
   padding: 8px;
   margin-top: 8px;
   border: none;
   border-radius: 4px;
-  color: white;
+  color: var(--text-color-light);
   cursor: pointer;
   font-size: 14px;
   transition: background-color 0.2s ease-in-out, filter 0.2s ease-in-out;
 }
 
-button:hover {
-  filter: brightness(90%);
+button:hover, .control-button:hover {
+  filter: brightness(var(--button-default-hover-brightness));
 }
 
-button.start {
-  background-color: #4CAF50;
-}
-button.start:hover {
-  background-color: #45a049;
-}
-
-button.stop {
-  background-color: #f44336;
-}
-button.stop:hover {
-  background-color: #e53935;
-}
+/* Generic Start/Stop button colors (not used by all, but as a fallback example if needed) */
+/* button.start { background-color: var(--button-active-bg); } */
+/* button.stop { background-color: #f44336; } */
 
 button.error,
 button.start.error,
 button.stop.error {
-  background-color: #ff9800;
+  background-color: var(--button-error-bg);
 }
 button.error:hover,
 button.start.error:hover,
 button.stop.error:hover {
-  background-color: #fb8c00;
+  background-color: var(--button-error-hover-bg);
 }
 
 .status {
@@ -84,25 +98,25 @@ button.stop.error:hover {
   margin-bottom: 10px;
   padding: 8px;
   border-radius: 4px;
-  background-color: #fff;
+  background-color: var(--container-bg);
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-h3, h4 { /* Combined h3 and h4 styling for controls sections */
+h3, h4 {
   margin: 0 0 8px 0;
   font-size: 14px;
-  color: #333;
-  border-bottom: 1px solid #eee;
+  color: var(--text-color-dark);
+  border-bottom: 1px solid var(--border-color);
   padding-bottom: 4px;
 }
 
-/* Preview styles (might be unused if preview feature was removed) */
+/* Preview styles */
 .preview {
   padding: 8px;
   margin-bottom: 8px;
   border-radius: 4px;
   background-color: rgba(0, 0, 0, 0.7);
-  color: white;
+  color: var(--text-color-light);
 }
 
 .preview.greenscreen {
@@ -134,52 +148,51 @@ h3, h4 { /* Combined h3 and h4 styling for controls sections */
   text-shadow: 0px 0px 2px white;
 }
 
-/* Specific Button Styles */
+/* Specific Button Styles using CSS Variables */
 #toggleFetchingBtn {
-  background-color: #87CEEB; /* Light Sky Blue */
+  background-color: var(--button-fetch-start-bg);
 }
 #toggleFetchingBtn.stop {
-  background-color: #ADD8E6; /* Lighter Blue for stop state */
+  background-color: var(--button-fetch-stop-bg);
 }
 #toggleFetchingBtn.error {
-   background-color: #ff9800; /* Orange for error */
+   background-color: var(--button-error-bg);
 }
 
 #toggleVisibilityBtn {
-  background-color: #90ee90; /* Light Green for "Show" */
+  background-color: var(--button-visibility-show-bg); 
 }
 #toggleVisibilityBtn.stop {
-  background-color: #32cd32; /* Lime Green for "Hide" */
+  background-color: var(--button-visibility-hide-bg);
 }
 #toggleVisibilityBtn.error {
-    background-color: #ff9800; /* Orange for error */
+    background-color: var(--button-error-bg);
 }
 
 /* Mode Buttons Default Styles */
 #setNormalModeBtn,
 #setCompactModeBtn,
-#toggleGreenscreenModeBtn,
-#setVerticalModeBtn {
-  background-color: #2196F3; /* Default Blue */
-}
-
-#setNormalModeBtn:hover,
-#setCompactModeBtn:hover,
-#toggleGreenscreenModeBtn:hover,
-#setVerticalModeBtn:hover {
-  filter: brightness(90%);
+#toggleGreenscreenModeBtn {
+  background-color: var(--button-default-bg);
 }
 
 /* Active Mode Button Style */
 button.active-mode {
-  background-color: #4CAF50 !important; /* Green for active mode */
+  background-color: var(--button-active-bg) !important; 
 }
 
-/* General styling for control group sections, if needed for new buttons */
+/* Time Cycle Button */
+#cycleTimeDisplayModeBtn {
+  background-color: var(--button-time-cycle-bg);
+}
+#cycleTimeDisplayModeBtn:hover {
+  filter: brightness(var(--button-time-cycle-hover-brightness));
+}
+
 .controls-section {
   margin-top: 15px;
   padding-top: 10px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-color);
 }
 
 .thanks-section {
@@ -195,5 +208,5 @@ button.active-mode {
 
 .thanks-section strong {
     font-weight: normal;
-    color: #333;
+    color: var(--text-color-dark);
 } 

@@ -107,24 +107,24 @@
   opacity: 0.7;
 }
 
-/* 캡처를 위한 그린스크린 모드 */
-.wp-overlay-container.greenscreen {
+/* 캡처를 위한 그린스크린 모드 - content.js에서 사용하는 클래스명 'greenscreen-active'로 변경 */
+.wp-overlay-container.greenscreen-active {
   background-color: var(--wp-greenscreen-bg-color);
   border: 1px solid var(--wp-greenscreen-border-color);
 }
 
-.wp-overlay-container.greenscreen .wp-overlay-series-text,
-.wp-overlay-container.greenscreen .wp-overlay-episode-text,
-.wp-overlay-container.greenscreen #wp-overlay-time-text-container #wp-overlay-actual-time,
-.wp-overlay-container.greenscreen #wp-overlay-time-text-container #wp-overlay-hostname-display {
+.wp-overlay-container.greenscreen-active .wp-overlay-series-text,
+.wp-overlay-container.greenscreen-active .wp-overlay-episode-text,
+.wp-overlay-container.greenscreen-active #wp-overlay-time-text-container #wp-overlay-actual-time,
+.wp-overlay-container.greenscreen-active #wp-overlay-time-text-container #wp-overlay-hostname-display {
   color: var(--wp-greenscreen-text-color);
   text-shadow: var(--wp-greenscreen-text-shadow);
 }
 
 /* Compact Mode Styles */
 .wp-overlay-container.compact {
-  padding: 4px 8px; 
-  width: var(--wp-compact-overlay-width); 
+  padding: 4px 8px;
+  width: var(--wp-compact-overlay-width);
 }
 
 .wp-overlay-compact-text-container {
@@ -132,7 +132,7 @@
   align-items: center;
   width: 100%;
   font-family: var(--wp-overlay-font-family);
-  font-size: var(--wp-episode-font-size); 
+  font-size: var(--wp-episode-font-size);
 }
 
 .wp-overlay-compact-info {
@@ -141,22 +141,33 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-right: 8px; 
+  margin-right: 8px;
 }
 
 .wp-overlay-compact-time {
   flex-shrink: 0;
   text-align: right;
   font-family: var(--wp-time-font-family);
-  font-size: var(--wp-time-font-size); 
+  font-size: var(--wp-time-font-size);
   font-weight: var(--wp-time-font-weight);
 }
 
-/* Ensure compact mode text also respects greenscreen text color */
-.wp-overlay-container.compact.greenscreen .wp-overlay-compact-info,
-.wp-overlay-container.compact.greenscreen .wp-overlay-compact-time {
+/* Ensure compact mode text also respects greenscreen text color - content.js에서 사용하는 클래스명 'greenscreen-active'로 변경 */
+.wp-overlay-container.compact.greenscreen-active .wp-overlay-compact-info,
+.wp-overlay-container.compact.greenscreen-active .wp-overlay-compact-time {
   color: var(--wp-greenscreen-text-color);
   text-shadow: var(--wp-greenscreen-text-shadow);
+}
+
+/* 컴팩트 모드에서 시간 숨김 시 높이 조절 */
+.wp-overlay-container.compact.compact-no-time {
+  height: auto; /* 내용에 맞게 높이 자동 조절 */
+  min-height: unset; /* 최소 높이 제한 해제 */
+}
+
+/* 컴팩트 모드 + 시간 숨김 시, 정보 텍스트가 추가 공간을 활용하도록 (선택적) */
+.wp-overlay-container.compact.compact-no-time .wp-overlay-compact-info {
+  margin-right: 0; /* 시간 표시가 없으므로 오른쪽 여백 제거 */
 }
 
 /* New class for left positioning */
@@ -165,218 +176,4 @@
   left: var(--wp-overlay-left);
 }
 
-/* All styles related to Vertical Mode have been REMOVED. */
-
-/* NEW: Styles for the time and hostname container */
-#wp-overlay-time-text-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  font-family: var(--wp-time-font-family);
-  font-size: var(--wp-time-font-size);
-  font-weight: var(--wp-time-font-weight);
-}
-
-#wp-overlay-actual-time {
-  /* Default alignment is left, which is fine */
-  /* Specific styling for time if different from container */
-}
-
-#wp-overlay-hostname-display {
-  /* Default alignment is right due to space-between on parent */
-  /* Specific styling for hostname, e.g., slightly smaller or different color/opacity */
-  font-family: 'Noto Sans KR', var(--wp-overlay-font-family); /* Prioritize Noto Sans KR */
-  font-size: calc(var(--wp-time-font-size) * 0.65); /* Adjusted to 65% of time font size */
-  opacity: 0.7;
-}
-
-/* 캡처를 위한 그린스크린 모드 */
-.wp-overlay-container.greenscreen {
-  background-color: var(--wp-greenscreen-bg-color);
-  border: 1px solid var(--wp-greenscreen-border-color);
-}
-
-.wp-overlay-container.greenscreen .wp-overlay-series-text,
-.wp-overlay-container.greenscreen .wp-overlay-episode-text,
-/* .wp-overlay-container.greenscreen .wp-overlay-time-text, */ /* Old rule for single div */
-.wp-overlay-container.greenscreen #wp-overlay-time-text-container #wp-overlay-actual-time,
-.wp-overlay-container.greenscreen #wp-overlay-time-text-container #wp-overlay-hostname-display {
-  color: var(--wp-greenscreen-text-color);
-  text-shadow: var(--wp-greenscreen-text-shadow);
-}
-
-/* Compact Mode Styles */
-.wp-overlay-container.compact {
-  /* Override default flex-direction if needed, or rely on child's display if only one child is visible */
-  /* For example, if .wp-overlay-compact-text-container is the only visible child and is display:flex, 
-     this parent might not need much change other than perhaps padding or height. */
-  padding: 4px 8px; /* Adjust padding for single line display */
-  width: var(--wp-compact-overlay-width); /* Apply 1.5x width for compact mode */
-}
-
-.wp-overlay-compact-text-container {
-  /* This element is set to display:flex in JS for compact mode */
-  /* It will be display:none for other modes (handled by JS) */
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  /* Use existing font variables or define new ones if compact mode needs different base styling */
-  font-family: var(--wp-overlay-font-family);
-  font-size: var(--wp-episode-font-size); /* Example: use episode font size as base */
-}
-
-.wp-overlay-compact-info {
-  flex-grow: 1;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-right: 8px; /* Space between info and time */
-  /* Color should inherit from .wp-overlay-container or be specified */
-}
-
-.wp-overlay-compact-time {
-  flex-shrink: 0;
-  text-align: right;
-  font-family: var(--wp-time-font-family);
-  font-size: var(--wp-time-font-size); /* Use the larger time font size */
-  font-weight: var(--wp-time-font-weight);
-  /* Color should inherit or be specified */
-}
-
-/* Ensure compact mode text also respects greenscreen text color */
-.wp-overlay-container.compact.greenscreen .wp-overlay-compact-info,
-.wp-overlay-container.compact.greenscreen .wp-overlay-compact-time {
-  color: var(--wp-greenscreen-text-color);
-  text-shadow: var(--wp-greenscreen-text-shadow);
-}
-
-/* Styles for Vertical Mode - TO BE REMOVED */
-/*
-.wp-overlay-container.vertical {
-  width: var(--wp-vertical-mode-width);
-  height: var(--wp-vertical-mode-height);
-  display: flex;
-  flex-direction: row; 
-  justify-content: space-between; /* Changed to space-between */
-  align-items: center; 
-  padding: 5px;
-  overflow: hidden; 
-}
-
-.wp-overlay-container.vertical .wp-overlay-compact-text-container {
-  display: flex;
-  flex-direction: row; 
-  justify-content: space-between; /* Ensure title and time columns are spaced out */
-  align-items: flex-start; 
-  width: 100%; 
-  height: auto; 
-}
-
-.wp-overlay-container.vertical .wp-overlay-compact-info,
-.wp-overlay-container.vertical .wp-overlay-compact-time {
-  /* These are the columns for vertical text (e.g., D<br>I<br>G<br>I...) */
-  line-height: 1em; 
-  text-align: center; 
-  padding: 0 2px; 
-}
-
-.wp-overlay-container.vertical .wp-overlay-compact-info {
-  font-size: var(--wp-episode-font-size);
-  /* margin-right: 3px; /* Remove or adjust if space-between handles it */
-}
-
-.wp-overlay-container.vertical .wp-overlay-compact-time {
-  font-size: var(--wp-time-font-size);
-  font-family: var(--wp-time-font-family);
-  font-weight: var(--wp-time-font-weight);
-}
-
-/* Hide elements not used in vertical mode */
-.wp-overlay-container.vertical .wp-overlay-series-text,
-.wp-overlay-container.vertical .wp-overlay-episode-text,
-.wp-overlay-container.vertical .wp-overlay-time-text-container {
-  display: none !important;
-}
-
-/* Greenscreen for vertical mode */
-.wp-overlay-container.vertical.greenscreen .wp-overlay-compact-info,
-.wp-overlay-container.vertical.greenscreen .wp-overlay-compact-time {
-  color: var(--wp-greenscreen-text-color);
-  text-shadow: var(--wp-greenscreen-text-shadow);
-}
-
-
-/* Remove or adjust previous .vertical rules if they conflict */
-/* For example, the old rules targeting .wp-overlay-series-text etc. directly under .vertical 
-   are now less relevant if we are showing .wp-overlay-compact-text-container instead. 
-   The display:none above handles this, but clean up old ones if they were more complex. */
-*/
-
-/* New class for left positioning */
-.wp-overlay-container.position-left {
-  right: auto;
-  left: var(--wp-overlay-left);
-}
-
-/* Styles for Vertical Mode - TO BE REMOVED */
-/*
-.wp-overlay-container.vertical {
-  width: var(--wp-vertical-mode-width);
-  height: var(--wp-vertical-mode-height);
-  display: flex;
-  flex-direction: row; 
-  justify-content: space-between; /* Changed to space-between */
-  align-items: center; 
-  padding: 5px;
-  overflow: hidden; 
-}
-
-.wp-overlay-container.vertical .wp-overlay-compact-text-container {
-  display: flex;
-  flex-direction: row; 
-  justify-content: space-between; /* Ensure title and time columns are spaced out */
-  align-items: flex-start; 
-  width: 100%; 
-  height: auto; 
-}
-
-.wp-overlay-container.vertical .wp-overlay-compact-info,
-.wp-overlay-container.vertical .wp-overlay-compact-time {
-  /* These are the columns for vertical text (e.g., D<br>I<br>G<br>I...) */
-  line-height: 1em; 
-  text-align: center; 
-  padding: 0 2px; 
-}
-
-.wp-overlay-container.vertical .wp-overlay-compact-info {
-  font-size: var(--wp-episode-font-size);
-  /* margin-right: 3px; /* Remove or adjust if space-between handles it */
-}
-
-.wp-overlay-container.vertical .wp-overlay-compact-time {
-  font-size: var(--wp-time-font-size);
-  font-family: var(--wp-time-font-family);
-  font-weight: var(--wp-time-font-weight);
-}
-
-/* Hide elements not used in vertical mode */
-.wp-overlay-container.vertical .wp-overlay-series-text,
-.wp-overlay-container.vertical .wp-overlay-episode-text,
-.wp-overlay-container.vertical .wp-overlay-time-text-container {
-  display: none !important;
-}
-
-/* Greenscreen for vertical mode */
-.wp-overlay-container.vertical.greenscreen .wp-overlay-compact-info,
-.wp-overlay-container.vertical.greenscreen .wp-overlay-compact-time {
-  color: var(--wp-greenscreen-text-color);
-  text-shadow: var(--wp-greenscreen-text-shadow);
-}
-
-
-/* Remove or adjust previous .vertical rules if they conflict */
-/* For example, the old rules targeting .wp-overlay-series-text etc. directly under .vertical 
-   are now less relevant if we are showing .wp-overlay-compact-text-container instead. 
-   The display:none above handles this, but clean up old ones if they were more complex. */ 
+/* END OF FILE */ 

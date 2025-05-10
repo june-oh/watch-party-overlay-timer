@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # 프로젝트 개요 및 진행 방향: Watch Party Overlay Timer
 
