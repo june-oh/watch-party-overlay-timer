@@ -21,22 +21,21 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     // Define selectors for different sites
     const siteSelectors = {
       'laftel.net': {
-        titleSelector: '#root > div.sc-4a02fa07-0.cSulJK > div > div.sc-ec16796a-2.hlVrXi > div > div > div.sc-46d49bb0-5.hFtDBz > div.sc-46d49bb0-7.krHzYQ', // Episode Title
-        seriesSelector: '#root > div.sc-4a02fa07-0.cSulJK > div > div.sc-ec16796a-2.hlVrXi > div > a', // Series Title
-        movieTitleSelector: '#root > div.sc-4a02fa07-0.cSulJK > div > div.sc-ec16796a-2.hlVrXi > div > div > div.sc-46d49bb0-5.hFtDBz > a', // New: For single titles like movies
-        // For Laftel, we'll rely on the video element for time, so these can be null or omitted
-        currentTimeSelector: null, 
-        durationSelector: null,
+        videoPlayerAreaHint: 'div[class*="sc-ec16796a-1"]',
+        infoContainerHint_asSiblingToVideoPlayerAreaParent: 'div[class*="sc-ec16796a-2"]',
+        seriesSubSelector: 'div[class*="sc-bae7327-0"] > a[href^="/item/"]', 
+        titleSubSelector: 'div[class*="sc-bae7327-0"] div[class*="sc-bae7327-7"]',
+        movieSubSelector: 'div[class*="sc-bae7327-0"] div[class*="haCwMH"] > a[href^="/item/"]',
         siteName: 'LAFTEL'
       },
       'chzzk.naver.com': {
-        titleSelector: 'h2.video_information_title__jrLfG',
-        seriesSelector: null, // No specific series selector for now
-        currentTimeSelector: '#player_layout > div > div.pzp-pc__bottom > div.pzp-pc__bottom-buttons > div.pzp-pc__bottom-buttons-left > div.pzp-vod-time.pzp-pc-vod-time.pzp-pc__vod-time > span.pzp-ui-text.pzp-vod-time__current-time',
-        durationSelector: '#player_layout > div > div.pzp-pc__bottom > div.pzp-pc__bottom-buttons > div.pzp-pc__bottom-buttons-left > div.pzp-vod-time.pzp-pc-vod-time.pzp-pc__vod-time > span.pzp-ui-text.pzp-vod-time__duration',
+        playerLayoutId: '#player_layout', // 이 ID가 일반/풀스크린 모드 모두에서 유효하다고 가정
+        titleSubSelector: 'div[class^="vod_details"] h2[class^="video_information_title__"]', // 일반 모드 VOD 제목 (더 구체적으로)
+        fullscreenTitleSubSelector: 'div[class*="player_header"] p[class^="vod_player_header_title__"]', // 풀스크린 모드 VOD 제목
+        seriesSubSelector: null, 
         siteName: 'CHZZK'
-      }
-      // Add other sites here, e.g., 'www.youtube.com': { ... }
+      },
+      // ... 다른 사이트 설정 ...
     };
 
     let currentSiteConfig = null;
@@ -100,103 +99,116 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     // Get Video Info (generalized)
     function getVideoInfo() {
       if (checkAndHandleInvalidatedContext("getVideoInfo")) return null;
-      if (!currentSiteConfig) {
-        return null;
-      }
+      if (!currentSiteConfig) return null;
 
-      let episode = "N/A"; // Use 'episode' as the primary title key
+      let episode = "N/A";
       let series = "N/A";
       let currentSeconds = 0;
       let durationSeconds = 0;
+      const siteName = currentSiteConfig.siteName || window.location.hostname;
+      const videoEl = document.querySelector('video');
 
-      if (currentSiteConfig.siteName === 'LAFTEL') {
-        // Laftel specific logic
-        let mainTitleFound = false;
-        // 1. Try standard episode title selector
-        const standardEpisodeEl = document.querySelector(currentSiteConfig.titleSelector);
-        if (standardEpisodeEl) {
-            episode = standardEpisodeEl.innerText.trim();
-            mainTitleFound = true;
-            // If standard episode found, try to get series title
-            if (currentSiteConfig.seriesSelector) {
-                const seriesEl = document.querySelector(currentSiteConfig.seriesSelector);
-                if (seriesEl) {
-                    series = seriesEl.innerText.trim();
-                } else {
-                    series = ""; // Found episode, but no series found via selector
-                }
-            } else {
-                 series = ""; // No series selector defined, but episode found
-            }
-        } else if (currentSiteConfig.movieTitleSelector) {
-            // 2. Standard episode not found, try movie title selector
-            const movieTitleEl = document.querySelector(currentSiteConfig.movieTitleSelector);
-            if (movieTitleEl) {
-                episode = movieTitleEl.innerText.trim();
-                mainTitleFound = true;
-                series = ""; // For movies, series is explicitly empty as requested
-            }
+      // console.log(`CONTENT.JS: getVideoInfo START for ${siteName}`);
+
+      if (videoEl) {
+        currentSeconds = videoEl.currentTime;
+        durationSeconds = videoEl.duration;
+        if (isNaN(durationSeconds) || !isFinite(durationSeconds)) {
+          durationSeconds = 0;
+        }
+      } else {
+        // console.warn(`CONTENT.JS: getVideoInfo - <video> element not found on ${siteName}. Time info will be unavailable.`);
+      }
+
+      if (siteName === 'LAFTEL') {
+        const previousEpisode = currentVideoInfo?.episode;
+        const previousSeries = currentVideoInfo?.series;
+
+        if (!videoEl) {
+            // console.warn("CONTENT.JS: Laftel - Video element not found, cannot find titles relatively.");
+            episode = previousEpisode || "N/A";
+            series = previousSeries || "";
+            return { series, episode, currentSeconds, durationSeconds, siteName }; 
+        }
+
+        const videoPlayerArea = videoEl.closest(currentSiteConfig.videoPlayerAreaHint);
+        let infoContainer = null;
+
+        if (videoPlayerArea && videoPlayerArea.parentElement) {
+            infoContainer = videoPlayerArea.parentElement.querySelector(currentSiteConfig.infoContainerHint_asSiblingToVideoPlayerAreaParent);
         }
         
-        // If neither standard nor movie title was found, they remain "N/A"
+        if (!infoContainer) {
+            infoContainer = document.querySelector(currentSiteConfig.infoContainerHint_asSiblingToVideoPlayerAreaParent);
+        }
+
+        if (infoContainer) {
+          let tempEpisode = null;
+          let tempSeries = null;
+          let movieTitleElement = currentSiteConfig.movieSubSelector ? infoContainer.querySelector(currentSiteConfig.movieSubSelector) : null;
+          
+          if (movieTitleElement && movieTitleElement.innerText?.trim()) {
+            tempEpisode = movieTitleElement.innerText.trim();
+            tempSeries = "";
+          } else {
+            const seriesElement = currentSiteConfig.seriesSubSelector ? infoContainer.querySelector(currentSiteConfig.seriesSubSelector) : null;
+            const titleElement = currentSiteConfig.titleSubSelector ? infoContainer.querySelector(currentSiteConfig.titleSubSelector) : null;
+            
+            tempSeries = seriesElement?.innerText?.trim() || null;
+            tempEpisode = titleElement?.innerText?.trim() || null;
+            
+            if (tempSeries && !tempEpisode) { 
+                tempEpisode = "에피소드 정보 없음";
+            }
+          }
+          
+          episode = (tempEpisode && tempEpisode !== "N/A" && tempEpisode !== "제목 정보 없음" && tempEpisode !== "에피소드 정보 없음") ? tempEpisode : (previousEpisode || "N/A");
+          series = (tempEpisode && tempSeries === "") ? "" : (tempSeries || previousSeries || "");
+
+        } else {
+          episode = previousEpisode || "N/A";
+          series = previousSeries || "";
+        }
+      } else if (siteName === 'CHZZK') {
+        let titleText = null;
+        let titleElement = null;
+
+        // 1. 일반 모드 시도 (문서 전체에서 직접 검색)
+        if (currentSiteConfig.titleSubSelector) {
+            titleElement = document.querySelector(currentSiteConfig.titleSubSelector);
+            titleText = titleElement?.innerText?.trim();
+            console.log(`CONTENT.JS: Chzzk - Normal title selector ('${currentSiteConfig.titleSubSelector}') directly on document. Found: ${!!titleElement}, Text: '${titleText}'`);
+        }
+
+        // 2. 일반 모드 실패 시 또는 풀스크린 모드일 가능성을 고려하여 풀스크린 선택자 시도
+        if (!titleText && currentSiteConfig.playerLayoutId && currentSiteConfig.fullscreenTitleSubSelector) {
+            const playerLayout = document.querySelector(currentSiteConfig.playerLayoutId);
+            console.log("CONTENT.JS: Chzzk - playerLayout for fullscreen check found:", playerLayout);
+            if (playerLayout) {
+                titleElement = playerLayout.querySelector(currentSiteConfig.fullscreenTitleSubSelector);
+                titleText = titleElement?.innerText?.trim();
+                console.log(`CONTENT.JS: Chzzk - Fullscreen title selector ('${currentSiteConfig.fullscreenTitleSubSelector}') inside '${currentSiteConfig.playerLayoutId}'. Found: ${!!titleElement}, Text: '${titleText}'`);
+            } else {
+                 console.log(`CONTENT.JS: Chzzk - playerLayout ('${currentSiteConfig.playerLayoutId}') not found for fullscreen check.`);
+            }
+        }
+        episode = titleText || "N/A";
+        series = ""; 
 
       } else {
-        // Generic logic for other sites (current implementation)
-        if (currentSiteConfig.titleSelector) {
-            const titleEl = document.querySelector(currentSiteConfig.titleSelector);
-            if (titleEl) episode = titleEl.innerText.trim();
-        }
-        if (currentSiteConfig.seriesSelector) {
-            const seriesEl = document.querySelector(currentSiteConfig.seriesSelector);
-            if (seriesEl) series = seriesEl.innerText.trim();
-        } else if (currentSiteConfig.titleSelector && !currentSiteConfig.seriesSelector && episode !== "N/A") {
-            // If there's a title but no series selector (e.g., chzzk VOD) and an episode title was found
-            series = ""; // Series can be empty
-        }
+        // Other sites (기존 일반 로직 유지)
+        const titleElement = currentSiteConfig.titleSelector ? document.querySelector(currentSiteConfig.titleSelector) : null;
+        const seriesElement = currentSiteConfig.seriesSelector ? document.querySelector(currentSiteConfig.seriesSelector) : null;
+        episode = titleElement?.innerText?.trim() || "N/A";
+        series = seriesElement?.innerText?.trim() || (episode !== "N/A" && episode !== "" ? "" : "N/A");
       }
-
-      // For current time and duration, prioritize selectors if available
-      let currentTimeFromSelector = false;
-      let durationFromSelector = false;
-
-      if (currentSiteConfig.currentTimeSelector) {
-        const currentTimeEl = document.querySelector(currentSiteConfig.currentTimeSelector);
-        if (currentTimeEl) {
-          currentSeconds = parseTimeToSeconds(currentTimeEl.innerText.trim());
-          currentTimeFromSelector = true;
-        }
-      }
-
-      if (currentSiteConfig.durationSelector) {
-        const durationEl = document.querySelector(currentSiteConfig.durationSelector);
-        if (durationEl) {
-          durationSeconds = parseTimeToSeconds(durationEl.innerText.trim());
-          durationFromSelector = true;
-        }
-      }
-
-      // Fallback to video element if selectors didn't provide the time info
-      const videoElement = document.querySelector('video');
-      if (videoElement) {
-        if (!currentTimeFromSelector && !isNaN(videoElement.currentTime)) {
-          currentSeconds = videoElement.currentTime;
-        }
-        if (!durationFromSelector && !isNaN(videoElement.duration)) {
-          durationSeconds = videoElement.duration;
-        }
-      } else if (!currentTimeFromSelector || !durationFromSelector) {
-        // console.warn("CONTENT.JS: Video element not found, and time info not fully available from selectors.");
-        // Retain whatever was found from selectors, or default to 0 if nothing.
-      }
-      
-      // console.log(`CONTENT.JS: getVideoInfo Raw - Title: ${title}, Series: ${series}, Current: ${currentSeconds}, Duration: ${durationSeconds}`);
 
       return {
-        episode: episode, 
         series: series,
+        episode: episode,
         currentSeconds: currentSeconds,
         durationSeconds: durationSeconds,
-        siteName: currentSiteConfig.siteName // Include siteName
+        siteName: siteName
       };
     }
 
@@ -328,12 +340,12 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       if (checkAndHandleInvalidatedContext("updateOverlayDOM")) return;
       const currentOverlayElement = document.getElementById('wp-overlay-timer');
 
-      // Log entry point with all relevant current states
+      // 로그 강화: 함수 호출 시점의 모든 주요 상태 값 기록
       console.log(
-        `CONTENT.JS: updateOverlayDOM CALLED. Current States Before Update: \n` + 
-        `  Mode: ${currentOverlayMode}, Theme: ${currentOverlayTheme}, TimeDisplay: ${currentTimeDisplayMode}, \n` + 
-        `  Position: ${currentOverlayPositionSide}, Visible: ${currentIsOverlayVisible}, Fetching: ${currentIsFetchingActive}, \n` + 
-        `  Info: ${currentVideoInfo ? 'Exists' : 'null'}`
+        `CONTENT.JS: updateOverlayDOM CALLED (Detailed Entry). \n` + 
+        `  Fetching: ${currentIsFetchingActive}, Visible: ${currentIsOverlayVisible}, Mode: ${currentOverlayMode}, \n` + 
+        `  Theme: ${currentOverlayTheme}, TimeDisplay: ${currentTimeDisplayMode}, Position: ${currentOverlayPositionSide}\n` + 
+        `  VideoInfo: ${currentVideoInfo ? JSON.stringify(currentVideoInfo) : 'null'}`
       );
 
       if (!currentOverlayElement) {
@@ -348,15 +360,24 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
                 return;
              }
           } else {
+            // console.log("CONTENT.JS: updateOverlayDOM - Overlay element not found and not supposed to be visible or context invalidated.");
             return; 
           }
       }
+      // Ensure global overlayContainer is up-to-date if it was just recreated or found
       if (overlayContainer !== currentOverlayElement) overlayContainer = currentOverlayElement;
 
-      console.log(`CONTENT.JS: updateOverlayDOM START - Mode: ${currentOverlayMode}, Theme: ${currentOverlayTheme}, TimeDisplay: ${currentTimeDisplayMode}, Visible: ${currentIsOverlayVisible}, Fetching: ${currentIsFetchingActive}, Info: ${currentVideoInfo ? JSON.stringify(currentVideoInfo) : 'null'}`);
+      // 로그 강화: 오버레이 표시/숨김 결정 부분
+      const shouldDisplay = currentIsOverlayVisible;
+      overlayContainer.style.display = shouldDisplay ? 'flex' : 'none';
+      console.log(`CONTENT.JS: updateOverlayDOM - overlayContainer.style.display set to: ${overlayContainer.style.display} (based on currentIsOverlayVisible: ${currentIsOverlayVisible})`);
 
-      overlayContainer.style.display = currentIsOverlayVisible ? 'flex' : 'none';
-      if (!currentIsOverlayVisible) return;
+      if (!shouldDisplay) {
+        console.log("CONTENT.JS: updateOverlayDOM - Overlay is not visible, exiting further DOM updates.");
+        return; 
+      }
+      
+      // console.log(`CONTENT.JS: updateOverlayDOM START - Mode: ${currentOverlayMode}, Theme: ${currentOverlayTheme}, TimeDisplay: ${currentTimeDisplayMode}, Visible: ${currentIsOverlayVisible}, Fetching: ${currentIsFetchingActive}, Info: ${currentVideoInfo ? JSON.stringify(currentVideoInfo) : 'null'}`); // 이전 로그는 위 상세 로그로 대체
 
       // Reset classes for mode, position, and compact-no-time first
       overlayContainer.classList.remove('normal-mode', 'compact-mode', 'compact-no-time', 'position-left', 'position-right');
@@ -380,34 +401,32 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
       // Apply theme class separately
       const themeClasses = ['theme-light', 'theme-dark', 'theme-greenscreen-white-text', 'theme-greenscreen-black-text'];
-      themeClasses.forEach(cls => overlayContainer.classList.remove(cls)); // Remove all theme classes
+      themeClasses.forEach(cls => overlayContainer.classList.remove(cls)); 
       
-      console.log(`CONTENT.JS: updateOverlayDOM - Applying theme. currentOverlayTheme from background = "${currentOverlayTheme}", type: ${typeof currentOverlayTheme}`);
-      console.log(`CONTENT.JS: updateOverlayDOM - Defined themeClasses array for matching: [${themeClasses.join(', ')}]`);
+      // console.log(`CONTENT.JS: updateOverlayDOM - Applying theme. currentOverlayTheme from background = "${currentOverlayTheme}", type: ${typeof currentOverlayTheme}`);
+      // console.log(`CONTENT.JS: updateOverlayDOM - Defined themeClasses array for matching: [${themeClasses.join(', ')}]`);
       
       let themeApplied = false;
-      // Construct the expected full CSS class name from the theme name received from background
       const expectedCssClass = "theme-" + currentOverlayTheme;
-      console.log(`CONTENT.JS: updateOverlayDOM - Constructed expected CSS class: "${expectedCssClass}"`);
+      // console.log(`CONTENT.JS: updateOverlayDOM - Constructed expected CSS class: "${expectedCssClass}"`);
 
       for (let i = 0; i < themeClasses.length; i++) {
         const themeClassToCompareInArray = themeClasses[i];
         const comparisonResult = (themeClassToCompareInArray === expectedCssClass);
-        console.log(`CONTENT.JS: updateOverlayDOM - Comparing constructed CSS class "${expectedCssClass}" with themeClasses[${i}] "${themeClassToCompareInArray}": ${comparisonResult}`);
+        // console.log(`CONTENT.JS: updateOverlayDOM - Comparing constructed CSS class "${expectedCssClass}" with themeClasses[${i}] "${themeClassToCompareInArray}": ${comparisonResult}`);
         if (comparisonResult) {
-          overlayContainer.classList.add(expectedCssClass); // Add the successfully matched CSS class
-          console.log(`CONTENT.JS: updateOverlayDOM - Added theme class: "${expectedCssClass}"`);
+          overlayContainer.classList.add(expectedCssClass); 
+          // console.log(`CONTENT.JS: updateOverlayDOM - Added theme class: "${expectedCssClass}"`);
           themeApplied = true;
           break; 
         }
       }
 
       if (!themeApplied) {
-         overlayContainer.classList.add('theme-light'); // Fallback to light theme
-         console.log(`CONTENT.JS: updateOverlayDOM - Added FALLBACK theme class: theme-light (currentOverlayTheme was: "${currentOverlayTheme}", constructed expectedCssClass was: "${expectedCssClass}")`);
+         overlayContainer.classList.add('theme-light'); 
+        //  console.log(`CONTENT.JS: updateOverlayDOM - Added FALLBACK theme class: theme-light (currentOverlayTheme was: "${currentOverlayTheme}", constructed expectedCssClass was: "${expectedCssClass}")`);
       }
 
-      // Force a reflow to help ensure styles are applied, especially for theme changes.
       if (overlayContainer) {
         void overlayContainer.offsetWidth;
       }
@@ -434,7 +453,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           } else if (currentTimeDisplayMode === 'current_only') {
             timeTextToDisplay = formatTime(currentS);
           } else {
-             console.warn("CONTENT.JS: Unexpected currentTimeDisplayMode in time text generation (info exists):", currentTimeDisplayMode);
+            //  console.warn("CONTENT.JS: Unexpected currentTimeDisplayMode in time text generation (info exists):", currentTimeDisplayMode);
              timeTextToDisplay = "ERR_MODE";
           }
         } else if (currentIsFetchingActive) {
@@ -443,13 +462,13 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           } else if (currentTimeDisplayMode === 'current_only') {
             timeTextToDisplay = '--:--';
           } else {
-            console.warn("CONTENT.JS: Unexpected currentTimeDisplayMode in time text generation (loading):", currentTimeDisplayMode);
+            // console.warn("CONTENT.JS: Unexpected currentTimeDisplayMode in time text generation (loading):", currentTimeDisplayMode);
             timeTextToDisplay = "ERR_LOAD";
           }
         }
       }
 
-      console.log(`CONTENT.JS: updateOverlayDOM - Generated timeTextToDisplay: '${timeTextToDisplay}' for mode: ${currentTimeDisplayMode}`);
+      // console.log(`CONTENT.JS: updateOverlayDOM - Generated timeTextToDisplay: '${timeTextToDisplay}' for mode: ${currentTimeDisplayMode}`);
       
       if (currentOverlayMode === 'compact') {
         if (seriesEl) seriesEl.style.display = 'none';
@@ -457,42 +476,53 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
         if (timeContainerEl) timeContainerEl.style.display = 'none';
         if (compactContainerEl) compactContainerEl.style.display = 'flex';
 
-        if (compactInfoSpanEl) compactInfoSpanEl.textContent = isLoading ? 'Loading...' : (infoToDisplay ? (infoToDisplay.episode || infoToDisplay.title || 'N/A') : 'N/A');
+        if (compactInfoSpanEl) {
+            const newCompactText = isLoading ? 'Loading...' : (infoToDisplay?.episode || infoToDisplay?.title || 'N/A');
+            // console.log(`CONTENT.JS: Compact Mode - Setting compactInfoSpanEl text to: "${newCompactText}"`);
+            compactInfoSpanEl.textContent = newCompactText;
+        }
         if (compactTimeSpanEl) {
             compactTimeSpanEl.textContent = timeTextToDisplay;
             const newCompactTimeDisplay = currentTimeDisplayMode === 'none' ? 'none' : 'inline';
             compactTimeSpanEl.style.display = newCompactTimeDisplay;
-            console.log(`CONTENT.JS: Compact Mode - Set compactTimeSpanEl.textContent to: '${timeTextToDisplay}', and display to: ${newCompactTimeDisplay}`);
+            // console.log(`CONTENT.JS: Compact Mode - Set compactTimeSpanEl.textContent to: '${timeTextToDisplay}', and display to: ${newCompactTimeDisplay}`);
         }
-      } else { 
-        if (seriesEl) seriesEl.style.display = 'block';
-        if (episodeEl) episodeEl.style.display = 'block';
+      } else { // Normal Mode
+        if (seriesEl) {
+            seriesEl.style.display = 'block';
+            const newSeriesText = isLoading ? 'Loading...' : (infoToDisplay?.series || '');
+            // console.log(`CONTENT.JS: Normal Mode - Setting seriesEl text to: "${newSeriesText}"`);
+            seriesEl.textContent = newSeriesText;
+        }
+        if (episodeEl) {
+            episodeEl.style.display = 'block';
+            const newEpisodeText = isLoading ? 'Loading...' : (infoToDisplay?.episode || infoToDisplay?.title || 'N/A');
+            // console.log(`CONTENT.JS: Normal Mode - Setting episodeEl text to: "${newEpisodeText}"`);
+            episodeEl.textContent = newEpisodeText;
+        }
         
         const newNormalTimeContainerDisplay = currentTimeDisplayMode === 'none' ? 'none' : 'flex';
         if (timeContainerEl) {
             timeContainerEl.style.display = newNormalTimeContainerDisplay;
-            console.log("CONTENT.JS: Normal Mode - Set timeContainerEl.style.display to:", newNormalTimeContainerDisplay);
+            // console.log("CONTENT.JS: Normal Mode - Set timeContainerEl.style.display to:", newNormalTimeContainerDisplay);
         }
         if (actualTimeSpanEl) {
             actualTimeSpanEl.textContent = timeTextToDisplay;
-            console.log(`CONTENT.JS: Normal Mode - Set actualTimeSpanEl.textContent to: '${timeTextToDisplay}'`);
+            // console.log(`CONTENT.JS: Normal Mode - Set actualTimeSpanEl.textContent to: '${timeTextToDisplay}'`);
         }
 
         if (compactContainerEl) compactContainerEl.style.display = 'none';
-
-        if (seriesEl) seriesEl.textContent = isLoading ? 'Loading...' : (infoToDisplay ? (infoToDisplay.series || '') : '');
-        if (episodeEl) episodeEl.textContent = isLoading ? 'Loading...' : (infoToDisplay ? (infoToDisplay.episode || infoToDisplay.title || 'N/A') : 'N/A');
         
         if (hostnameSpanEl) {
           if (isLoading || !infoToDisplay) {
             hostnameSpanEl.textContent = '';
             hostnameSpanEl.style.display = 'none';
           } else {
-            const currentHostname = window.location.hostname;
+            const currentHostnameValue = window.location.hostname; // 여기서 currentHostname 대신 window.location.hostname 사용
             let displayHostname = '';
-            if (currentHostname) {
+            if (currentHostnameValue) {
                 try {
-                    displayHostname = currentHostname.toUpperCase().replace('WWW.', '').split('.')[0];
+                    displayHostname = currentHostnameValue.toUpperCase().replace('WWW.', '').split('.')[0];
               } catch (e) { displayHostname = 'HOST_ERR'; }
             }
             hostnameSpanEl.textContent = displayHostname;
