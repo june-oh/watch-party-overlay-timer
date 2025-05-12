@@ -39,6 +39,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // const previewSeriesEl = document.getElementById('previewSeries');
   // const previewTimeEl = document.getElementById('previewTime');
 
+  // NEW: Title Display Controls
+  const selectTitleDisplay = document.getElementById('selectTitleDisplay');
+  const currentTitleDisplayModeLabel = document.getElementById('currentTitleDisplayModeLabel');
+
   // --- Helper Functions ---
   function formatTime(totalSeconds) {
     if (isNaN(totalSeconds) || totalSeconds < 0) return '--:--';
@@ -157,9 +161,20 @@ document.addEventListener('DOMContentLoaded', () => {
       currentTimeDisplayModeLabel.textContent = timeDisplayModeText;
     }
 
-    // 8. Update Theme Controls (Dropdown & Label)
+    // NEW: 8. Update Title Display Controls (Dropdown & Label)
+    if (selectTitleDisplay) {
+      selectTitleDisplay.value = titleDisplayMode || 'episode_series'; 
+    }
+    if (currentTitleDisplayModeLabel) {
+      let titleDisplayModeText = '에피+시리즈'; // 기본값: episode_series
+      if (titleDisplayMode === 'episode_only') titleDisplayModeText = '에피소드만';
+      else if (titleDisplayMode === 'none') titleDisplayModeText = '숨김';
+      currentTitleDisplayModeLabel.textContent = `(${titleDisplayModeText})`;
+    }
+
+    // 9. Update Theme Controls (Dropdown & Label)
     if (selectTheme) {
-      selectTheme.value = overlayTheme;
+      selectTheme.value = overlayTheme || 'light'; // Null 체크 추가
     }
     if (currentOverlayThemeLabel) {
       let themeText = '라이트'; // Default for light
@@ -169,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentOverlayThemeLabel.textContent = themeText;
     }
     
-    // 9. Preview update logic (If preview elements exist and are intended to be used)
+    // 10. Preview update logic (If preview elements exist and are intended to be used)
     // if(previewContainerEl && previewTitleEl && previewSeriesEl && previewTimeEl) {
     //   previewContainerEl.className = 'preview'; 
     //   if (overlayMode) previewContainerEl.classList.add(overlayMode);
@@ -259,6 +274,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  if (selectTitleDisplay) {
+    selectTitleDisplay.addEventListener('change', (event) => {
+      chrome.runtime.sendMessage({ type: 'POPUP_SET_TITLE_DISPLAY_MODE', mode: event.target.value }, (response) => {
+        handleResponse(response, "POPUP_SET_TITLE_DISPLAY_MODE");
+      });
+    });
+  }
+
   if (selectTheme) {
     selectTheme.addEventListener('change', (event) => {
       chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_THEME', theme: event.target.value }, (response) => {
@@ -280,6 +303,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Request Initial State ---
   console.log("POPUP.JS: Requesting GET_POPUP_INITIAL_DATA from background.");
   chrome.runtime.sendMessage({ type: 'GET_POPUP_INITIAL_DATA' }, (response) => {
+    const defaultInitialState = { 
+      isFetchingActive: false, isOverlayVisible: false, overlayMode: 'normal', 
+      timeDisplayMode: 'current_duration', overlayPositionSide: 'right', overlayTheme: 'light',
+      lastVideoInfo: null, activeTabHostname: 'N/A',
+      isError: false, errorMessage: '초기 데이터 로드 중...'
+    };
+
     if (chrome.runtime.lastError) {
       console.error('POPUP.JS: Error getting initial data:', chrome.runtime.lastError.message);
       updatePopupUI({ 

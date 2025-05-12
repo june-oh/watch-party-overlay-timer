@@ -17,6 +17,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     let currentVideoInfo = null;
     let isContextInvalidated = false;
     let lastVideoInfoString = '';
+    let currentTitleDisplayMode = 'episode_series'; // NEW: content.js의 제목 표시 모드 상태
 
     // Define selectors for different sites
     const siteSelectors = {
@@ -608,6 +609,8 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           
           currentVideoInfo = message.data.lastVideoInfo !== undefined ? message.data.lastVideoInfo : currentVideoInfo; 
           
+          currentTitleDisplayMode = message.data.titleDisplayMode || currentTitleDisplayMode; // NEW
+          
           if (currentIsOverlayVisible && !document.getElementById('wp-overlay-timer')) {
             console.log("CONTENT.JS: BACKGROUND_STATE_UPDATE - Overlay should be visible but DOM element not found. Creating it.");
             createOverlayDOMIfNotExists(); 
@@ -632,6 +635,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           console.log("CONTENT.JS: SYNC_INITIAL_BG_STATE - currentTimeDisplayMode JUST SET TO:", currentTimeDisplayMode);
           currentOverlayPositionSide = message.data.overlayPositionSide || currentOverlayPositionSide;
           currentOverlayTheme = message.data.overlayTheme || currentOverlayTheme;
+          currentTitleDisplayMode = message.data.titleDisplayMode || currentTitleDisplayMode; // NEW
           if (message.data.lastVideoInfo !== undefined) { 
             currentVideoInfo = message.data.lastVideoInfo;
           }

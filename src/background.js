@@ -3,6 +3,7 @@ let isFetchingActive = false; // 정보 가져오기 활성화 상태 (초기값
 let isOverlayVisible = false;  // 오버레이 화면 표시 상태 (초기값 false)
 let overlayMode = 'normal'; // 'normal', 'compact'
 let timeDisplayMode = 'current_duration'; // 'current_duration', 'current_only', 'none'
+let titleDisplayMode = 'episode_series'; // NEW: 'episode_series', 'episode_only', 'none'
 let overlayPositionSide = 'right'; // 'left', 'right'
 let overlayTheme = 'light'; // 'light', 'dark', 'greenscreen-white-text', 'greenscreen-black-text'
 let lastVideoInfo = null;
@@ -50,6 +51,7 @@ function sendStateToPopup(tabId) {
     isOverlayVisible,
     overlayMode,
     timeDisplayMode,
+    titleDisplayMode,
     overlayPositionSide,
     overlayTheme,
     lastVideoInfo,
@@ -239,7 +241,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           responsePayload.error = "Invalid overlay theme requested: " + message.theme;
         }
         break;
-
+      
+      case 'POPUP_SET_TITLE_DISPLAY_MODE': // NEW HANDLER
+        if (BGasActiveTabId && ['episode_series', 'episode_only', 'none'].includes(message.mode)) {
+          currentTabId = BGasActiveTabId;
+          titleDisplayMode = message.mode;
+          isError = false; errorMessage = '';
+          console.log(`BG: Title display mode set to ${titleDisplayMode} for tab ${currentTabId}`);
+          responsePayload.titleDisplayMode = titleDisplayMode;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for title display mode.";
+          isError = true; errorMessage = "활성 탭 없음 (TitleDisplay)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid title display mode.";
+        }
+        break;
+      
       case 'GET_POPUP_INITIAL_DATA':
         // ... (기존 GET_POPUP_INITIAL_DATA 로직 유지,但 hostname 가져오는 부분은 sendStateToAllConnectedScriptsAndPopup 이전으로 이동) ...
         // 이 핸들러는 마지막에 sendResponse(initialData)를 직접 호출하므로 아래 로직을 타지 않음
@@ -263,40 +280,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 didInitialContentScriptCommunicationFail = true;
             }
         } else {
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs[0] && tabs[0].id) {
-                currentTabId = tabs[0].id;
-                if (tabs[0].url) activeTabHostname = new URL(tabs[0].url).hostname;
-                try {
-                    csResponse = await ensureContentScriptAndSendMessage(currentTabId, { type: 'GET_CONTENT_STATUS' });
-                    if (csResponse && typeof csResponse === 'object') contentStatus = csResponse;
-                    else didInitialContentScriptCommunicationFail = true;
-                } catch (e) {
-                    didInitialContentScriptCommunicationFail = true;
-                }
-            } else {
-                didInitialContentScriptCommunicationFail = true;
-            }
+            currentTabId = null; currentHostname = null;
+            isFetchingActive = false; lastVideoInfo = null; // 활성 탭 없으면 정보 가져오기 불가
         }
-
-        if (Object.keys(contentStatus).length > 0 && !didInitialContentScriptCommunicationFail) {
-            isFetchingActive = contentStatus.isFetchingActive !== undefined ? contentStatus.isFetchingActive : isFetchingActive;
-            isOverlayVisible = contentStatus.isOverlayVisible !== undefined ? contentStatus.isOverlayVisible : isOverlayVisible;
-            overlayMode = contentStatus.overlayMode || overlayMode;
-            timeDisplayMode = contentStatus.timeDisplayMode || timeDisplayMode; // CS로부터 받은 값으로 BG 상태 업데이트
-            overlayPositionSide = contentStatus.overlayPositionSide || overlayPositionSide;
-            overlayTheme = contentStatus.overlayTheme || overlayTheme;
-            lastVideoInfo = contentStatus.lastVideoInfo || lastVideoInfo;
-        }
-
-        const initialData = {
-            isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, 
-            overlayPositionSide, overlayTheme, lastVideoInfo,
-            isError: didInitialContentScriptCommunicationFail, 
-            activeTabHostname 
+        responsePayload = { 
+          success: true, isFetchingActive, isOverlayVisible, overlayMode, 
+          timeDisplayMode, titleDisplayMode, // NEW: titleDisplayMode 포함
+          overlayPositionSide, overlayTheme, lastVideoInfo, 
+          activeTabHostname: currentHostname, isError, errorMessage 
         };
-        sendResponse(initialData);
-        return; // 여기서 종료하여 아래 sendStateToAllConnectedScriptsAndPopup 호출 방지
+        break;
+      
+      case 'CONTENT_SCRIPT_READY':
+        if (sender.tab && sender.tab.id) {
+            currentTabId = sender.tab.id;
+            currentHostname = sender.tab.url ? new URL(sender.tab.url).hostname.replace(/^www\./, '') : null;
+            if (sender.tab.url) currentUrlByTabId[currentTabId] = sender.tab.url; // URL 저장
+            // isFetchingActive = false; // 탭이 준비되면 fetching은 false로 시작 (선택적)
+            // lastVideoInfo = null;
+            // isError = false; errorMessage = '';
+            console.log(`BG: CONTENT_SCRIPT_READY from tab ${currentTabId} (${currentHostname}). Sending SYNC_INITIAL_BG_STATE.`);
+            await ensureContentScriptAndSendMessage(currentTabId, { 
+                type: 'SYNC_INITIAL_BG_STATE', 
+                data: { 
+                    isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, 
+                    titleDisplayMode, // NEW: titleDisplayMode 포함
+                    overlayPositionSide, overlayTheme, lastVideoInfo, 
+                    activeTabHostname: currentHostname, isError, errorMessage 
+                } 
+            });
+        } else {
+            console.warn("BG: CONTENT_SCRIPT_READY received without sender.tab.id");
+        }
+        break;
 
       case 'VIDEO_INFO_UPDATE':
         if (message.data) {
@@ -352,6 +368,7 @@ async function sendStateToAllConnectedScriptsAndPopup() {
     isOverlayVisible,
     overlayMode,
     timeDisplayMode,
+    titleDisplayMode,
     overlayPositionSide,
     overlayTheme,
     lastVideoInfo,
@@ -394,8 +411,9 @@ function initializeExtensionState() {
   isOverlayVisible = false;
   overlayMode = 'normal';
   timeDisplayMode = 'current_duration';
-  overlayPositionSide = 'right'; // NEW: Initialize
-  overlayTheme = 'light'; // NEW: Initialize
+  titleDisplayMode = 'episode_series';
+  overlayPositionSide = 'right';
+  overlayTheme = 'light';
   lastVideoInfo = null;
   // currentTabId = null; // Best not to reset currentTabId on generic init, only on startup/install
   isError = false;

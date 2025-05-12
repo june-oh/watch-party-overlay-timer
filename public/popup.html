@@ -15,28 +15,28 @@
     </div>
 
     <div class="controls">
-      <button id="toggleFetchingBtn">정보 수집 시작</button>
+      <button id="toggleFetchingBtn">비디오 정보 가져오기 시작</button>
       <button id="toggleVisibilityBtn">오버레이 보이기</button>
       
       <div class="control-group">
         <label for="setNormalModeBtn">모드: <span id="currentOverlayModeLabel" class="label-value">(일반)</span></label>
         <div class="button-group">
-          <button id="setNormalModeBtn" data-mode="normal">일반</button>
-          <button id="setCompactModeBtn" data-mode="compact">컴팩트</button>
+          <button id="setNormalModeBtn" data-mode="normal" class="control-button">일반</button>
+          <button id="setCompactModeBtn" data-mode="compact" class="control-button">컴팩트</button>
         </div>
       </div>
 
       <div class="control-group">
         <label for="setPositionLeftBtn">위치: <span id="currentOverlayPositionLabel" class="label-value">(오른쪽)</span></label>
         <div class="button-group">
-          <button id="setPositionLeftBtn" data-position="left">왼쪽</button>
-          <button id="setPositionRightBtn" data-position="right">오른쪽</button>
+          <button id="setPositionLeftBtn" data-position="left" class="control-button">왼쪽</button>
+          <button id="setPositionRightBtn" data-position="right" class="control-button">오른쪽</button>
         </div>
       </div>
 
       <div class="control-group">
         <label for="selectTimeDisplay">시간 표시: <span id="currentTimeDisplayModeLabel" class="label-value">(현재/전체)</span></label>
-        <select id="selectTimeDisplay">
+        <select id="selectTimeDisplay" class="control-select">
           <option value="current_duration">현재/전체 시간</option>
           <option value="current_only">현재 시간만</option>
           <option value="none">숨김</option>
@@ -44,21 +44,30 @@
       </div>
 
       <div class="control-group">
+        <label for="selectTitleDisplay">제목 표시: <span id="currentTitleDisplayModeLabel" class="label-value">(에피+시리즈)</span></label>
+        <select id="selectTitleDisplay" class="control-select">
+          <option value="episode_series">에피소드 + 시리즈</option>
+          <option value="episode_only">에피소드만</option>
+          <option value="none">숨김</option>
+        </select>
+      </div>
+
+      <div class="control-group">
         <label for="selectTheme">테마: <span id="currentOverlayThemeLabel" class="label-value">(라이트)</span></label>
-        <select id="selectTheme">
+        <select id="selectTheme" class="control-select">
           <option value="light">라이트</option>
           <option value="dark">다크</option>
-          <option value="greenscreen-white-text">그린스크린 (흰 글씨)</option>
-          <option value="greenscreen-black-text">그린스크린 (검은 글씨)</option>
+          <option value="greenscreen-white-text">그린 (흰 글씨)</option>
+          <option value="greenscreen-black-text">그린 (검은 글씨)</option>
         </select>
       </div>
     </div>
 
     <div class="info-section">
-      <h4>Current Video Info:</h4>
-      <p><strong>Title:</strong> <span id="videoTitle">N/A</span></p>
-      <p><strong>Series:</strong> <span id="videoSeries">N/A</span></p>
-      <p><strong>Time:</strong> <span id="videoTime">--:-- / --:--</span></p>
+      <h4>현재 비디오 정보:</h4>
+      <p><strong>시리즈:</strong> <span id="videoSeries">N/A</span></p>
+      <p><strong>에피소드:</strong> <span id="videoTitle">N/A</span></p>
+      <p><strong>시간:</strong> <span id="videoTime">--:-- / --:--</span></p>
     </div>
 
     <div class="thanks-section">
