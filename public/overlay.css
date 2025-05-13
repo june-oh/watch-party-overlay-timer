@@ -41,8 +41,8 @@
   --wp-time-margin-bottom : 2px; /* Currently applied via #wp-overlay-time-text-container indirectly */
 
   /* Greenscreen Mode (Overrides themes) */
-  --wp-greenscreen-bg-color: rgb(0, 177, 64);
-  --wp-greenscreen-border-color: rgb(0, 177, 64); /* Kept for consistency */
+  --wp-greenscreen-bg-color: #00b140;
+  --wp-greenscreen-border-color: #00b140; /* Kept for consistency */
   --wp-greenscreen-text-color: black;
   /* --wp-greenscreen-text-shadow: 0px 0px 2px white, 0px 0px 3px white, 0px 0px 4px white; */
 
@@ -63,7 +63,7 @@
   --wp-dark-hostname-text-color: rgba(0, 0, 0, 0.6);
   
   /* Greenscreen Theme Variables - NEW */
-  --wp-greenscreen-bg: #00FF00;
+  --wp-greenscreen-bg: #00b140;
   --wp-greenscreen-text-color-light: #FFFFFF;
   --wp-greenscreen-text-color-dark: #000000;
   --wp-greenscreen-text-shadow-light: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
@@ -76,7 +76,7 @@
 .wp-overlay-container {
   position: absolute;
   z-index: 999999;
-  padding: 1px 1px;
+  padding: 1px 5px;
   border-radius: 5px;
   font-size: 14px;
   font-weight: bold;
@@ -179,7 +179,7 @@
 
 /* Compact Mode Styles */
 .wp-overlay-container.compact-mode {
-  padding: 1px 1px;
+  padding: 1px 4px;
   min-width: fit-content;
   flex-direction: row;
   align-items: center;
