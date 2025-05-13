@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오버레이 테스트</title>
+    <link rel="stylesheet" href="../public/css/overlay.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background-color: #f0f0f0; /* 배경색을 두어 오버레이가 잘 보이도록 함 */
+            min-height: 300px; /* 오버레이 위치 테스트를 위한 최소 높이 */
+            position: relative; /* 오버레이 포지셔닝 기준 */
+        }
+        .video-placeholder {
+            width: 640px;
+            height: 360px;
+            background-color: #333;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            position: relative; /* 오버레이가 이 안에 위치하는 것처럼 보이도록 */
+        }
+        /* 테스트용 컨트롤 버튼 */
+        .controls {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ddd;
+            border-radius: 5px;
+        }
+        .controls button {
+            margin-right: 5px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>오버레이 스타일 테스트 페이지</h1>
+    <p>이 페이지는 <code>public/css/overlay.css</code>에 정의된 스타일을 사용하여 오버레이가 어떻게 보이는지 테스트하기 위한 것입니다.</p>
+
+    <div class="video-placeholder">
+        여기에 비디오가 있다고 가정합니다.
+
+        <!-- 일반 모드 오버레이 (기본: 오른쪽 상단) -->
+        <div id="wp-overlay-timer" class="wp-overlay-container theme-light position-right normal-mode">
+            <div class="wp-overlay-series-text" id="wp-overlay-series-text">아주 긴 시리즈 제목 테스트 열두 글자 초과</div>
+            <div class="wp-overlay-episode-text" id="wp-overlay-episode-text">특별판: 돌아온 개발자 (초장편 에피소드 제목)</div>
+            <div class="wp-overlay-time-text" id="wp-overlay-time-text-container">
+                <span id="wp-overlay-actual-time" class="time-no-hours">12:34 / 56:78</span>
+                <span id="wp-overlay-hostname-display">TESTHOST</span>
+            </div>
+            <!-- 컴팩트 모드용 컨테이너 (일반 모드에서는 숨겨짐) -->
+            <div class="wp-overlay-compact-text-container" id="wp-overlay-compact-text-container" style="display: none;">
+                <span class="wp-overlay-compact-info" id="wp-overlay-compact-info">컴팩트 정보 텍스트</span>
+                <span class="wp-overlay-compact-time" id="wp-overlay-compact-time">12:34</span>
+            </div>
+        </div>
+    </div>
+
+    <h2>테스트용 오버레이 (다양한 상태)</h2>
+
+    <!-- 컴팩트 모드 - 라이트 테마 - 시간 표시 - 왼쪽 -->
+    <div class="wp-overlay-container theme-light position-left compact-mode" style="position: static; margin-bottom: 10px; display: inline-flex;">
+        <div class="wp-overlay-compact-text-container" style="display: flex;">
+            <span class="wp-overlay-compact-info">에피소드 1</span>
+            <span class="wp-overlay-compact-time time-no-hours" style="margin-left: 8px;">01:23</span>
+        </div>
+    </div>
+    <br>
+
+    <!-- 일반 모드 - 다크 테마 - 시간 & 시리즈 표시 - 시간(H) 있음 - 오른쪽 -->
+    <div class="wp-overlay-container theme-dark position-right normal-mode" style="position: static; margin-bottom: 10px; display: inline-flex; flex-direction: column;">
+        <div class="wp-overlay-series-text">시리즈 A</div>
+        <div class="wp-overlay-episode-text">에피소드 제목 B</div>
+        <div class="wp-overlay-time-text" style="display: flex;">
+            <span class="wp-overlay-actual-time time-has-hours">1:23:45 / 2:34:56</span>
+            <span id="wp-overlay-hostname-display" style="padding-left: 5px;">SITE</span>
+        </div>
+    </div>
+    <br>
+
+    <!-- 그린스크린 (흰 글씨) - 시간 숨김 - 제목만 -->
+    <div class="wp-overlay-container theme-greenscreen-white-text normal-mode normal-no-title-info" style="position: static; margin-bottom: 10px; display: inline-flex; flex-direction: column;">
+        <!-- <div class="wp-overlay-series-text">보안 시리즈</div> -->
+        <div class="wp-overlay-episode-text">최종화: 그린스크린 테스트</div>
+        <div class="wp-overlay-time-text" style="display: none;">
+            <span class="wp-overlay-actual-time">00:00</span>
+        </div>
+    </div>
+    <br>
+
+    <!-- 그린스크린 (검은 글씨) - 컴팩트 모드 - 시간 있음 -->
+     <div class="wp-overlay-container theme-greenscreen-black-text compact-mode" style="position: static; margin-bottom: 10px; display: inline-flex;">
+        <div class="wp-overlay-compact-text-container" style="display: flex;">
+            <span class="wp-overlay-compact-info">짧은 제목</span>
+            <span class="wp-overlay-compact-time time-has-hours" style="margin-left: 8px;">1:00:00</span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <h3>스타일 조작 (예시 - 실제 기능은 popup.js/content.js에서 제어)</h3>
+        <button onclick="toggleTheme()">테마 변경 (Light/Dark)</button>
+        <button onclick="toggleMode()">모드 변경 (Normal/Compact)</button>
+        <button onclick="togglePosition()">위치 변경 (Left/Right)</button>
+        <button onclick="toggleTimeFormat()">시간 형식 변경 (HH:MM:SS / MM:SS)</button>
+        <button onclick="toggleVisibility()">오버레이 보이기/숨기기</button>
+    </div>
+
+    <script>
+        const overlay = document.getElementById('wp-overlay-timer');
+        const actualTimeEl = overlay.querySelector('#wp-overlay-actual-time');
+        const compactTimeEl = overlay.querySelector('#wp-overlay-compact-time');
+        const compactInfoEl = overlay.querySelector('#wp-overlay-compact-info');
+        const seriesTextEl = overlay.querySelector('#wp-overlay-series-text');
+        const episodeTextEl = overlay.querySelector('#wp-overlay-episode-text');
+        const timeTextContainerEl = overlay.querySelector('#wp-overlay-time-text-container');
+        const compactTextContainerEl = overlay.querySelector('#wp-overlay-compact-text-container');
+        const hostnameEl = overlay.querySelector('#wp-overlay-hostname-display');
+
+
+        function toggleTheme() {
+            overlay.classList.toggle('theme-light');
+            overlay.classList.toggle('theme-dark');
+        }
+
+        function toggleMode() {
+            const isNormal = overlay.classList.toggle('normal-mode');
+            overlay.classList.toggle('compact-mode', !isNormal);
+
+            if (overlay.classList.contains('compact-mode')) {
+                seriesTextEl.style.display = 'none';
+                episodeTextEl.style.display = 'none';
+                timeTextContainerEl.style.display = 'none';
+                compactTextContainerEl.style.display = 'flex';
+                compactInfoEl.textContent = episodeTextEl.textContent.substring(0,10) + "..."; // 간략히
+                compactTimeEl.textContent = actualTimeEl.textContent.split(' / ')[0];
+            } else {
+                seriesTextEl.style.display = 'block';
+                episodeTextEl.style.display = 'block';
+                timeTextContainerEl.style.display = 'flex';
+                compactTextContainerEl.style.display = 'none';
+            }
+        }
+        
+        function togglePosition() {
+            overlay.classList.toggle('position-left');
+            overlay.classList.toggle('position-right');
+        }
+
+        let isTimeWithHours = false;
+        function toggleTimeFormat() {
+            isTimeWithHours = !isTimeWithHours;
+            const timeElements = [actualTimeEl, compactTimeEl]; // 모든 시간 요소 업데이트
+
+            timeElements.forEach(el => {
+                if (!el) return;
+                el.classList.remove('time-has-hours', 'time-no-hours');
+                if (isTimeWithHours) {
+                    el.classList.add('time-has-hours');
+                    if (el.textContent.includes('/')) {
+                         el.textContent = '1:23:45 / 1:55:00';
+                    } else {
+                         el.textContent = '1:23:45';
+                    }
+                } else {
+                    el.classList.add('time-no-hours');
+                     if (el.textContent.includes('/')) {
+                         el.textContent = '23:45 / 55:00';
+                    } else {
+                         el.textContent = '23:45';
+                    }
+                }
+            });
+             // Ensure compact mode also reflects the change if active
+            if(overlay.classList.contains('compact-mode')) {
+                compactTimeEl.textContent = actualTimeEl.textContent.split(' / ')[0];
+            }
+        }
+        
+        function toggleVisibility() {
+            overlay.style.display = overlay.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        // 초기 시간 포맷 설정 (MM:SS)
+        toggleTimeFormat();
+        isTimeWithHours = !isTimeWithHours; // 다시 반전시켜 초기 상태를 false (MM:SS)로
+        toggleTimeFormat(); // MM:SS 로 설정
+
+    </script>
+
+</body>
+</html>

@@ -61,13 +61,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function updatePopupUI(data) {
     console.log("POPUP.JS: updatePopupUI called with data:", JSON.parse(JSON.stringify(data)));
     // Log the specific troublesome state value
-    console.log(`POPUP.JS: updatePopupUI - Received overlayPositionSide: ${data.overlayPositionSide}, overlayTheme: ${data.overlayTheme}, timeDisplayMode: ${data.timeDisplayMode}`);
+    console.log(`POPUP.JS: updatePopupUI - Received overlayPositionSide: ${data.overlayPositionSide}, overlayTheme: ${data.overlayTheme}, timeDisplayMode: ${data.timeDisplayMode}, titleDisplayMode: ${data.titleDisplayMode}`);
 
     const {
       isFetchingActive,
       isOverlayVisible,
       overlayMode,
       timeDisplayMode,
+      titleDisplayMode,
       overlayPositionSide,
       overlayTheme,
       lastVideoInfo,
@@ -305,7 +306,9 @@ document.addEventListener('DOMContentLoaded', () => {
   chrome.runtime.sendMessage({ type: 'GET_POPUP_INITIAL_DATA' }, (response) => {
     const defaultInitialState = { 
       isFetchingActive: false, isOverlayVisible: false, overlayMode: 'normal', 
-      timeDisplayMode: 'current_duration', overlayPositionSide: 'right', overlayTheme: 'light',
+      timeDisplayMode: 'current_duration', 
+      titleDisplayMode: 'episode_series',
+      overlayPositionSide: 'right', overlayTheme: 'light',
       lastVideoInfo: null, activeTabHostname: 'N/A',
       isError: false, errorMessage: '초기 데이터 로드 중...'
     };
@@ -314,7 +317,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('POPUP.JS: Error getting initial data:', chrome.runtime.lastError.message);
       updatePopupUI({ 
         isFetchingActive: false, isOverlayVisible: false, overlayMode: 'normal', 
-        timeDisplayMode: 'current_duration', overlayPositionSide: 'right', overlayTheme: 'light',
+        timeDisplayMode: 'current_duration', 
+        titleDisplayMode: 'episode_series',
+        overlayPositionSide: 'right', overlayTheme: 'light',
         lastVideoInfo: null, activeTabHostname: 'N/A',
         isError: true, errorMessage: chrome.runtime.lastError.message
       });
@@ -328,7 +333,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn("POPUP.JS: No valid data object received for GET_POPUP_INITIAL_DATA. Response:", response);
       updatePopupUI({ 
         isFetchingActive: false, isOverlayVisible: false, overlayMode: 'normal', 
-        timeDisplayMode: 'current_duration', overlayPositionSide: 'right', overlayTheme: 'light',
+        timeDisplayMode: 'current_duration', 
+        titleDisplayMode: 'episode_series',
+        overlayPositionSide: 'right', overlayTheme: 'light',
         lastVideoInfo: null, activeTabHostname: 'N/A',
         isError: true, errorMessage: '초기 데이터 수신 실패'
       });
