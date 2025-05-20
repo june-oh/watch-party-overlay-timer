@@ -15,7 +15,6 @@
     </div>
 
     <div class="controls">
-      <button id="toggleFetchingBtn">비디오 정보 가져오기 시작</button>
       <button id="toggleVisibilityBtn">오버레이 보이기</button>
       
       <div class="control-group">
@@ -60,6 +59,11 @@
           <option value="greenscreen-white-text">그린 (흰 글씨)</option>
           <option value="greenscreen-black-text">그린 (검은 글씨)</option>
         </select>
+      </div>
+
+      <div class="control-group">
+        <label for="sliderOffset">위치 여백 (<span id="sliderOffsetValue">8</span>px):</label>
+        <input type="range" id="sliderOffset" min="0" max="20" value="8" class="control-slider">
       </div>
     </div>
 

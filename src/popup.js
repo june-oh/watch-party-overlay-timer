@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentSiteHostEl = document.getElementById('currentSiteHost');
 
   // Main Toggles
-  const toggleFetchingBtn = document.getElementById('toggleFetchingBtn');
   const toggleVisibilityBtn = document.getElementById('toggleVisibilityBtn');
 
   // Mode Controls
@@ -27,6 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Theme Controls
   const selectTheme = document.getElementById('selectTheme');
   const currentOverlayThemeLabel = document.getElementById('currentOverlayThemeLabel');
+
+  // NEW: Slider Control for Position Offset
+  const sliderOffset = document.getElementById('sliderOffset');
+  const sliderOffsetValue = document.getElementById('sliderOffsetValue');
 
   // Video Info Display
   const videoTitleEl = document.getElementById('videoTitle');
@@ -61,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updatePopupUI(data) {
     console.log("POPUP.JS: updatePopupUI called with data:", JSON.parse(JSON.stringify(data)));
     // Log the specific troublesome state value
-    console.log(`POPUP.JS: updatePopupUI - Received overlayPositionSide: ${data.overlayPositionSide}, overlayTheme: ${data.overlayTheme}, timeDisplayMode: ${data.timeDisplayMode}, titleDisplayMode: ${data.titleDisplayMode}`);
+    console.log(`POPUP.JS: updatePopupUI - Received overlayPositionSide: ${data.overlayPositionSide}, overlayTheme: ${data.overlayTheme}, timeDisplayMode: ${data.timeDisplayMode}, titleDisplayMode: ${data.titleDisplayMode}, overlayOffset: ${data.overlayOffset}`);
 
     const {
       isFetchingActive,
@@ -74,7 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
       lastVideoInfo,
       isError,
       errorMessage,
-      activeTabHostname
+      activeTabHostname,
+      overlayOffset
     } = data;
 
     // 1. Update Status Text (General Status)
@@ -120,10 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 4. Update Toggle Buttons (Fetching, Visibility)
-    if (toggleFetchingBtn) {
-      toggleFetchingBtn.textContent = isFetchingActive ? '정보 수집 중지' : '정보 수집 시작';
-      toggleFetchingBtn.classList.toggle('active-button', isFetchingActive === true);
-    }
     if (toggleVisibilityBtn) {
       toggleVisibilityBtn.textContent = isOverlayVisible ? '오버레이 숨기기' : '오버레이 보이기';
       toggleVisibilityBtn.classList.toggle('active-button', isOverlayVisible === true);
@@ -185,7 +185,13 @@ document.addEventListener('DOMContentLoaded', () => {
       currentOverlayThemeLabel.textContent = themeText;
     }
     
-    // 10. Preview update logic (If preview elements exist and are intended to be used)
+    // NEW: 10. Update Offset Slider Control
+    if (sliderOffset && sliderOffsetValue && overlayOffset !== undefined) {
+      sliderOffset.value = overlayOffset;
+      sliderOffsetValue.textContent = overlayOffset;
+    }
+
+    // 11. Preview update logic (If preview elements exist and are intended to be used)
     // if(previewContainerEl && previewTitleEl && previewSeriesEl && previewTimeEl) {
     //   previewContainerEl.className = 'preview'; 
     //   if (overlayMode) previewContainerEl.classList.add(overlayMode);
@@ -219,14 +225,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   // --- Event Listeners ---
-  if (toggleFetchingBtn) {
-    toggleFetchingBtn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_FETCHING' }, (response) => {
-        handleResponse(response, "POPUP_TOGGLE_FETCHING");
-      });
-    });
-  }
-
   if (toggleVisibilityBtn) {
     toggleVisibilityBtn.addEventListener('click', () => {
       chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_VISIBILITY' }, (response) => {
@@ -291,6 +289,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
+  // NEW: Offset Slider Event Listener
+  if (sliderOffset && sliderOffsetValue) {
+    sliderOffset.addEventListener('input', (event) => {
+      const value = event.target.value;
+      sliderOffsetValue.textContent = value;
+      chrome.runtime.sendMessage({ 
+        type: 'POPUP_SET_OVERLAY_OFFSET', 
+        offset: parseInt(value, 10) 
+      }, (response) => {
+        handleResponse(response, 'POPUP_SET_OVERLAY_OFFSET');
+      });
+    });
+  }
+  
   // --- Listener for Updates from Background ---
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'BACKGROUND_STATE_UPDATE') {
@@ -309,6 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
       timeDisplayMode: 'current_duration', 
       titleDisplayMode: 'episode_series',
       overlayPositionSide: 'right', overlayTheme: 'light',
+      overlayOffset: 8, // NEW: 단일 오프셋 기본값
       lastVideoInfo: null, activeTabHostname: 'N/A',
       isError: false, errorMessage: '초기 데이터 로드 중...'
     };
@@ -316,11 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (chrome.runtime.lastError) {
       console.error('POPUP.JS: Error getting initial data:', chrome.runtime.lastError.message);
       updatePopupUI({ 
-        isFetchingActive: false, isOverlayVisible: false, overlayMode: 'normal', 
-        timeDisplayMode: 'current_duration', 
-        titleDisplayMode: 'episode_series',
-        overlayPositionSide: 'right', overlayTheme: 'light',
-        lastVideoInfo: null, activeTabHostname: 'N/A',
+        ...defaultInitialState, // 기본값 전체 사용
         isError: true, errorMessage: chrome.runtime.lastError.message
       });
       return;
@@ -328,15 +337,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (response && typeof response === 'object') {
       console.log("POPUP.JS: Received response for GET_POPUP_INITIAL_DATA:", JSON.parse(JSON.stringify(response)));
-      updatePopupUI(response);
+      // Ensure new offset field has default if not provided by older background state
+      const dataToUpdate = {
+        ...defaultInitialState, // 기본값으로 시작
+        ...response, // background에서 받은 값으로 덮어쓰기
+        overlayOffset: response.overlayOffset !== undefined ? response.overlayOffset : defaultInitialState.overlayOffset,
+      };
+      updatePopupUI(dataToUpdate);
     } else {
       console.warn("POPUP.JS: No valid data object received for GET_POPUP_INITIAL_DATA. Response:", response);
       updatePopupUI({ 
-        isFetchingActive: false, isOverlayVisible: false, overlayMode: 'normal', 
-        timeDisplayMode: 'current_duration', 
-        titleDisplayMode: 'episode_series',
-        overlayPositionSide: 'right', overlayTheme: 'light',
-        lastVideoInfo: null, activeTabHostname: 'N/A',
+        ...defaultInitialState, // 기본값 전체 사용
         isError: true, errorMessage: '초기 데이터 수신 실패'
       });
     }

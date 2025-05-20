@@ -6,6 +6,7 @@ let timeDisplayMode = 'current_duration';
 let titleDisplayMode = 'episode_series'; // NEW: 'episode_series', 'episode_only', 'none'
 let overlayPositionSide = 'left'; 
 let overlayTheme = 'light'; 
+let overlayOffset = 8; // NEW: 오버레이 전체 여백 값
 let lastVideoInfo = null;
 let currentTabId = null; 
 let isError = false; 
@@ -46,6 +47,7 @@ function initializeExtensionState() {
   titleDisplayMode = 'episode_series'; 
   overlayPositionSide = 'left';
   overlayTheme = 'light';
+  overlayOffset = 8; // NEW: 초기화 시 오프셋 값 설정
   lastVideoInfo = null;
   currentTabId = null; 
   currentHostname = null;
@@ -104,7 +106,7 @@ async function ensureContentScriptAndSendMessage(tabId, message, retryCount = 0)
         return Promise.reject(new Error(`Max retries reached for tab ${tabId}. Content script not responding.`));
       }
     } else if (errMsg.includes("Extension context invalidated.")) {
-        console.error("BG: Extension context invalidated. Cannot send message.");
+        console.error(`BG: Extension context invalidated for tab ${tabId} during message: ${JSON.stringify(message)}. Re-initializing state.`, error);
         initializeExtensionState();
         return Promise.reject(error);
     }
@@ -126,7 +128,8 @@ async function sendStateToAll() {
 
   const state = {
     isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, titleDisplayMode,
-    overlayPositionSide, overlayTheme, lastVideoInfo, 
+    overlayPositionSide, overlayTheme, overlayOffset, // NEW: 오프셋 값 포함
+    lastVideoInfo, 
     activeTabHostname: currentActiveTabHostnameForPopup, isError, errorMessage
   };
 
@@ -150,37 +153,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     
     switch (message.type) {
-      case 'POPUP_TOGGLE_FETCHING':
-        if (BGasActiveTabId) {
-          currentTabId = BGasActiveTabId;
-          isFetchingActive = !isFetchingActive;
-          lastVideoInfo = null; 
-          isError = false; errorMessage = '';
-          try {
-            await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: isFetchingActive ? 'start' : 'stop' });
-            responsePayload.isFetchingActive = isFetchingActive;
-          } catch (e) {
-            responsePayload.success = false; responsePayload.error = e.message;
-            isFetchingActive = false; 
-            isError = true; errorMessage = "콘텐츠 스크립트 통신 실패 (Fetching)";
-          }
-        } else {
-          responsePayload.success = false; responsePayload.error = "No active tab for fetching.";
-          isFetchingActive = false; isError = true; errorMessage = "활성 탭 없음 (Fetching)";
-        }
-        break;
-
       case 'POPUP_TOGGLE_VISIBILITY':
         if (BGasActiveTabId) {
           currentTabId = BGasActiveTabId;
+          const previousOverlayVisibleState = isOverlayVisible;
           isOverlayVisible = !isOverlayVisible;
           isError = false; errorMessage = '';
+          responsePayload.isOverlayVisible = isOverlayVisible;
+
           try {
             await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_VISIBILITY', action: isOverlayVisible ? 'show' : 'hide' });
-            responsePayload.isOverlayVisible = isOverlayVisible;
+            
+            // 오버레이를 켜는 경우, 지원되는 사이트이고 fetching이 꺼져있으면 자동으로 fetching 시작
+            if (isOverlayVisible && !previousOverlayVisibleState) { // 막 켜진 경우
+              const tab = await chrome.tabs.get(currentTabId);
+              if (tab && tab.url) {
+                const currentUrlObj = new URL(tab.url);
+                if (currentUrlObj.hostname && (currentUrlObj.hostname.includes('laftel.net') || currentUrlObj.hostname.includes('chzzk.naver.com'))) {
+                  if (!isFetchingActive) {
+                    console.log(`BG: Overlay turned ON for supported site (${currentUrlObj.hostname}). Starting fetching automatically.`);
+                    isFetchingActive = true;
+                    lastVideoInfo = null; // 새 정보 가져오기 위해 초기화
+                    // responsePayload.isFetchingActive = isFetchingActive; // sendStateToAll에서 일괄 전송
+                    // content.js에 fetching 시작/재시작 알림
+                    await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'start', forceRestart: true });
+                  } else {
+                    // 이미 Fetching 중이라면, Video Info만 업데이트하도록 할 수도 있음 (선택적)
+                    console.log(`BG: Overlay turned ON for supported site (${currentUrlObj.hostname}). Fetching already active. Ensuring info update.`);
+                    lastVideoInfo = null; // 새 정보 가져오기 위해 초기화
+                    await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'start', forceRestart: true }); //혹시 모르니 재시작
+                  }
+                }
+              }
+            }
+            // sendStateToAll()은 스위치 문 바깥에서 호출되므로 여기서 isFetchingActive 변경사항도 함께 전파됨
           } catch (e) {
             responsePayload.success = false; responsePayload.error = e.message;
             isError = true; errorMessage = "콘텐츠 스크립트 통신 실패 (Visibility)";
+            // 실패 시 상태 복원 고려
+            if (isOverlayVisible !== previousOverlayVisibleState) isOverlayVisible = previousOverlayVisibleState; 
+            if (isFetchingActive && message.type === 'POPUP_TOGGLE_VISIBILITY') { /* isFetchingActive 변경은 여기서 직접 안했으므로 복원 불필요 */}
           }
         } else {
           responsePayload.success = false; responsePayload.error = "No active tab for visibility.";
@@ -264,6 +276,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         break;
       
+      case 'POPUP_SET_OVERLAY_OFFSET': // NEW CASE
+        if (BGasActiveTabId && typeof message.offset === 'number' && message.offset >= 0 && message.offset <= 20) {
+          currentTabId = BGasActiveTabId;
+          overlayOffset = message.offset;
+          isError = false; errorMessage = '';
+          responsePayload.overlayOffset = overlayOffset;
+          // content.js에 직접 CSS 변수를 변경하도록 메시지를 보낼 수도 있지만,
+          // sendStateToAll()을 통해 일관되게 BACKGROUND_STATE_UPDATE로 전달하는 것이 좋음
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for offset.";
+          isError = true; errorMessage = "활성 탭 없음 (Offset)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid offset value.";
+        }
+        break;
+
       case 'GET_POPUP_INITIAL_DATA':
         const [activeTabForPopup] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (activeTabForPopup?.id) {
@@ -276,7 +304,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         responsePayload = { 
             success: true, isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, 
-            titleDisplayMode, overlayPositionSide, overlayTheme, lastVideoInfo, 
+            titleDisplayMode, overlayPositionSide, overlayTheme, overlayOffset, // NEW: 오프셋 값 포함
+            lastVideoInfo, 
             activeTabHostname: currentHostname, isError, errorMessage 
         };
         break;
@@ -289,7 +318,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // console.log(`BG: CONTENT_SCRIPT_READY from tab ${currentTabId} (${currentHostname}). Sending SYNC_INITIAL_BG_STATE.`);
             await ensureContentScriptAndSendMessage(currentTabId, { 
                 type: 'SYNC_INITIAL_BG_STATE', 
-                data: { isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, titleDisplayMode, overlayPositionSide, overlayTheme, lastVideoInfo, activeTabHostname: currentHostname, isError, errorMessage } 
+                data: { isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, titleDisplayMode, overlayPositionSide, overlayTheme, overlayOffset, lastVideoInfo, activeTabHostname: currentHostname, isError, errorMessage } // NEW: 오프셋 값 포함
             });
         } else {
             // console.warn("BG: CONTENT_SCRIPT_READY received without sender.tab.id");
@@ -359,19 +388,50 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
           } else if (newUrlObj.hostname.includes('chzzk.naver.com')) {
             const prevPathParts = prevUrlObj.pathname.split('/').filter(p => p);
             const newPathParts = newUrlObj.pathname.split('/').filter(p => p);
-            if ((prevPathParts[0] === 'video' || prevPathParts[0] === 'vod') && 
-                (newPathParts[0] === 'video' || newPathParts[0] === 'vod') && 
-                 prevPathParts.length > 0 && newPathParts.length > 0 ) {
+
+            // 경로의 첫 부분이 'video' 또는 'vod'이고, 양쪽 모두 비디오 ID로 추정되는 두 번째 부분이 존재하는지 확인
+            if ((prevPathParts[0] === 'video' || prevPathParts[0] === 'vod') &&
+                (newPathParts[0] === 'video' || newPathParts[0] === 'vod') &&
+                 prevPathParts.length > 1 && newPathParts.length > 1 ) { // [0]은 'video'/'vod', [1]은 ID. 따라서 길이가 2 이상이어야 함
               isSameContentGroup = true; // Chzzk 내 video/vod 섹션 이동 시 일단 상태 유지
-              if (prevPathParts[1] !== newPathParts[1]) { // 실제 비디오 ID가 변경된 경우
+              
+              // 실제 비디오 ID가 변경된 경우
+              if (prevPathParts[1] !== newPathParts[1]) { 
                 forceUpdateVideoInfo = true;
                 console.log(`BG: Chzzk - Navigating to different video ID (${prevPathParts[1]} -> ${newPathParts[1]}). Maintaining fetch, forcing video info update.`);
               }
+            } else if ((prevPathParts[0] === 'video' || prevPathParts[0] === 'vod') &&
+                       (newPathParts[0] === 'video' || newPathParts[0] === 'vod') &&
+                       (prevPathParts.length <= 1 || newPathParts.length <= 1)) {
+              // 한쪽 또는 양쪽 URL에 비디오 ID가 없는 경우 (예: /vod/ 에서 /vod/12345 로 가거나 그 반대)
+              // 또는 /vod/12345 에서 /vod/ 로 가는 경우
+              // 이 경우는 새로운 컨텐츠 그룹으로 간주하거나, ID가 생기거나 없어지는 것이므로,
+              // 일단 fetch를 중단하고 새로 시작하게 하거나, 혹은 ID가 있는 쪽으로 업데이트를 강제할 수 있음.
+              // 현재 로직에서는 isSameContentGroup이 false로 남아 shouldStopFetching = true가 될 것임.
+              // 만약 /vod/ -> /vod/12345 이동 시 fetch를 유지하고 싶다면 추가 로직 필요.
+              // 여기서는 기존 로직대로 isSameContentGroup = false로 두어, shouldStopFetching이 true가 되도록 함.
+              // 필요하다면, 여기서 forceUpdateVideoInfo = true 등을 설정하여 다른 행동을 유도할 수 있음.
+              console.log(`BG: Chzzk - Navigating to/from a page without a video ID. Prev path: ${prevPathParts.join('/')}, New path: ${newPathParts.join('/')}`);
             }
           }
         }
         shouldStopFetching = !isSameContentGroup;
+
+        // NEW: 오버레이가 켜져있고 지원 사이트라면, 자동으로 Fetching 시작/유지
+        if (isOverlayVisible && newUrlObj.hostname && (newUrlObj.hostname.includes('laftel.net') || newUrlObj.hostname.includes('chzzk.naver.com'))) {
+          if (!isFetchingActive) { // 꺼져 있었다면 강제로 켬
+            console.log(`BG: Overlay is visible on a supported site (${newUrlObj.hostname}). Forcing fetching to active.`);
+            isFetchingActive = true;
+          }
+          // isFetchingActive가 이미 true였거나 방금 true로 설정됨.
+          // 정보 가져오기를 유지하고, 새 정보를 가져오도록 강제.
+          shouldStopFetching = false; 
+          forceUpdateVideoInfo = true; 
+          console.log(`BG: Overlay visible on supported site. Ensured fetching is active and will update/restart. shouldStopFetching=${shouldStopFetching}, forceUpdateVideoInfo=${forceUpdateVideoInfo}`);
+        }
+
       } catch (e) {
+        // URL 파싱 등에 실패하면 안전하게 중단하도록 함.
         shouldStopFetching = true;
       }
     } else if (previousUrl === newUrl) {
@@ -390,13 +450,21 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         errorMessage = '';
         sendStateToAll(); 
         updateActionIcon(); 
+        // Fetching이 중단되었으므로 content script에도 명시적으로 알릴 수 있습니다.
+        ensureContentScriptAndSendMessage(tabId, { type: 'TOGGLE_FETCHING', action: 'stop' }).catch(e => console.warn("Error sending stop fetching on URL change:", e.message));
       }
     } else if (forceUpdateVideoInfo) {
-        console.log(`BG: Tab ${tabId} - Maintaining fetching, but forcing lastVideoInfo to null for update.`);
+        console.log(`BG: Tab ${tabId} - Maintaining fetching, but forcing lastVideoInfo to null for update and explicitly restarting fetch in content script.`);
         lastVideoInfo = null; // 새 비디오 정보를 가져오도록 강제
         isError = false; errorMessage = ''; // 이전 오류 상태 초기화
-        sendStateToAll(); // lastVideoInfo가 null이 되었음을 알림
-        // updateActionIcon(); // isFetchingActive는 true이므로 아이콘 변경은 필요 없을 수 있음
+        // isFetchingActive는 true로 유지됩니다.
+        sendStateToAll(); // lastVideoInfo가 null이 되었음을 알림 (UI 즉시 반영용)
+        
+        // content.js에 정보 가져오기를 "재시작"하도록 명시적으로 알립니다.
+        // isFetchingActive가 true이므로, content.js는 이 메시지를 받으면 즉시 정보 가져오기를 시작/재시작해야 합니다.
+        ensureContentScriptAndSendMessage(tabId, { type: 'TOGGLE_FETCHING', action: 'start', forceRestart: true }) 
+          .catch(e => console.warn(`Error sending restart fetching to content script for tab ${tabId}:`, e.message));
+        // 아이콘은 이미 fetching 상태이므로 변경 필요 없을 가능성 높음
     }
   }
 });
