@@ -117,7 +117,7 @@ button.error:hover {
 
 .info-item strong {
   display: inline-block;
-  min-width: 70px;
+  min-width: 50px;
   color: #555; /* Consider var(--text-color-dark-secondary) if defined */
 }
 
@@ -228,7 +228,7 @@ h3, h4 {
   margin-top: 2px;
   padding : 0px;
   text-align: center;
-  font-size: 9px;
+  font-size: 0.8em;
   color: #616060;
 }
 
@@ -312,7 +312,7 @@ h2 {
 /* 버튼 그룹 (모드, 위치 변경용) */
 .button-group {
   display: flex;
-  gap: 5px; /* 버튼 간 간격 */
+  gap: 2px; /* 버튼 간 간격 */
 }
 
 .button-group button {
@@ -350,4 +350,235 @@ hr {
 }
 
 /* 기존의 .active-mode, .active 등은 .active-button 으로 통합 고려 */
-/* 예시: .active-mode를 .active-button으로 변경하거나, .active-mode 스타일을 .active-button에 맞게 조정 */ 
+/* 예시: .active-mode를 .active-button으로 변경하거나, .active-mode 스타일을 .active-button에 맞게 조정 */
+
+/* iOS Toggle Switch Styles */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px; /* 너비 조정 */
+  height: 22px; /* 높이 조정 */
+  margin-left: 5px; /* 필요시 여백 조정 */
+}
+
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px; /* 핸들 높이 조정 */
+  width: 16px; /* 핸들 너비 조정 */
+  left: 3px; /* 핸들 위치 조정 */
+  bottom: 3px; /* 핸들 위치 조정 */
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #4CAF50; /* 활성 시 배경색 */
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #4CAF50;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(18px); /* 핸들 이동 거리 조정 */
+  -ms-transform: translateX(18px);
+  transform: translateX(18px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 10px; /* 높이에 맞게 조정 */
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+/* Font Size Control Styles */
+.font-size-control {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.font-size-control label {
+  flex-grow: 1;
+  font-weight: normal; /* 다른 라벨과 통일 */
+  font-size: 0.9em;
+  margin-bottom: 0;
+}
+
+.font-size-control .value {
+  min-width: 14px; /* 값 표시 공간 */
+  text-align: center;
+  font-weight: bold;
+  margin: 0 2px;
+}
+
+.font-size-control button {
+  width: auto; /* 자동 너비 */
+  min-width: 25px; /* 최소 너비 */
+  padding: 3px 2px; /* 내부 여백 조정 */
+  font-size: 1em; /* 텍스트 크기 */
+  margin-top: 0; /* 상단 마진 제거 */
+  line-height: 1; /* 줄 높이 조정 */
+}
+
+/* Styles for specific control groups if needed */
+.visibility-control-group {
+  display: flex;            /* Enable flexbox */
+  align-items: center;      /* Vertically center items */
+  justify-content: space-between; /* Push label and switch to opposite ends */
+  padding: 6px 0; /* Add some padding like other control groups if needed, or adjust parent's padding */
+}
+
+.visibility-control-group .control-label {
+  margin-bottom: 0; /* Remove default bottom margin from general control-group label */
+  /* font-weight: bold; /* Already set by general .control-group label if that's still desired */
+  /* font-size: 0.9em; /* Already set by general .control-group label */
+}
+
+.visibility-control-group .switch {
+  margin-left: auto; /* Push switch to the right if space-between is not enough or label text varies */
+  /* margin-left: 10px; /* Or a fixed margin if preferred over auto/space-between */
+}
+
+.mode-control-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0; /* Consistent padding */
+}
+
+.mode-control-group .control-label {
+  margin-bottom: 0;
+  white-space: nowrap; /* Prevent label text from wrapping */
+}
+
+.mode-control-group .button-group {
+  margin-left: auto; /* Push button group to the right */
+  display: flex; /* Ensure buttons inside are also flex items if needed */
+  gap: 5px; /* Space between buttons in the group, already defined in general .button-group */
+}
+
+.compact-mode-control-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0; /* Consistent padding */
+}
+
+.compact-mode-control-group .control-label {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.compact-mode-control-group .switch {
+  margin-left: auto;
+}
+
+/* 새로운 드롭다운 그룹 스타일 */
+.dropdown-control-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px; /* 기존 control-group과 동일하게 유지 또는 조정 */
+}
+
+.dropdown-control-group label {
+  margin-bottom: 0; /* flex 사용으로 인해 불필요 */
+  margin-right: 8px; /* 드롭다운과의 최소 간격 */
+  white-space: nowrap;
+}
+
+.dropdown-control-group .control-select {
+  flex-grow: 1; /* 가능한 공간을 채우도록 함 */
+  padding: 4px 6px; /* 패딩 축소 */
+  margin: 0; /* 추가 마진 제거 */
+  min-width: 100px; /* 너무 작아지지 않도록 최소 너비 설정 */
+}
+
+/* 왼쪽 열 레이블 너비 통일 */
+.dropdown-control-group label,
+.control-group label[for="sliderOffset"], /* 위치 여백 레이블 특정 */
+.control-group label[for="sliderOverlayWidth"] /* 너비 조절 레이블 특정 */ {
+  display: inline-block; /* 너비 적용을 위해 */
+  min-width: 52px; /* 모든 레이블이 가질 최소 너비 (값은 조절 가능) */
+  /* text-align: right; */ /* 필요시 우측 정렬 */
+  margin-right: 1px; /* 오른쪽 요소와의 간격 보장 */
+}
+
+/* 위치 여백 컨트롤 그룹 스타일 */
+.offset-input-group, /* 기존 스타일 */
+.width-input-group /* 새로운 너비 그룹에도 동일 스타일 적용 */ {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* 요소들을 양쪽으로 분산 */
+  margin-bottom: 6px;
+}
+
+.offset-input-group label, /* 기존 스타일 */
+.width-input-group label /* 새로운 너비 그룹 레이블에도 적용 */ {
+  /* min-width는 이미 위에서 .control-group label[for="sliderOverlayWidth"] 규칙으로 적용됨 */
+  margin-bottom: 0; /* flex 아이템이므로 하단 마진 불필요 */
+  white-space: nowrap;
+  flex-shrink: 0; /* 레이블 너비 고정 */
+}
+
+.offset-input-group .control-slider, /* 기존 스타일 */
+.width-input-group .control-slider /* 새로운 너비 그룹 슬라이더에도 적용 */ {
+  flex-grow: 0.2; /* 슬라이더가 차지하는 공간을 줄임 */
+  margin: 0 1px; /* 좌우 여백 추가 */
+}
+
+.offset-input-group .control-offset-input, /* 기존 스타일 */
+.width-input-group .control-offset-input /* 새로운 너비 그룹 숫자 입력에도 적용 */ {
+  width: 35px; /* 숫자 입력 필드 너비 통일 (기존 20px에서 약간 늘림, 필요시 40px) */
+  padding: 4px;
+  text-align: right;
+  border: 1px solid var(--popup-button-default-border, #ccc);
+  border-radius: 3px;
+  margin: 0;
+}
+
+/* Webkit 기반 브라우저 (Chrome, Safari 등) 에서 스피너 숨기기 */
+.offset-input-group .control-offset-input::-webkit-outer-spin-button,
+.offset-input-group .control-offset-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.offset-input-group .unit-px, /* 기존 스타일 */
+.width-input-group .unit-px /* 새로운 너비 그룹 단위 표시에도 적용 */ {
+  font-size: 0.9em;
+  white-space: nowrap;
+  flex-shrink: 0; /* "px" 텍스트 너비 고정 */
+}
+
+/* 슬라이더 전체를 감싸는 control-group 에도 flex 적용 (선택적) */
+.control-group label[for="sliderOffset"] {
+  /* 이미 dropdown-control-group label에서 min-width가 적용되었으므로 */
+  /* 여기서는 특별한 추가 스타일이 필요 없을 수 있음. */
+  /* 만약 슬라이더와의 정렬을 맞추려면 부모 .control-group에 flex를 적용해야 함. */
+  /* 예: .control-group (슬라이더를 포함하는 그룹) { display: flex; align-items: center; } */
+} 

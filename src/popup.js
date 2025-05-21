@@ -7,29 +7,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentSiteHostEl = document.getElementById('currentSiteHost');
 
   // Main Toggles
-  const toggleVisibilityBtn = document.getElementById('toggleVisibilityBtn');
+  // const toggleVisibilityBtn = document.getElementById('toggleVisibilityBtn'); // 기존 버튼 참조 제거
+  const toggleVisibilitySwitch = document.getElementById('toggleVisibilitySwitch'); // 새 토글 스위치 참조
 
   // Mode Controls
-  const setNormalModeBtn = document.getElementById('setNormalModeBtn');
-  const setCompactModeBtn = document.getElementById('setCompactModeBtn');
-  const currentOverlayModeLabel = document.getElementById('currentOverlayModeLabel');
+  // const setNormalModeBtn = document.getElementById('setNormalModeBtn'); // 기존 버튼 참조 제거
+  // const setCompactModeBtn = document.getElementById('setCompactModeBtn'); // 기존 버튼 참조 제거
+  // const currentOverlayModeLabel = document.getElementById('currentOverlayModeLabel'); // 기존 레이블 참조 제거
+  const toggleCompactModeSwitch = document.getElementById('toggleCompactModeSwitch'); // 새 컴팩트 모드 토글 스위치 참조
 
   // Position Controls
-  const setPositionLeftBtn = document.getElementById('setPositionLeftBtn');
-  const setPositionRightBtn = document.getElementById('setPositionRightBtn');
-  const currentOverlayPositionLabel = document.getElementById('currentOverlayPositionLabel');
+  // const setPositionLeftBtn = document.getElementById('setPositionLeftBtn'); // 제거
+  // const setPositionRightBtn = document.getElementById('setPositionRightBtn'); // 제거
+  // const currentOverlayPositionLabel = document.getElementById('currentOverlayPositionLabel'); // 제거
+  const selectOverlayPosition = document.getElementById('selectOverlayPosition'); // 추가: 위치 설정 드롭다운
 
   // Time Display Controls
   const selectTimeDisplay = document.getElementById('selectTimeDisplay');
-  const currentTimeDisplayModeLabel = document.getElementById('currentTimeDisplayModeLabel');
 
   // Theme Controls
   const selectTheme = document.getElementById('selectTheme');
-  const currentOverlayThemeLabel = document.getElementById('currentOverlayThemeLabel');
 
   // NEW: Slider Control for Position Offset
   const sliderOffset = document.getElementById('sliderOffset');
-  const sliderOffsetValue = document.getElementById('sliderOffsetValue');
+  const inputOffsetValue = document.getElementById('inputOffsetValue'); // 추가: 숫자 입력 필드
+
+  // NEW: Slider Control for Overlay Width
+  const sliderOverlayWidth = document.getElementById('sliderOverlayWidth');
+  const inputOverlayWidthValue = document.getElementById('inputOverlayWidthValue');
 
   // Video Info Display
   const videoTitleEl = document.getElementById('videoTitle');
@@ -44,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // NEW: Title Display Controls
   const selectTitleDisplay = document.getElementById('selectTitleDisplay');
-  const currentTitleDisplayModeLabel = document.getElementById('currentTitleDisplayModeLabel');
 
   // --- Helper Functions ---
   function formatTime(totalSeconds) {
@@ -64,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updatePopupUI(data) {
     console.log("POPUP.JS: updatePopupUI called with data:", JSON.parse(JSON.stringify(data)));
     // Log the specific troublesome state value
-    console.log(`POPUP.JS: updatePopupUI - Received overlayPositionSide: ${data.overlayPositionSide}, overlayTheme: ${data.overlayTheme}, timeDisplayMode: ${data.timeDisplayMode}, titleDisplayMode: ${data.titleDisplayMode}, overlayOffset: ${data.overlayOffset}`);
+    console.log(`POPUP.JS: updatePopupUI - Received overlayMode: ${data.overlayMode}, overlayPositionSide: ${data.overlayPositionSide}, overlayTheme: ${data.overlayTheme}, timeDisplayMode: ${data.timeDisplayMode}, titleDisplayMode: ${data.titleDisplayMode}, overlayOffset: ${data.overlayOffset}, overlayWidth: ${data.overlayWidth}`);
 
     const {
       isFetchingActive,
@@ -78,7 +82,8 @@ document.addEventListener('DOMContentLoaded', () => {
       isError,
       errorMessage,
       activeTabHostname,
-      overlayOffset
+      overlayOffset,
+      overlayWidth
     } = data;
 
     // 1. Update Status Text (General Status)
@@ -124,71 +129,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 4. Update Toggle Buttons (Fetching, Visibility)
-    if (toggleVisibilityBtn) {
-      toggleVisibilityBtn.textContent = isOverlayVisible ? '오버레이 숨기기' : '오버레이 보이기';
-      toggleVisibilityBtn.classList.toggle('active-button', isOverlayVisible === true);
+    if (toggleVisibilitySwitch) { // 새 토글 스위치 상태 업데이트
+      toggleVisibilitySwitch.checked = isOverlayVisible === true;
     }
     
     // 5. Update Mode Controls (Buttons & Label)
-    if (setNormalModeBtn) {
-      setNormalModeBtn.classList.toggle('active-button', overlayMode === 'normal');
-    }
-    if (setCompactModeBtn) {
-      setCompactModeBtn.classList.toggle('active-button', overlayMode === 'compact');
-    }
-    if (currentOverlayModeLabel) {
-      currentOverlayModeLabel.textContent = overlayMode === 'normal' ? '일반' : '컴팩트';
-    }
+    // if (currentOverlayModeLabel) {
+    //   currentOverlayModeLabel.textContent = getModeLabel(state.overlayMode);
+    // }
+    // if (setNormalModeBtn) setNormalModeBtn.classList.toggle('active-button', state.overlayMode === 'normal');
+    // if (setCompactModeBtn) setCompactModeBtn.classList.toggle('active-button', state.overlayMode === 'compact');
     
-    // 6. Update Position Controls (Buttons & Label)
-    if (setPositionLeftBtn) {
-      setPositionLeftBtn.classList.toggle('active-button', overlayPositionSide === 'left');
+    if (toggleCompactModeSwitch) { // 새 컴팩트 모드 토글 스위치 상태 업데이트
+      toggleCompactModeSwitch.checked = data.overlayMode === 'compact';
     }
-    if (setPositionRightBtn) {
-      setPositionRightBtn.classList.toggle('active-button', overlayPositionSide === 'right');
-    }
-    if (currentOverlayPositionLabel) {
-      currentOverlayPositionLabel.textContent = overlayPositionSide === 'left' ? '왼쪽' : '오른쪽';
+
+    // 6. Update Position Controls (Dropdown & Label)
+    if (selectOverlayPosition) { // 수정: 드롭다운 값 설정
+      selectOverlayPosition.value = overlayPositionSide || 'right'; // 기본값 오른쪽
     }
 
     // 7. Update Time Display Controls (Dropdown & Label)
     if (selectTimeDisplay) {
       selectTimeDisplay.value = timeDisplayMode;
     }
-    if (currentTimeDisplayModeLabel) {
-      let timeDisplayModeText = '현재/전체'; // Default for current_duration
-      if (timeDisplayMode === 'current_only') timeDisplayModeText = '현재 시간만';
-      else if (timeDisplayMode === 'none') timeDisplayModeText = '숨김';
-      currentTimeDisplayModeLabel.textContent = timeDisplayModeText;
-    }
 
     // NEW: 8. Update Title Display Controls (Dropdown & Label)
     if (selectTitleDisplay) {
       selectTitleDisplay.value = titleDisplayMode || 'episode_series'; 
-    }
-    if (currentTitleDisplayModeLabel) {
-      let titleDisplayModeText = '에피+시리즈'; // 기본값: episode_series
-      if (titleDisplayMode === 'episode_only') titleDisplayModeText = '에피소드만';
-      else if (titleDisplayMode === 'none') titleDisplayModeText = '숨김';
-      currentTitleDisplayModeLabel.textContent = `(${titleDisplayModeText})`;
     }
 
     // 9. Update Theme Controls (Dropdown & Label)
     if (selectTheme) {
       selectTheme.value = overlayTheme || 'light'; // Null 체크 추가
     }
-    if (currentOverlayThemeLabel) {
-      let themeText = '라이트'; // Default for light
-      if (overlayTheme === 'dark') themeText = '다크';
-      else if (overlayTheme === 'greenscreen-white-text') themeText = '그린스크린 (흰 글씨)';
-      else if (overlayTheme === 'greenscreen-black-text') themeText = '그린스크린 (검은 글씨)';
-      currentOverlayThemeLabel.textContent = themeText;
-    }
     
-    // NEW: 10. Update Offset Slider Control
-    if (sliderOffset && sliderOffsetValue && overlayOffset !== undefined) {
-      sliderOffset.value = overlayOffset;
-      sliderOffsetValue.textContent = overlayOffset;
+    // NEW: 10. Update Offset Slider Control and Input Field
+    if (overlayOffset !== undefined) {
+      if (sliderOffset) {
+        sliderOffset.value = overlayOffset;
+      }
+      if (inputOffsetValue) {
+        inputOffsetValue.value = overlayOffset;
+      }
+    }
+
+    // NEW: 11. Update Overlay Width Slider Control and Input Field
+    if (overlayWidth !== undefined) {
+      if (sliderOverlayWidth) {
+        sliderOverlayWidth.value = overlayWidth;
+      }
+      if (inputOverlayWidthValue) {
+        inputOverlayWidthValue.value = overlayWidth;
+      }
     }
 
     // 11. Preview update logic (If preview elements exist and are intended to be used)
@@ -225,42 +218,53 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   // --- Event Listeners ---
-  if (toggleVisibilityBtn) {
-    toggleVisibilityBtn.addEventListener('click', () => {
+  // if (toggleVisibilityBtn) { // 기존 버튼 리스너 제거
+  //   toggleVisibilityBtn.addEventListener('click', () => {
+  //     chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_VISIBILITY' }, (response) => {
+  //       handleResponse(response, "POPUP_TOGGLE_VISIBILITY");
+  //     });
+  //   });
+  // }
+
+  if (toggleVisibilitySwitch) { // 새 토글 스위치 이벤트 리스너 추가
+    toggleVisibilitySwitch.addEventListener('change', () => {
+      // const isVisible = toggleVisibilitySwitch.checked; // 이 값은 백그라운드에서 결정하여 다시 보내줌
+      // console.log(`POPUP: Visibility switch changed. New state: ${isVisible}. Sending POPUP_TOGGLE_VISIBILITY to background.`);
       chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_VISIBILITY' }, (response) => {
-        handleResponse(response, "POPUP_TOGGLE_VISIBILITY");
+        // handleResponse는 background_state_update를 통해 UI가 갱신되므로 여기서는 간단한 에러 처리만 할 수 있음
+        if (chrome.runtime.lastError) {
+          console.error("POPUP.JS: Error in POPUP_TOGGLE_VISIBILITY (Switch):", chrome.runtime.lastError.message);
+          if (statusTextEl) {
+            statusTextEl.textContent = `오류: ${chrome.runtime.lastError.message}`;
+            statusTextEl.style.color = 'red';
+          }
+          // 스위치 상태를 강제로 되돌릴 수도 있으나, 실제 상태는 background에 있으므로 주의
+          // chrome.runtime.sendMessage({ type: 'GET_CURRENT_STATE' }, initStateResponse => { ... }); // 상태 재요청
+        } else if (response && !response.success) {
+          console.warn("POPUP.JS: POPUP_TOGGLE_VISIBILITY (Switch) non-success:", response.error);
+          if (statusTextEl) {
+            statusTextEl.textContent = `경고: ${response.error}`;
+            statusTextEl.style.color = 'orange';
+          }
+        }
+        // 성공적인 응답 (response.success === true)의 경우, BACKGROUND_STATE_UPDATE 메시지를 통해 UI가 업데이트 될 것임
       });
     });
   }
   
-  if (setNormalModeBtn) {
-    setNormalModeBtn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_MODE', mode: 'normal' }, (response) => {
-        handleResponse(response, "POPUP_SET_OVERLAY_MODE_NORMAL");
-      });
-    });
-  }
-
-  if (setCompactModeBtn) {
-    setCompactModeBtn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_MODE', mode: 'compact' }, (response) => {
-        handleResponse(response, "POPUP_SET_OVERLAY_MODE_COMPACT");
-      });
+  if (toggleCompactModeSwitch) {
+    toggleCompactModeSwitch.addEventListener('change', () => {
+      const newMode = toggleCompactModeSwitch.checked ? 'compact' : 'normal';
+      console.log(`POPUP: Compact mode switch changed. New mode: ${newMode}. Sending SET_OVERLAY_MODE to background.`);
+      chrome.runtime.sendMessage({ type: 'SET_OVERLAY_MODE', payload: { mode: newMode } }, handleResponse(`Mode set to ${newMode}`))
     });
   }
   
-  if (setPositionLeftBtn) {
-    setPositionLeftBtn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_POSITION', position: 'left' }, (response) => {
-        handleResponse(response, "POPUP_SET_OVERLAY_POSITION_LEFT");
-      });
-    });
-  }
-
-  if (setPositionRightBtn) {
-    setPositionRightBtn.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_POSITION', position: 'right' }, (response) => {
-        handleResponse(response, "POPUP_SET_OVERLAY_POSITION_RIGHT");
+  // 추가: 위치 설정 드롭다운 이벤트 리스너
+  if (selectOverlayPosition) {
+    selectOverlayPosition.addEventListener('change', (event) => {
+      chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_POSITION', position: event.target.value }, (response) => {
+        handleResponse(response, "POPUP_SET_OVERLAY_POSITION_DROPDOWN");
       });
     });
   }
@@ -289,16 +293,71 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // NEW: Offset Slider Event Listener
-  if (sliderOffset && sliderOffsetValue) {
+  // NEW: Offset Slider and Input Event Listeners
+  if (sliderOffset && inputOffsetValue) {
     sliderOffset.addEventListener('input', (event) => {
-      const value = event.target.value;
-      sliderOffsetValue.textContent = value;
+      const value = parseInt(event.target.value, 10);
+      inputOffsetValue.value = value;
+      console.log('POPUP.JS: Slider input - value sent to background:', value);
       chrome.runtime.sendMessage({ 
         type: 'POPUP_SET_OVERLAY_OFFSET', 
-        offset: parseInt(value, 10) 
+        offset: value 
       }, (response) => {
-        handleResponse(response, 'POPUP_SET_OVERLAY_OFFSET');
+        handleResponse(response, 'POPUP_SET_OVERLAY_OFFSET_SLIDER');
+      });
+    });
+
+    inputOffsetValue.addEventListener('input', (event) => {
+      let value = parseInt(event.target.value, 10);
+      if (isNaN(value)) {
+        console.log('POPUP.JS: Number input - NaN, returning early. Value:', event.target.value);
+        return; 
+      }
+      // 범위 제한 (0 ~ 40)
+      if (value < 0) value = 0;
+      if (value > 40) value = 40;
+      event.target.value = value; // 실제 입력 필드 값도 조정된 값으로 변경
+      
+      sliderOffset.value = value;
+      console.log('POPUP.JS: Number input - value sent to background:', value);
+      chrome.runtime.sendMessage({ 
+        type: 'POPUP_SET_OVERLAY_OFFSET', 
+        offset: value 
+      }, (response) => {
+        handleResponse(response, 'POPUP_SET_OVERLAY_OFFSET_INPUT');
+      });
+    });
+  }
+  
+  // NEW: Overlay Width Slider and Input Event Listeners
+  if (sliderOverlayWidth && inputOverlayWidthValue) {
+    sliderOverlayWidth.addEventListener('input', (event) => {
+      const value = parseInt(event.target.value, 10);
+      inputOverlayWidthValue.value = value;
+      chrome.runtime.sendMessage({ 
+        type: 'POPUP_SET_OVERLAY_WIDTH', 
+        width: value 
+      }, (response) => {
+        handleResponse(response, 'POPUP_SET_OVERLAY_WIDTH_SLIDER');
+      });
+    });
+
+    inputOverlayWidthValue.addEventListener('input', (event) => {
+      let value = parseInt(event.target.value, 10);
+      if (isNaN(value)) return;
+      // 범위 제한 (50 ~ 500)
+      const minWidth = parseInt(sliderOverlayWidth.min, 10) || 50; // min 값 50으로 수정
+      const maxWidth = parseInt(sliderOverlayWidth.max, 10) || 500; // max 값 500으로 수정
+      if (value < minWidth) value = minWidth;
+      if (value > maxWidth) value = maxWidth;
+      event.target.value = value; 
+      
+      sliderOverlayWidth.value = value;
+      chrome.runtime.sendMessage({ 
+        type: 'POPUP_SET_OVERLAY_WIDTH', 
+        width: value 
+      }, (response) => {
+        handleResponse(response, 'POPUP_SET_OVERLAY_WIDTH_INPUT');
       });
     });
   }
@@ -321,7 +380,8 @@ document.addEventListener('DOMContentLoaded', () => {
       timeDisplayMode: 'current_duration', 
       titleDisplayMode: 'episode_series',
       overlayPositionSide: 'right', overlayTheme: 'light',
-      overlayOffset: 8, // NEW: 단일 오프셋 기본값
+      overlayOffset: 8, 
+      overlayWidth: 250, // 너비 기본값 250으로 수정
       lastVideoInfo: null, activeTabHostname: 'N/A',
       isError: false, errorMessage: '초기 데이터 로드 중...'
     };
@@ -342,6 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ...defaultInitialState, // 기본값으로 시작
         ...response, // background에서 받은 값으로 덮어쓰기
         overlayOffset: response.overlayOffset !== undefined ? response.overlayOffset : defaultInitialState.overlayOffset,
+        overlayWidth: response.overlayWidth !== undefined ? response.overlayWidth : defaultInitialState.overlayWidth // 너비 값 추가
       };
       updatePopupUI(dataToUpdate);
     } else {
