@@ -7,6 +7,25 @@
 ## [미출시 (Unreleased)]
 <!-- 다음 릴리스를 위한 변경 사항은 여기에 기록합니다. -->
 
+## [1.5.0] - 2024-07-29
+
+### 추가된 기능 (Added)
+- **오버레이 위치 여백(Offset) 조절 기능**: 팝업 UI에 슬라이더와 숫자 입력 필드를 추가하여 사용자가 오버레이의 화면 가장자리로부터의 여백을 직접 설정할 수 있도록 개선했습니다. (`public/popup.html`, `src/popup.js`, `src/background.js`, `src/content.js`, `public/overlay.css`)
+- **오버레이 너비(Width) 조절 기능**: 팝업 UI에 슬라이더와 숫자 입력 필드를 추가하여 사용자가 오버레이의 전체 너비를 직접 설정할 수 있도록 개선했습니다. (`public/popup.html`, `src/popup.js`, `src/background.js`, `src/content.js`, `public/overlay.css`)
+
+### 변경된 점 (Changed)
+- **팝업 UI 개선**:
+    - "오버레이 표시/숨기기" 및 "컴팩트 모드" 컨트롤을 iOS 스타일 토글 스위치로 변경하여 시각적 일관성과 사용성을 향상시켰습니다. (`public/popup.html`, `public/popup.css`, `src/popup.js`)
+    - 팝업 내 컨트롤들의 레이아웃(정렬, 간격)을 통일하고, 불필요한 레이블을 제거하여 더욱 깔끔한 UI를 제공합니다. (`public/popup.html`, `public/popup.css`)
+    - iOS 토글 스위치의 크기를 줄여 팝업 공간을 효율적으로 사용하도록 수정했습니다. (`public/popup.css`)
+
+### 수정된 버그 (Fixed)
+- **오버레이 최소 너비 문제 해결**: 오버레이 너비 조절 시 특정 크기 이하로 줄어들지 않던 문제를 수정하여, 설정한 너비 값이 정확히 반영되도록 개선했습니다. (`public/overlay.css`)
+- 오버레이 너비 축소 시 제목이 올바르게 말줄임표(...) 처리되도록 개선했습니다. (`public/overlay.css`)
+
+### 제거된 기능 (Removed)
+- `public/popup.html`에서 "Created by RiceBerry" 문구를 최종적으로 삭제했습니다.
+
 ## [1.4.1] - 2024-07-28
 
 ### 개선된 점 (Improved)
