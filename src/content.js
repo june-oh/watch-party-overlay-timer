@@ -1,3 +1,46 @@
+const siteSelectors = {
+  'laftel.net': {
+    videoPlayerAreaHint: 'div[class*="sc-ec16796a-1"]',
+    infoContainerHint_asSiblingToVideoPlayerAreaParent: 'div[class*="sc-ec16796a-2"]',
+    seriesSubSelector: 'div[class*="sc-bae7327-0"] > a[href^="/item/"]',
+    titleSubSelector: 'div[class*="sc-bae7327-0"] div[class*="sc-bae7327-7"]',
+    movieSubSelector: 'div[class*="sc-bae7327-0"] div[class*="haCwMH"] > a[href^="/item/"]',
+    siteName: 'LAFTEL'
+  },
+  'chzzk.naver.com': {
+    playerLayoutId: '#player_layout',
+    titleSubSelector: 'div[class^="vod_details"] h2[class^="video_information_title__"]',
+    fullscreenTitleSubSelector: 'div[class*="player_header"] p[class^="vod_player_header_title__"]',
+    seriesSubSelector: null,
+    siteName: 'CHZZK'
+  },
+  'youtube.com': {
+    videoPlayerAreaHint: '#movie_player',
+    titleSubSelector: '#title > h1 > yt-formatted-string',
+    seriesSubSelector: null,
+    siteName: 'YouTube'
+  },
+  'netflix.com': {
+    infoContainerSelector: 'div > div.watch-video--bottom-controls-container.ltr-gpipej > div > div > div.ltr-100d0a9 > div > div.ltr-lapyk4 > div.ltr-4utd8f > div',
+    titleSubSelector: 'h4',
+    seriesSubSelector: 'span',
+    siteName: 'Netflix'
+  },
+  // 향후 YouTube, Netflix 등 다른 사이트 설정을 이곳에 추가합니다.
+  // 예시:
+  // 'youtube.com': {
+  //   videoPlayerAreaHint: '#movie_player',
+  //   titleSubSelector: '.title .ytd-video-primary-info-renderer',
+  //   siteName: 'YouTube'
+  // },
+  // 'netflix.com': {
+  //   videoPlayerAreaHint: '.watch-video',
+  //   titleSubSelector: '.video-title > h4',
+  //   seriesSubSelector: '.video-title > span', // 예시 선택자입니다.
+  //   siteName: 'Netflix'
+  // }
+};
+
 // --- 중복 실행 방지 ---
 if (typeof window.wpOverlayTimerLoaded === 'undefined') {
   window.wpOverlayTimerLoaded = true;
@@ -19,23 +62,6 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     let isContextInvalidated = false;
     // let lastVideoInfoString = ''; // 이 변수는 현재 사용되지 않는 것으로 보이므로 주석 처리 또는 삭제 고려
 
-    const siteSelectors = {
-      'laftel.net': {
-        videoPlayerAreaHint: 'div[class*="sc-ec16796a-1"]',
-        infoContainerHint_asSiblingToVideoPlayerAreaParent: 'div[class*="sc-ec16796a-2"]',
-        seriesSubSelector: 'div[class*="sc-bae7327-0"] > a[href^="/item/"]',
-        titleSubSelector: 'div[class*="sc-bae7327-0"] div[class*="sc-bae7327-7"]',
-        movieSubSelector: 'div[class*="sc-bae7327-0"] div[class*="haCwMH"] > a[href^="/item/"]',
-        siteName: 'LAFTEL'
-      },
-      'chzzk.naver.com': {
-        playerLayoutId: '#player_layout',
-        titleSubSelector: 'div[class^="vod_details"] h2[class^="video_information_title__"]',
-        fullscreenTitleSubSelector: 'div[class*="player_header"] p[class^="vod_player_header_title__"]',
-        seriesSubSelector: null,
-        siteName: 'CHZZK'
-      }
-    };
     let currentSiteConfig = null;
 
     function checkAndHandleInvalidatedContext(operationName = "Operation") {
@@ -89,7 +115,11 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
     function getVideoInfo() {
       if (checkAndHandleInvalidatedContext("getVideoInfo")) return null;
-      if (!currentSiteConfig) return null;
+      if (!currentSiteConfig) {
+        console.warn("CONTENT.JS: getVideoInfo - currentSiteConfig is null or undefined.");
+        return null;
+      }
+      console.log("CONTENT.JS: getVideoInfo - currentSiteConfig:", currentSiteConfig ? JSON.parse(JSON.stringify(currentSiteConfig)) : "undefined", "Hostname:", window.location.hostname);
 
       let episode = "N/A";
       let series = "N/A";
@@ -97,11 +127,15 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       let durationSeconds = 0;
       const siteName = currentSiteConfig.siteName || window.location.hostname;
       const videoEl = document.querySelector('video');
+      console.log("CONTENT.JS: getVideoInfo - videoEl:", videoEl);
 
       if (videoEl) {
         currentSeconds = videoEl.currentTime;
         durationSeconds = videoEl.duration;
         if (isNaN(durationSeconds) || !isFinite(durationSeconds)) durationSeconds = 0;
+        console.log("CONTENT.JS: getVideoInfo - Time: Current=", currentSeconds, "Duration=", durationSeconds);
+      } else {
+        console.warn("CONTENT.JS: getVideoInfo - videoEl not found.");
       }
 
       if (siteName === 'LAFTEL') {
@@ -155,6 +189,95 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
         }
         episode = titleText || "N/A";
         series = "";
+      } else if (siteName === 'Netflix') {
+        console.log("CONTENT.JS: getVideoInfo - Netflix block entered.");
+        const previousEpisode = currentVideoInfo?.episode;
+        const previousSeries = currentVideoInfo?.series;
+
+        if (!videoEl) { // 비디오 요소가 없으면 이전 정보 사용
+            console.warn("CONTENT.JS: getVideoInfo - Netflix - videoEl not found, using previous info.");
+            episode = previousEpisode || "N/A";
+            series = previousSeries || "";
+            return { series, episode, currentSeconds, durationSeconds, siteName };
+        }
+
+        let identifiedSeries = null;
+        let identifiedEpisode = null;
+
+        if (currentSiteConfig.infoContainerSelector) {
+          const parentOfTitleHolder = document.querySelector(currentSiteConfig.infoContainerSelector);
+          console.log("CONTENT.JS: getVideoInfo - Netflix - parentOfTitleHolder (using selector '" + currentSiteConfig.infoContainerSelector + "'):", parentOfTitleHolder);
+          
+          if (parentOfTitleHolder) {
+            const titleHolderDiv = parentOfTitleHolder.querySelector('div[data-uia="video-title"]');
+            console.log("CONTENT.JS: getVideoInfo - Netflix - titleHolderDiv (div[data-uia='video-title'] inside parent):", titleHolderDiv);
+
+            if (titleHolderDiv) {
+              const seriesH4 = titleHolderDiv.querySelector('h4'); 
+              console.log("CONTENT.JS: getVideoInfo - Netflix - seriesH4 (h4 inside titleHolderDiv):", seriesH4);
+
+              if (seriesH4) { // 시리즈물로 판단
+                console.log("CONTENT.JS: getVideoInfo - Netflix - Detected SERIES (h4 found in titleHolderDiv).");
+                identifiedSeries = seriesH4.innerText?.trim() || null;
+                
+                const episodePartElements = titleHolderDiv.querySelectorAll('span');
+                if (episodePartElements && episodePartElements.length > 0) {
+                  const episodeParts = [];
+                  episodePartElements.forEach(span => {
+                    const text = span?.innerText?.trim();
+                    if (text) episodeParts.push(text);
+                  });
+                  identifiedEpisode = episodeParts.length > 0 ? episodeParts.join(' - ') : "N/A";
+                } else {
+                  identifiedEpisode = "N/A"; // 시리즈인데 span (에피소드 정보)이 없는 경우
+                }
+              } else { // 단일 영화로 판단 (h4 없음, titleHolderDiv 에서 제목 추출)
+                console.log("CONTENT.JS: getVideoInfo - Netflix - Detected MOVIE (no h4 found in titleHolderDiv). Title from titleHolderDiv.innerText.");
+                const clonedTitleHolder = titleHolderDiv.cloneNode(true);
+                clonedTitleHolder.querySelectorAll('h4, span').forEach(el => el.remove()); // 혹시 모를 h4나 span 제거
+                const movieTitleText = clonedTitleHolder.innerText?.trim();
+
+                if (movieTitleText) {
+                  identifiedEpisode = movieTitleText; // 영화 제목을 episode로
+                  identifiedSeries = ""; // 영화는 series를 빈 문자열로
+                } else {
+                   identifiedEpisode = "N/A"; // 영화 제목도 못 찾은 경우
+                   identifiedSeries = ""; 
+                }
+              }
+            } else { // Did NOT find 'data-uia="video-title"' div as a CHILD of parentOfTitleHolder
+              console.warn("CONTENT.JS: getVideoInfo - Netflix - 'div[data-uia=\"video-title\"]' NOT FOUND as child. Assuming 'parentOfTitleHolder' (selected by infoContainerSelector) is the source for a MOVIE.");
+              // parentOfTitleHolder (selectedContainer)의 innerText를 영화 제목으로 간주
+              // 여기서는 parentOfTitleHolder에 h4가 있는지 다시 한번 체크할 필요는 없어 보임 (이미 titleHolderDiv가 없는 상황이므로)
+              const clonedParentOfTitleHolder = parentOfTitleHolder.cloneNode(true);
+              clonedParentOfTitleHolder.querySelectorAll('div[data-uia="video-title"], h4, span').forEach(el => el.remove()); // 내부 다른 요소들 제거
+              const movieTitleFromParent = clonedParentOfTitleHolder.innerText?.trim();
+              if (movieTitleFromParent) {
+                identifiedEpisode = movieTitleFromParent;
+                identifiedSeries = "";
+              } else {
+                identifiedEpisode = "N/A";
+                identifiedSeries = "";
+              }
+            }
+          } else {
+            console.warn("CONTENT.JS: getVideoInfo - Netflix - parentOfTitleHolder (selected by infoContainerSelector) not found.");
+          }
+        } else {
+          console.warn("CONTENT.JS: getVideoInfo - Netflix - infoContainerSelector is missing in siteConfig.");
+        }
+        
+        console.log("CONTENT.JS: getVideoInfo - Netflix - Identified Series:", identifiedSeries, "Identified Episode:", identifiedEpisode);
+
+        // 최종적으로 series와 episode 변수 업데이트
+        if (identifiedSeries !== null) { // 새로운 정보가 식별되었다면 (시리즈 또는 영화)
+          series = identifiedSeries;
+          episode = (identifiedEpisode !== null) ? identifiedEpisode : "N/A"; // identifiedEpisode가 null이면 "N/A"로
+        } else { // 새로운 정보가 식별되지 않았다면 이전 값 유지
+          series = previousSeries || "N/A";
+          episode = previousEpisode || "N/A";
+        }
+
       } else {
         const titleElement = currentSiteConfig.titleSelector ? document.querySelector(currentSiteConfig.titleSelector) : null;
         const seriesElement = currentSiteConfig.seriesSelector ? document.querySelector(currentSiteConfig.seriesSelector) : null;
@@ -180,9 +303,11 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
     function createOverlayDOMIfNotExists(retryCount = 0) {
       if (checkAndHandleInvalidatedContext("createOverlayDOMIfNotExists")) return;
+      console.log("CONTENT.JS: createOverlayDOMIfNotExists called. Retry count:", retryCount);
       // Check if overlay already exists
       if (document.getElementById('wp-overlay-timer')) {
         overlayContainer = document.getElementById('wp-overlay-timer');
+        console.log("CONTENT.JS: createOverlayDOMIfNotExists - Overlay already exists.", overlayContainer.isConnected ? "And is connected." : "BUT NOT CONNECTED.");
         // Ensure it's in the DOM (might have been removed by site script)
         if (!overlayContainer.isConnected) {
           console.warn("CONTENT.JS: Overlay exists but not connected. Re-appending.");
@@ -197,6 +322,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       // If it doesn't exist, create it
       // console.log("CONTENT.JS: Creating overlay DOM element.");
       overlayContainer = document.createElement('div');
+      console.log("CONTENT.JS: createOverlayDOMIfNotExists - Created new overlayContainer element.");
       overlayContainer.className = 'wp-overlay-container';
       overlayContainer.id = 'wp-overlay-timer';
 
@@ -241,22 +367,29 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       const videoElement = document.querySelector('video');
       if (!videoElement) {
         if (retryCount < 5) {
+          console.log("CONTENT.JS: createOverlayDOMIfNotExists - videoElement not found, will retry (", retryCount + 1, ").");
           setTimeout(() => createOverlayDOMIfNotExists(retryCount + 1), 100);
         }
         return;
       }
+      console.log("CONTENT.JS: createOverlayDOMIfNotExists - videoElement found:", videoElement);
 
       const targetParent = findTargetParent(videoElement);
+      console.log("CONTENT.JS: createOverlayDOMIfNotExists - targetParent for overlay:", targetParent);
       if (targetParent) {
         const computedStyle = window.getComputedStyle(targetParent);
-        if (computedStyle.position === 'static') targetParent.style.position = 'relative';
+        if (computedStyle.position === 'static') {
+          console.log("CONTENT.JS: createOverlayDOMIfNotExists - targetParent position is static, changing to relative.");
+          targetParent.style.position = 'relative';
+        }
         targetParent.appendChild(overlayContainer);
-        // console.log("CONTENT.JS: Overlay appended to target parent:", targetParent);
+        console.log("CONTENT.JS: Overlay appended to target parent:", targetParent);
         updateOverlayDOM();
       } else {
         // Fallback: Append to body if no suitable parent found
         console.warn("CONTENT.JS: Suitable target parent not found. Appending overlay to document.body as fallback.");
         document.body.appendChild(overlayContainer);
+        console.log("CONTENT.JS: Overlay appended to document.body as fallback.");
         updateOverlayDOM();
       }
     }
@@ -485,6 +618,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
     function fetchAndSendVideoInfo() {
       if (checkAndHandleInvalidatedContext("fetchAndSendVideoInfo_PreFetch")) return;
+      console.log("CONTENT.JS: fetchAndSendVideoInfo called. isFetchingActive:", currentIsFetchingActive, "currentSiteConfig:", currentSiteConfig ? JSON.parse(JSON.stringify(currentSiteConfig)) : "undefined");
       if (!currentIsFetchingActive || !currentSiteConfig) return;
 
       const rawVideoInfo = getVideoInfo();
@@ -646,6 +780,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       if (checkAndHandleInvalidatedContext("mainInitialization_Start")) return;
       const currentHostname = window.location.hostname.replace(/^www\./, '');
       currentSiteConfig = siteSelectors[currentHostname];
+      console.log("CONTENT.JS: mainInitialization - currentSiteConfig:", currentSiteConfig ? JSON.parse(JSON.stringify(currentSiteConfig)) : "undefined");
 
       // Don't immediately return if no site config, try creating overlay anyway
       // if (!currentSiteConfig) return;

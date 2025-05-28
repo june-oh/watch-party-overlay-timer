@@ -9,7 +9,9 @@
   ],
   "host_permissions": [
     "*://*.laftel.net/*",
-    "*://*.chzzk.naver.com/*"
+    "*://*.chzzk.naver.com/*",
+    "*://*.youtube.com/*",
+    "*://*.netflix.com/*"
   ],
   "background": {
     "service_worker": "src/background.js"
@@ -19,7 +21,9 @@
       "matches": [
         "*://*.laftel.net/player/*",
         "*://*.chzzk.naver.com/vod/*",
-        "*://*.chzzk.naver.com/video/*"
+        "*://*.chzzk.naver.com/video/*",
+        "*://www.youtube.com/watch*",
+        "*://www.netflix.com/watch/*"
       ],
       "js": ["src/content.js"],
       "css": ["public/overlay.css"]

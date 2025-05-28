@@ -480,6 +480,7 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
 });
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  const previousTabId = currentTabId;
   currentTabId = activeInfo.tabId;
   try {
     const tab = await chrome.tabs.get(currentTabId);
