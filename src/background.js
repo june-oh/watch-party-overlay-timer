@@ -153,6 +153,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     
     switch (message.type) {
+      case 'POPUP_TOGGLE_FETCHING':
+        if (BGasActiveTabId) {
+          currentTabId = BGasActiveTabId;
+          const previousFetchingState = isFetchingActive;
+          isFetchingActive = !isFetchingActive;
+          isError = false; errorMessage = '';
+          responsePayload.isFetchingActive = isFetchingActive;
+
+          try {
+            await ensureContentScriptAndSendMessage(currentTabId, { 
+              type: 'TOGGLE_FETCHING', 
+              action: isFetchingActive ? 'start' : 'stop',
+              forceRestart: !previousFetchingState && isFetchingActive
+            });
+            
+            if (!isFetchingActive) {
+              lastVideoInfo = null; // 정보 가져오기 중지 시 정보 초기화
+            }
+          } catch (e) {
+            responsePayload.success = false; 
+            responsePayload.error = e.message;
+            isError = true; 
+            errorMessage = "콘텐츠 스크립트 통신 실패 (Fetching)";
+            // 실패 시 상태 복원
+            isFetchingActive = previousFetchingState;
+          }
+        } else {
+          responsePayload.success = false; 
+          responsePayload.error = "No active tab for fetching.";
+          isFetchingActive = false; 
+          isError = true; 
+          errorMessage = "활성 탭 없음 (Fetching)";
+        }
+        break;
+
       case 'POPUP_TOGGLE_VISIBILITY':
         if (BGasActiveTabId) {
           currentTabId = BGasActiveTabId;
@@ -169,7 +204,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               const tab = await chrome.tabs.get(currentTabId);
               if (tab && tab.url) {
                 const currentUrlObj = new URL(tab.url);
-                if (currentUrlObj.hostname && (currentUrlObj.hostname.includes('laftel.net') || currentUrlObj.hostname.includes('chzzk.naver.com'))) {
+                if (currentUrlObj.hostname && (
+                  currentUrlObj.hostname.includes('laftel.net') || 
+                  currentUrlObj.hostname.includes('chzzk.naver.com') ||
+                  currentUrlObj.hostname.includes('netflix.com') ||
+                  currentUrlObj.hostname.includes('youtube.com')
+                )) {
                   if (!isFetchingActive) {
                     console.log(`BG: Overlay turned ON for supported site (${currentUrlObj.hostname}). Starting fetching automatically.`);
                     isFetchingActive = true;
@@ -418,7 +458,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         shouldStopFetching = !isSameContentGroup;
 
         // NEW: 오버레이가 켜져있고 지원 사이트라면, 자동으로 Fetching 시작/유지
-        if (isOverlayVisible && newUrlObj.hostname && (newUrlObj.hostname.includes('laftel.net') || newUrlObj.hostname.includes('chzzk.naver.com'))) {
+        if (isOverlayVisible && newUrlObj.hostname && (
+          newUrlObj.hostname.includes('laftel.net') || 
+          newUrlObj.hostname.includes('chzzk.naver.com') ||
+          newUrlObj.hostname.includes('netflix.com') ||
+          newUrlObj.hostname.includes('youtube.com')
+        )) {
           if (!isFetchingActive) { // 꺼져 있었다면 강제로 켬
             console.log(`BG: Overlay is visible on a supported site (${newUrlObj.hostname}). Forcing fetching to active.`);
             isFetchingActive = true;

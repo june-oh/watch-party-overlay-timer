@@ -21,7 +21,7 @@ const siteSelectors = {
     siteName: 'YouTube'
   },
   'netflix.com': {
-    infoContainerSelector: 'div > div.watch-video--bottom-controls-container.ltr-gpipej > div > div > div.ltr-100d0a9 > div > div.ltr-lapyk4 > div.ltr-4utd8f > div',
+    infoContainerSelector: '.watch-video--bottom-controls-container, .ltr-1bt0omd, .medium.ltr-m1ta4i',
     titleSubSelector: 'h4',
     seriesSubSelector: 'span',
     siteName: 'Netflix'
@@ -204,80 +204,57 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
         let identifiedSeries = null;
         let identifiedEpisode = null;
 
-        if (currentSiteConfig.infoContainerSelector) {
-          const parentOfTitleHolder = document.querySelector(currentSiteConfig.infoContainerSelector);
-          console.log("CONTENT.JS: getVideoInfo - Netflix - parentOfTitleHolder (using selector '" + currentSiteConfig.infoContainerSelector + "'):", parentOfTitleHolder);
-          
-          if (parentOfTitleHolder) {
-            const titleHolderDiv = parentOfTitleHolder.querySelector('div[data-uia="video-title"]');
-            console.log("CONTENT.JS: getVideoInfo - Netflix - titleHolderDiv (div[data-uia='video-title'] inside parent):", titleHolderDiv);
+        // 직접 video-title 요소를 찾기
+        const titleElement = document.querySelector('[data-uia="video-title"]');
+        console.log("CONTENT.JS: getVideoInfo - Netflix - titleElement:", titleElement);
+        
+        if (titleElement) {
+          const seriesH4 = titleElement.querySelector('h4'); 
+          console.log("CONTENT.JS: getVideoInfo - Netflix - seriesH4:", seriesH4);
 
-            if (titleHolderDiv) {
-              const seriesH4 = titleHolderDiv.querySelector('h4'); 
-              console.log("CONTENT.JS: getVideoInfo - Netflix - seriesH4 (h4 inside titleHolderDiv):", seriesH4);
-
-              if (seriesH4) { // 시리즈물로 판단
-                console.log("CONTENT.JS: getVideoInfo - Netflix - Detected SERIES (h4 found in titleHolderDiv).");
-                identifiedSeries = seriesH4.innerText?.trim() || null;
-                
-                const episodePartElements = titleHolderDiv.querySelectorAll('span');
-                if (episodePartElements && episodePartElements.length > 0) {
-                  const episodeParts = [];
-                  episodePartElements.forEach(span => {
-                    const text = span?.innerText?.trim();
-                    if (text) episodeParts.push(text);
-                  });
-                  identifiedEpisode = episodeParts.length > 0 ? episodeParts.join(' - ') : "N/A";
-                } else {
-                  identifiedEpisode = "N/A"; // 시리즈인데 span (에피소드 정보)이 없는 경우
-                }
-              } else { // 단일 영화로 판단 (h4 없음, titleHolderDiv 에서 제목 추출)
-                console.log("CONTENT.JS: getVideoInfo - Netflix - Detected MOVIE (no h4 found in titleHolderDiv). Title from titleHolderDiv.innerText.");
-                const clonedTitleHolder = titleHolderDiv.cloneNode(true);
-                clonedTitleHolder.querySelectorAll('h4, span').forEach(el => el.remove()); // 혹시 모를 h4나 span 제거
-                const movieTitleText = clonedTitleHolder.innerText?.trim();
-
-                if (movieTitleText) {
-                  identifiedEpisode = movieTitleText; // 영화 제목을 episode로
-                  identifiedSeries = ""; // 영화는 series를 빈 문자열로
-                } else {
-                   identifiedEpisode = "N/A"; // 영화 제목도 못 찾은 경우
-                   identifiedSeries = ""; 
-                }
-              }
-            } else { // Did NOT find 'data-uia="video-title"' div as a CHILD of parentOfTitleHolder
-              console.warn("CONTENT.JS: getVideoInfo - Netflix - 'div[data-uia=\"video-title\"]' NOT FOUND as child. Assuming 'parentOfTitleHolder' (selected by infoContainerSelector) is the source for a MOVIE.");
-              // parentOfTitleHolder (selectedContainer)의 innerText를 영화 제목으로 간주
-              // 여기서는 parentOfTitleHolder에 h4가 있는지 다시 한번 체크할 필요는 없어 보임 (이미 titleHolderDiv가 없는 상황이므로)
-              const clonedParentOfTitleHolder = parentOfTitleHolder.cloneNode(true);
-              clonedParentOfTitleHolder.querySelectorAll('div[data-uia="video-title"], h4, span').forEach(el => el.remove()); // 내부 다른 요소들 제거
-              const movieTitleFromParent = clonedParentOfTitleHolder.innerText?.trim();
-              if (movieTitleFromParent) {
-                identifiedEpisode = movieTitleFromParent;
-                identifiedSeries = "";
-              } else {
-                identifiedEpisode = "N/A";
-                identifiedSeries = "";
-              }
+          if (seriesH4) { // 시리즈물로 판단
+            console.log("CONTENT.JS: getVideoInfo - Netflix - Detected SERIES (h4 found).");
+            identifiedSeries = seriesH4.innerText?.trim() || null;
+            
+            const episodeSpans = titleElement.querySelectorAll('span');
+            if (episodeSpans && episodeSpans.length > 0) {
+              const episodeParts = [];
+              episodeSpans.forEach(span => {
+                const text = span?.innerText?.trim();
+                if (text) episodeParts.push(text);
+              });
+              identifiedEpisode = episodeParts.length > 0 ? episodeParts.join(' - ') : "N/A";
+            } else {
+              identifiedEpisode = "N/A";
             }
-          } else {
-            console.warn("CONTENT.JS: getVideoInfo - Netflix - parentOfTitleHolder (selected by infoContainerSelector) not found.");
+          } else { // 단일 영화로 판단
+            console.log("CONTENT.JS: getVideoInfo - Netflix - Detected MOVIE (no h4 found).");
+            const clonedTitleElement = titleElement.cloneNode(true);
+            clonedTitleElement.querySelectorAll('h4, span').forEach(el => el.remove());
+            const movieTitleText = clonedTitleElement.innerText?.trim();
+
+            if (movieTitleText) {
+              identifiedEpisode = movieTitleText;
+              identifiedSeries = "";
+            } else {
+               identifiedEpisode = "N/A";
+               identifiedSeries = ""; 
+            }
           }
         } else {
-          console.warn("CONTENT.JS: getVideoInfo - Netflix - infoContainerSelector is missing in siteConfig.");
+          console.warn("CONTENT.JS: getVideoInfo - Netflix - video-title element not found.");
         }
         
         console.log("CONTENT.JS: getVideoInfo - Netflix - Identified Series:", identifiedSeries, "Identified Episode:", identifiedEpisode);
 
         // 최종적으로 series와 episode 변수 업데이트
-        if (identifiedSeries !== null) { // 새로운 정보가 식별되었다면 (시리즈 또는 영화)
+        if (identifiedSeries !== null) {
           series = identifiedSeries;
-          episode = (identifiedEpisode !== null) ? identifiedEpisode : "N/A"; // identifiedEpisode가 null이면 "N/A"로
-        } else { // 새로운 정보가 식별되지 않았다면 이전 값 유지
-          series = previousSeries || "N/A";
+          episode = (identifiedEpisode !== null) ? identifiedEpisode : "N/A";
+        } else {
+          series = previousSeries || "";
           episode = previousEpisode || "N/A";
         }
-
       } else {
         const titleElement = currentSiteConfig.titleSelector ? document.querySelector(currentSiteConfig.titleSelector) : null;
         const seriesElement = currentSiteConfig.seriesSelector ? document.querySelector(currentSiteConfig.seriesSelector) : null;

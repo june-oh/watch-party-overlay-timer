@@ -5,6 +5,8 @@
 /dist
 /build
 
+curosr_pull.md
+
 # Log files
 *.log
 npm-debug.log*
