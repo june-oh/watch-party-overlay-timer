@@ -1,6 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
   console.log("POPUP.JS: DOMContentLoaded, script running.");
 
+  // --- Load and Display Extension Version ---
+  const extensionVersionEl = document.getElementById('extensionVersion');
+  if (extensionVersionEl) {
+    const manifest = chrome.runtime.getManifest();
+    extensionVersionEl.textContent = manifest.version;
+  }
+
   // --- DOM Element References ---
   const statusTextEl = document.getElementById('statusText');
   const currentSiteHostEl = document.getElementById('currentSiteHost');

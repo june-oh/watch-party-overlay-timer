@@ -241,6 +241,20 @@ h3, h4 {
     color: var(--text-color-dark);
 }
 
+.version-section {
+  margin-top: 2px;
+  padding: 2px;
+  text-align: center;
+  font-size: 8px;
+  color: #888;
+  border-top: 1px solid var(--border-color);
+}
+
+.version-section .version-text {
+  margin: 0;
+  font-style: italic;
+}
+
 /* 기본 컨테이너 및 제어 그룹 스타일 */
 body {
   font-family: sans-serif;
