@@ -6,7 +6,17 @@ let timeDisplayMode = 'current_duration';
 let titleDisplayMode = 'episode_series'; // NEW: 'episode_series', 'episode_only', 'none'
 let overlayPositionSide = 'left'; 
 let overlayTheme = 'light'; 
-let overlayOffset = 8; // NEW: 오버레이 전체 여백 값
+let overlayOffsetX = 8; // NEW: 가로 여백
+let overlayOffsetY = 8; // NEW: 세로 여백
+let seriesFontSize = 10; // NEW: 시리즈 폰트 크기
+let episodeFontSize = 14; // NEW: 에피소드 폰트 크기
+let currentTimeFontSize = 14; // NEW: 현재시간 폰트 크기
+let durationFontSize = 14; // NEW: 전체시간 폰트 크기
+let fontScale = 1.0; // NEW: 전체 폰트 배율 (0.5~2.0)
+let overlayMinWidth = 150; // NEW: 오버레이 최소 너비
+let overlayLineSpacing = 2; // NEW: 오버레이 줄간격
+let overlayPadding = 8; // NEW: 오버레이 내부 여백
+let showHostname = true; // NEW: 사이트 이름 표시 여부
 let lastVideoInfo = null;
 let currentTabId = null; 
 let isError = false; 
@@ -47,7 +57,17 @@ function initializeExtensionState() {
   titleDisplayMode = 'episode_series'; 
   overlayPositionSide = 'left';
   overlayTheme = 'light';
-  overlayOffset = 8; // NEW: 초기화 시 오프셋 값 설정
+  overlayOffsetX = 8; // NEW: 초기화 시 오프셋 값 설정
+  overlayOffsetY = 8; // NEW: 초기화 시 오프셋 값 설정
+  seriesFontSize = 10; // NEW: 시리즈 폰트 크기
+  episodeFontSize = 14; // NEW: 에피소드 폰트 크기
+  currentTimeFontSize = 14; // NEW: 현재시간 폰트 크기
+  durationFontSize = 14; // NEW: 전체시간 폰트 크기
+  fontScale = 1.0; // NEW: 전체 폰트 배율 (0.5~2.0)
+  overlayMinWidth = 150; // NEW: 오버레이 최소 너비
+  overlayLineSpacing = 2; // NEW: 오버레이 줄간격
+  overlayPadding = 8; // NEW: 오버레이 내부 여백
+  showHostname = true; // NEW: 사이트 이름 표시 여부
   lastVideoInfo = null;
   currentTabId = null; 
   currentHostname = null;
@@ -128,14 +148,18 @@ async function sendStateToAll() {
 
   const state = {
     isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, titleDisplayMode,
-    overlayPositionSide, overlayTheme, overlayOffset, // NEW: 오프셋 값 포함
-    lastVideoInfo, 
+    overlayPositionSide, overlayTheme, overlayOffsetX, overlayOffsetY, // NEW: 오프셋 값 포함
+    seriesFontSize, episodeFontSize, currentTimeFontSize, durationFontSize, fontScale, overlayMinWidth, overlayLineSpacing, overlayPadding,
+    showHostname, lastVideoInfo, 
     activeTabHostname: currentActiveTabHostnameForPopup, isError, errorMessage
   };
 
   chrome.runtime.sendMessage({ type: 'BACKGROUND_STATE_UPDATE', data: state }).catch(e => {});
   if (currentTabId) {
-    ensureContentScriptAndSendMessage(currentTabId, { type: 'BACKGROUND_STATE_UPDATE', data: state }).catch(e => {});
+    await ensureContentScriptAndSendMessage(currentTabId, { 
+        type: 'BACKGROUND_STATE_UPDATE', 
+        data: { isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, titleDisplayMode, overlayPositionSide, overlayTheme, overlayOffsetX, overlayOffsetY, seriesFontSize, episodeFontSize, currentTimeFontSize, durationFontSize, fontScale, overlayMinWidth, overlayLineSpacing, overlayPadding, showHostname, lastVideoInfo, activeTabHostname: currentHostname, isError, errorMessage } // NEW: 오프셋 값 포함
+    });
   }
 }
 
@@ -153,45 +177,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     
     switch (message.type) {
-      case 'POPUP_TOGGLE_FETCHING':
-        if (BGasActiveTabId) {
-          currentTabId = BGasActiveTabId;
-          const previousFetchingState = isFetchingActive;
-          isFetchingActive = !isFetchingActive;
-          isError = false; errorMessage = '';
-          responsePayload.isFetchingActive = isFetchingActive;
-
-          try {
-            await ensureContentScriptAndSendMessage(currentTabId, { 
-              type: 'TOGGLE_FETCHING', 
-              action: isFetchingActive ? 'start' : 'stop',
-              forceRestart: !previousFetchingState && isFetchingActive
-            });
-            
-            if (!isFetchingActive) {
-              lastVideoInfo = null; // 정보 가져오기 중지 시 정보 초기화
-            }
-          } catch (e) {
-            responsePayload.success = false; 
-            responsePayload.error = e.message;
-            isError = true; 
-            errorMessage = "콘텐츠 스크립트 통신 실패 (Fetching)";
-            // 실패 시 상태 복원
-            isFetchingActive = previousFetchingState;
-          }
-        } else {
-          responsePayload.success = false; 
-          responsePayload.error = "No active tab for fetching.";
-          isFetchingActive = false; 
-          isError = true; 
-          errorMessage = "활성 탭 없음 (Fetching)";
-        }
-        break;
-
       case 'POPUP_TOGGLE_VISIBILITY':
         if (BGasActiveTabId) {
           currentTabId = BGasActiveTabId;
           const previousOverlayVisibleState = isOverlayVisible;
+          const previousFetchingState = isFetchingActive;
           isOverlayVisible = !isOverlayVisible;
           isError = false; errorMessage = '';
           responsePayload.isOverlayVisible = isOverlayVisible;
@@ -214,25 +204,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     console.log(`BG: Overlay turned ON for supported site (${currentUrlObj.hostname}). Starting fetching automatically.`);
                     isFetchingActive = true;
                     lastVideoInfo = null; // 새 정보 가져오기 위해 초기화
-                    // responsePayload.isFetchingActive = isFetchingActive; // sendStateToAll에서 일괄 전송
-                    // content.js에 fetching 시작/재시작 알림
                     await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'start', forceRestart: true });
                   } else {
-                    // 이미 Fetching 중이라면, Video Info만 업데이트하도록 할 수도 있음 (선택적)
                     console.log(`BG: Overlay turned ON for supported site (${currentUrlObj.hostname}). Fetching already active. Ensuring info update.`);
                     lastVideoInfo = null; // 새 정보 가져오기 위해 초기화
-                    await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'start', forceRestart: true }); //혹시 모르니 재시작
+                    await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'start', forceRestart: true });
                   }
                 }
               }
             }
-            // sendStateToAll()은 스위치 문 바깥에서 호출되므로 여기서 isFetchingActive 변경사항도 함께 전파됨
+            // 오버레이를 끄는 경우, 정보 가져오기도 중지
+            else if (!isOverlayVisible && previousOverlayVisibleState) { // 막 꺼진 경우
+              if (isFetchingActive) {
+                console.log(`BG: Overlay turned OFF. Stopping fetching automatically.`);
+                isFetchingActive = false;
+                lastVideoInfo = null; // 정보 초기화
+                await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'stop' });
+              }
+            }
+            
+            responsePayload.isFetchingActive = isFetchingActive;
           } catch (e) {
             responsePayload.success = false; responsePayload.error = e.message;
             isError = true; errorMessage = "콘텐츠 스크립트 통신 실패 (Visibility)";
-            // 실패 시 상태 복원 고려
-            if (isOverlayVisible !== previousOverlayVisibleState) isOverlayVisible = previousOverlayVisibleState; 
-            if (isFetchingActive && message.type === 'POPUP_TOGGLE_VISIBILITY') { /* isFetchingActive 변경은 여기서 직접 안했으므로 복원 불필요 */}
           }
         } else {
           responsePayload.success = false; responsePayload.error = "No active tab for visibility.";
@@ -319,9 +313,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case 'POPUP_SET_OVERLAY_OFFSET': // NEW CASE
         if (BGasActiveTabId && typeof message.offset === 'number' && message.offset >= 0 && message.offset <= 20) {
           currentTabId = BGasActiveTabId;
-          overlayOffset = message.offset;
+          overlayOffsetX = message.offset;
+          overlayOffsetY = message.offset;
           isError = false; errorMessage = '';
-          responsePayload.overlayOffset = overlayOffset;
+          responsePayload.overlayOffsetX = overlayOffsetX;
+          responsePayload.overlayOffsetY = overlayOffsetY;
           // content.js에 직접 CSS 변수를 변경하도록 메시지를 보낼 수도 있지만,
           // sendStateToAll()을 통해 일관되게 BACKGROUND_STATE_UPDATE로 전달하는 것이 좋음
         } else if (!BGasActiveTabId) {
@@ -329,6 +325,160 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           isError = true; errorMessage = "활성 탭 없음 (Offset)";
         } else {
           responsePayload.success = false; responsePayload.error = "Invalid offset value.";
+        }
+        break;
+
+      case 'POPUP_SET_OVERLAY_OFFSET_X': // NEW CASE for horizontal offset
+        if (BGasActiveTabId && typeof message.offsetX === 'number' && message.offsetX >= 0 && message.offsetX <= 100) {
+          currentTabId = BGasActiveTabId;
+          overlayOffsetX = message.offsetX;
+          isError = false; errorMessage = '';
+          responsePayload.overlayOffsetX = overlayOffsetX;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for offset X.";
+          isError = true; errorMessage = "활성 탭 없음 (Offset X)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid offset X value.";
+        }
+        break;
+
+      case 'POPUP_SET_OVERLAY_OFFSET_Y': // NEW CASE for vertical offset
+        if (BGasActiveTabId && typeof message.offsetY === 'number' && message.offsetY >= 0 && message.offsetY <= 100) {
+          currentTabId = BGasActiveTabId;
+          overlayOffsetY = message.offsetY;
+          isError = false; errorMessage = '';
+          responsePayload.overlayOffsetY = overlayOffsetY;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for offset Y.";
+          isError = true; errorMessage = "활성 탭 없음 (Offset Y)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid offset Y value.";
+        }
+        break;
+
+      case 'POPUP_SET_SERIES_FONT_SIZE': // NEW CASE for series font size
+        if (BGasActiveTabId && typeof message.seriesFontSize === 'number' && message.seriesFontSize >= 0 && message.seriesFontSize <= 50) {
+          currentTabId = BGasActiveTabId;
+          seriesFontSize = message.seriesFontSize;
+          isError = false; errorMessage = '';
+          responsePayload.seriesFontSize = seriesFontSize;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for series font size.";
+          isError = true; errorMessage = "활성 탭 없음 (Series Font)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid series font size value.";
+        }
+        break;
+
+      case 'POPUP_SET_EPISODE_FONT_SIZE': // NEW CASE for episode font size
+        if (BGasActiveTabId && typeof message.episodeFontSize === 'number' && message.episodeFontSize >= 0 && message.episodeFontSize <= 50) {
+          currentTabId = BGasActiveTabId;
+          episodeFontSize = message.episodeFontSize;
+          isError = false; errorMessage = '';
+          responsePayload.episodeFontSize = episodeFontSize;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for episode font size.";
+          isError = true; errorMessage = "활성 탭 없음 (Episode Font)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid episode font size value.";
+        }
+        break;
+
+      case 'POPUP_SET_CURRENT_TIME_FONT_SIZE': // NEW CASE for current time font size
+        if (BGasActiveTabId && typeof message.currentTimeFontSize === 'number' && message.currentTimeFontSize >= 0 && message.currentTimeFontSize <= 50) {
+          currentTabId = BGasActiveTabId;
+          currentTimeFontSize = message.currentTimeFontSize;
+          isError = false; errorMessage = '';
+          responsePayload.currentTimeFontSize = currentTimeFontSize;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for current time font size.";
+          isError = true; errorMessage = "활성 탭 없음 (Current Time Font)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid current time font size value.";
+        }
+        break;
+
+      case 'POPUP_SET_DURATION_FONT_SIZE': // NEW CASE for duration font size
+        if (BGasActiveTabId && typeof message.durationFontSize === 'number' && message.durationFontSize >= 0 && message.durationFontSize <= 50) {
+          currentTabId = BGasActiveTabId;
+          durationFontSize = message.durationFontSize;
+          isError = false; errorMessage = '';
+          responsePayload.durationFontSize = durationFontSize;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for duration font size.";
+          isError = true; errorMessage = "활성 탭 없음 (Duration Font)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid duration font size value.";
+        }
+        break;
+
+      case 'POPUP_SET_FONT_SCALE': // NEW CASE for font scale
+        if (BGasActiveTabId && typeof message.fontScale === 'number' && message.fontScale >= 0.5 && message.fontScale <= 2.0) {
+          currentTabId = BGasActiveTabId;
+          fontScale = message.fontScale;
+          isError = false; errorMessage = '';
+          responsePayload.fontScale = fontScale;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for font scale.";
+          isError = true; errorMessage = "활성 탭 없음 (Font Scale)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid font scale value.";
+        }
+        break;
+
+      case 'POPUP_SET_SHOW_HOSTNAME': // NEW CASE for show hostname toggle
+        if (BGasActiveTabId && typeof message.showHostname === 'boolean') {
+          currentTabId = BGasActiveTabId;
+          showHostname = message.showHostname;
+          isError = false; errorMessage = '';
+          responsePayload.showHostname = showHostname;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for show hostname.";
+          isError = true; errorMessage = "활성 탭 없음 (Show Hostname)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid show hostname value.";
+        }
+        break;
+
+      case 'POPUP_SET_OVERLAY_MIN_WIDTH': // NEW CASE for overlay min width
+        if (BGasActiveTabId && typeof message.overlayMinWidth === 'number' && message.overlayMinWidth >= 50 && message.overlayMinWidth <= 800) {
+          currentTabId = BGasActiveTabId;
+          overlayMinWidth = message.overlayMinWidth;
+          isError = false; errorMessage = '';
+          responsePayload.overlayMinWidth = overlayMinWidth;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for overlay min width.";
+          isError = true; errorMessage = "활성 탭 없음 (Min Width)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid overlay min width value.";
+        }
+        break;
+
+      case 'POPUP_SET_OVERLAY_LINE_SPACING': // NEW CASE for overlay line spacing
+        if (BGasActiveTabId && typeof message.overlayLineSpacing === 'number' && message.overlayLineSpacing >= -5 && message.overlayLineSpacing <= 10) {
+          currentTabId = BGasActiveTabId;
+          overlayLineSpacing = message.overlayLineSpacing;
+          isError = false; errorMessage = '';
+          responsePayload.overlayLineSpacing = overlayLineSpacing;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for overlay line spacing.";
+          isError = true; errorMessage = "활성 탭 없음 (Line Spacing)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid overlay line spacing value.";
+        }
+        break;
+
+      case 'POPUP_SET_OVERLAY_PADDING': // NEW CASE for overlay padding
+        if (BGasActiveTabId && typeof message.overlayPadding === 'number' && message.overlayPadding >= 2 && message.overlayPadding <= 20) {
+          currentTabId = BGasActiveTabId;
+          overlayPadding = message.overlayPadding;
+          isError = false; errorMessage = '';
+          responsePayload.overlayPadding = overlayPadding;
+        } else if (!BGasActiveTabId) {
+          responsePayload.success = false; responsePayload.error = "No active tab for overlay padding.";
+          isError = true; errorMessage = "활성 탭 없음 (Padding)";
+        } else {
+          responsePayload.success = false; responsePayload.error = "Invalid overlay padding value.";
         }
         break;
 
@@ -344,8 +494,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         responsePayload = { 
             success: true, isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, 
-            titleDisplayMode, overlayPositionSide, overlayTheme, overlayOffset, // NEW: 오프셋 값 포함
-            lastVideoInfo, 
+            titleDisplayMode, overlayPositionSide, overlayTheme, overlayOffsetX, overlayOffsetY, // NEW: 오프셋 값 포함
+            seriesFontSize, episodeFontSize, currentTimeFontSize, durationFontSize, fontScale, overlayMinWidth, overlayLineSpacing, overlayPadding,
+            showHostname, lastVideoInfo, 
             activeTabHostname: currentHostname, isError, errorMessage 
         };
         break;
@@ -358,7 +509,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // console.log(`BG: CONTENT_SCRIPT_READY from tab ${currentTabId} (${currentHostname}). Sending SYNC_INITIAL_BG_STATE.`);
             await ensureContentScriptAndSendMessage(currentTabId, { 
                 type: 'SYNC_INITIAL_BG_STATE', 
-                data: { isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, titleDisplayMode, overlayPositionSide, overlayTheme, overlayOffset, lastVideoInfo, activeTabHostname: currentHostname, isError, errorMessage } // NEW: 오프셋 값 포함
+                data: { isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, titleDisplayMode, overlayPositionSide, overlayTheme, overlayOffsetX, overlayOffsetY, seriesFontSize, episodeFontSize, currentTimeFontSize, durationFontSize, fontScale, overlayMinWidth, overlayLineSpacing, overlayPadding, showHostname, lastVideoInfo, activeTabHostname: currentHostname, isError, errorMessage } // NEW: 오프셋 값 포함
             });
         } else {
             // console.warn("BG: CONTENT_SCRIPT_READY received without sender.tab.id");
@@ -377,6 +528,92 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           // console.error("BG: Received CONTENT_SCRIPT_ERROR:", message.error, "from tab:", currentTabId);
           isError = true;
           errorMessage = message.error || "콘텐츠 스크립트 오류";
+        }
+        break;
+
+      case 'GET_ALL_SETTINGS': // NEW: 모든 설정 가져오기
+        responsePayload.settings = {
+          isFetchingActive,
+          isOverlayVisible,
+          overlayMode,
+          timeDisplayMode,
+          titleDisplayMode,
+          overlayPositionSide,
+          overlayTheme,
+          overlayOffsetX,
+          overlayOffsetY,
+          seriesFontSize,
+          episodeFontSize,
+          currentTimeFontSize,
+          durationFontSize,
+          fontScale,
+          overlayMinWidth,
+          overlayLineSpacing,
+          overlayPadding,
+          showHostname
+        };
+        break;
+
+      case 'RESET_ALL_SETTINGS': // NEW: 모든 설정 초기화
+        // 기본값으로 초기화
+        isFetchingActive = false;
+        isOverlayVisible = false;
+        overlayMode = 'normal';
+        timeDisplayMode = 'current_duration';
+        titleDisplayMode = 'episode_series';
+        overlayPositionSide = 'right';
+        overlayTheme = 'light';
+        overlayOffsetX = 8;
+        overlayOffsetY = 8;
+        seriesFontSize = 10;
+        episodeFontSize = 14;
+        currentTimeFontSize = 14;
+        durationFontSize = 14;
+        fontScale = 1.0;
+        overlayMinWidth = 150;
+        overlayLineSpacing = 2;
+        overlayPadding = 8;
+        showHostname = true;
+        lastVideoInfo = null;
+        isError = false;
+        errorMessage = '';
+        
+        // 모든 탭에 상태 업데이트 전송
+        broadcastStateToAllTabs();
+        break;
+
+      case 'LOAD_SETTINGS': // NEW: 설정 불러오기
+        if (message.settings) {
+          const settings = message.settings;
+          
+          // 안전하게 설정 적용 (유효성 검사 포함)
+          if (typeof settings.isFetchingActive === 'boolean') isFetchingActive = settings.isFetchingActive;
+          if (typeof settings.isOverlayVisible === 'boolean') isOverlayVisible = settings.isOverlayVisible;
+          if (typeof settings.overlayMode === 'string') overlayMode = settings.overlayMode;
+          if (typeof settings.timeDisplayMode === 'string') timeDisplayMode = settings.timeDisplayMode;
+          if (typeof settings.titleDisplayMode === 'string') titleDisplayMode = settings.titleDisplayMode;
+          if (typeof settings.overlayPositionSide === 'string') overlayPositionSide = settings.overlayPositionSide;
+          if (typeof settings.overlayTheme === 'string') overlayTheme = settings.overlayTheme;
+          if (typeof settings.overlayOffsetX === 'number' && settings.overlayOffsetX >= 0 && settings.overlayOffsetX <= 100) overlayOffsetX = settings.overlayOffsetX;
+          if (typeof settings.overlayOffsetY === 'number' && settings.overlayOffsetY >= 0 && settings.overlayOffsetY <= 100) overlayOffsetY = settings.overlayOffsetY;
+          if (typeof settings.seriesFontSize === 'number' && settings.seriesFontSize >= 0 && settings.seriesFontSize <= 50) seriesFontSize = settings.seriesFontSize;
+          if (typeof settings.episodeFontSize === 'number' && settings.episodeFontSize >= 0 && settings.episodeFontSize <= 50) episodeFontSize = settings.episodeFontSize;
+          if (typeof settings.currentTimeFontSize === 'number' && settings.currentTimeFontSize >= 0 && settings.currentTimeFontSize <= 50) currentTimeFontSize = settings.currentTimeFontSize;
+          if (typeof settings.durationFontSize === 'number' && settings.durationFontSize >= 0 && settings.durationFontSize <= 50) durationFontSize = settings.durationFontSize;
+          if (typeof settings.fontScale === 'number' && settings.fontScale >= 0.5 && settings.fontScale <= 2.0) fontScale = settings.fontScale;
+          if (typeof settings.overlayMinWidth === 'number' && settings.overlayMinWidth >= 50 && settings.overlayMinWidth <= 800) overlayMinWidth = settings.overlayMinWidth;
+          if (typeof settings.overlayLineSpacing === 'number' && settings.overlayLineSpacing >= -5 && settings.overlayLineSpacing <= 10) overlayLineSpacing = settings.overlayLineSpacing;
+          if (typeof settings.overlayPadding === 'number' && settings.overlayPadding >= 2 && settings.overlayPadding <= 20) overlayPadding = settings.overlayPadding;
+          if (typeof settings.showHostname === 'boolean') showHostname = settings.showHostname;
+          
+          isError = false;
+          errorMessage = '';
+          
+          // 모든 탭에 상태 업데이트 전송
+          broadcastStateToAllTabs();
+        } else {
+          responsePayload.success = false;
+          responsePayload.error = "Invalid settings data.";
         }
         break;
 

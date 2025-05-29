@@ -1,0 +1,44 @@
+.advanced-content .control-group:last-child {
+  margin-bottom: 0;
+}
+
+/* 설정 관리 버튼 스타일 */
+.settings-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-color);
+}
+
+.save-btn {
+  background: rgba(76, 175, 80, 0.9);
+  color: #ffffff;
+  border-color: rgba(76, 175, 80, 1);
+}
+
+.save-btn:hover {
+  background: rgba(76, 175, 80, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.reset-btn {
+  background: rgba(244, 67, 54, 0.9);
+  color: #ffffff;
+  border-color: rgba(244, 67, 54, 1);
+}
+
+.reset-btn:hover {
+  background: rgba(244, 67, 54, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.settings-btn:active {
+  transform: translateY(0);
+} 

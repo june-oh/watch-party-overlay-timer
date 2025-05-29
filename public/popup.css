@@ -1,6 +1,4 @@
 :root {
-  /* --button-default-bg: #2196F3; */ /* Default Blue - REMOVED TO AVOID CONFLICTS */
-  /* --button-default-hover-brightness: 85%; */ /* REMOVED */
   --button-active-bg: #4CAF50; /* Green - Keep for active state reference */
   --button-error-bg: #ff9800; /* Orange */
   --button-error-hover-bg: #fb8c00;
@@ -10,9 +8,6 @@
   --button-fetch-stop-bg: #ADD8E6; /* Lighter Blue */
   --button-visibility-show-bg: #90ee90; /* Light Green */
   --button-visibility-hide-bg: #32cd32; /* Lime Green */
-  
-  /* --button-time-cycle-bg: #1565C0; */ /* Darker Blue for Time Cycle Button - REMOVED (old button) */
-  /* --button-time-cycle-hover-brightness: 85%; */ /* REMOVED */
 
   --text-color-light: white;
   --text-color-dark: #333;
@@ -29,15 +24,28 @@
   --popup-button-active-bg: #4CAF50;   /* Green for active buttons */
   --popup-button-active-text: white;
   --popup-button-active-border: #45a049;
+
+  --primary-color: #007bff;
+  --primary-hover: #0056b3;
+  --secondary-color: #6c757d;
+  --success-color: #28a745;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --light-color: #f8f9fa;
+  --dark-color: #343a40;
+  --bg-color: #ffffff;
+  --active-bg: #e3f2fd;
+  --text-color: #333;
 }
 
 body {
-  font-family: sans-serif;
-  width: 280px;
-  padding: 1px 5px;
-  font-size: 13px;
-  background-color: var(--popup-bg);
-  color: var(--text-color-dark);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 /* General button styles - Applied to all buttons unless overridden */
@@ -60,7 +68,6 @@ button:hover {
   filter: none; /* Remove brightness filter if general hover is background change */
 }
 
-
 /* Styles for buttons DIRECTLY inside .controls or .button-group */
 /* These will override the general button style if more specific or loaded later */
 .controls button,
@@ -72,7 +79,7 @@ button:hover {
 }
 
 .button-group button {
-  margin-top: 1; /* Buttons in a group have no top margin */
+  margin-top: 0; /* Buttons in a group have no top margin */
   flex-grow: 1;
 }
 
@@ -89,18 +96,6 @@ button.active-button {
   border-color: var(--popup-button-active-border) !important; /* Darker green border */
 }
 
-/* Specific styles for Fetching/Visibility buttons if they differ beyond active/default */
-/* For example, if their non-active, non-hover states are unique colors */
-#toggleFetchingBtn {
-  /* Default state will use .controls button style (grey) */
-  /* Active state will use .active-button (green) */
-}
-
-#toggleVisibilityBtn {
-  /* Default state will use .controls button style (grey) */
-  /* Active state will use .active-button (green) */
-}
-
 /* Error state for any button */
 button.error {
   background-color: var(--button-error-bg) !important;
@@ -109,7 +104,6 @@ button.error {
 button.error:hover {
   background-color: var(--button-error-hover-bg) !important;
 }
-
 
 .info-item {
   margin-bottom: 6px;
@@ -144,224 +138,761 @@ button.error:hover {
 }
 
 .container {
-  margin-bottom: 10px;
-  padding: 2px;
-  border-radius: 4px;
-  background-color: var(--container-bg);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  width: 400px;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
-h3, h4 {
-  margin: 0 0 2px 0;
-  font-size: 14px;
-  color: var(--text-color-dark);
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 4px;
+h2 {
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--primary-color);
+  text-align: center;
 }
 
-/* Preview styles */
-.preview {
+.status-section {
+  background-color: var(--light-color);
   padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.controls {
+  margin-bottom: 12px;
+}
+
+/* iOS 스타일 토글 스위치 - 통일된 스타일 */
+.toggle-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 8px;
-  border-radius: 4px;
-  background-color: rgba(0, 0, 0, 0.7);
-  color: var(--text-color-light);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.preview.greenscreen {
-  background-color: rgb(0, 177, 64);
+.toggle-group:last-of-type {
+  border-bottom: none;
+  margin-bottom: 12px;
 }
 
-.preview .title {
+.toggle-group label {
+  font-weight: 500;
+  color: var(--text-color);
+  flex: 1;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+/* 모든 토글 스위치 공통 스타일 */
+.toggle-switch {
+  position: relative;
+  width: 120px;
+  height: 34px;
+  margin-left: 16px;
+  flex-shrink: 0;
+}
+
+.toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  z-index: 10;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #e0e0e0;
+  border-radius: 17px;
+  transition: all 0.3s ease;
+  border: 1px solid #d0d0d0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.toggle-slider .slider-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  transition: color 0.3s ease;
+  z-index: 3;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  width: 56px;
+  text-align: center;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 30px;
+  width: 56px;
+  left: 2px;
+  top: 1px;
+  background-color: var(--primary-color);
+  border-radius: 15px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  display: block;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.toggle-switch:hover .toggle-slider {
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.toggle-input:focus + .toggle-slider {
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+}
+
+/* 기본 체크박스 스타일 완전 제거 */
+.toggle-input::-webkit-outer-spin-button,
+.toggle-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.toggle-input[type="checkbox"] {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+/* 오버레이 토글 (OFF/ON) - 특별한 ON/OFF 방식 */
+.overlay-slider .slider-label.off {
+  left: 2px;
+}
+
+.overlay-slider .slider-label.on {
+  right: 2px;
+}
+
+/* 체크되지 않은 상태 (OFF 활성화) - 회색 배경 */
+.toggle-input:not(:checked) + .overlay-slider {
+  background-color: #e0e0e0;
+  border-color: #d0d0d0;
+}
+
+.toggle-input:not(:checked) + .overlay-slider:before {
+  background-color: #666;
+}
+
+.toggle-input:not(:checked) + .overlay-slider .slider-label.off {
+  color: white;
+}
+
+.toggle-input:not(:checked) + .overlay-slider .slider-label.on {
+  color: #666;
+}
+
+/* 체크된 상태 (ON 활성화) - 회색 배경 */
+.toggle-input:checked + .overlay-slider {
+  background-color: #e0e0e0;
+  border-color: #d0d0d0;
+}
+
+.toggle-input:checked + .overlay-slider:before {
+  transform: translateX(60px);
+  background-color: var(--primary-color);
+}
+
+.toggle-input:checked + .overlay-slider .slider-label.off {
+  color: #666;
+}
+
+.toggle-input:checked + .overlay-slider .slider-label.on {
+  color: white;
+}
+
+/* 모드 토글 (NORMAL/COMPACT) - 선택 방식 */
+.mode-slider .slider-label.normal {
+  left: 2px;
+}
+
+.mode-slider .slider-label.compact {
+  right: 2px;
+}
+
+/* 체크되지 않은 상태 (NORMAL 활성화) - 밝은 회색 배경 */
+.toggle-input:not(:checked) + .mode-slider {
+  background-color: #e0e0e0;
+  border-color: #d0d0d0;
+}
+
+.toggle-input:not(:checked) + .mode-slider:before {
+  background-color: var(--primary-color);
+}
+
+.toggle-input:not(:checked) + .mode-slider .slider-label.normal {
+  color: white;
+}
+
+.toggle-input:not(:checked) + .mode-slider .slider-label.compact {
+  color: #666;
+}
+
+/* 체크된 상태 (COMPACT 활성화) - 밝은 회색 배경 */
+.toggle-input:checked + .mode-slider {
+  background-color: #e0e0e0;
+  border-color: #d0d0d0;
+}
+
+.toggle-input:checked + .mode-slider:before {
+  transform: translateX(60px);
+  background-color: var(--primary-color);
+}
+
+.toggle-input:checked + .mode-slider .slider-label.normal {
+  color: #666;
+}
+
+.toggle-input:checked + .mode-slider .slider-label.compact {
+  color: white;
+}
+
+/* 위치 토글 (LEFT/RIGHT) - 선택 방식 */
+.position-slider .slider-label.left {
+  left: 2px;
+}
+
+.position-slider .slider-label.right {
+  right: 2px;
+}
+
+/* 체크되지 않은 상태 (RIGHT 활성화) - 밝은 회색 배경 */
+.toggle-input:not(:checked) + .position-slider {
+  background-color: #e0e0e0;
+  border-color: #d0d0d0;
+}
+
+.toggle-input:not(:checked) + .position-slider:before {
+  background-color: var(--primary-color);
+  transform: translateX(60px);
+}
+
+.toggle-input:not(:checked) + .position-slider .slider-label.left {
+  color: #666;
+}
+
+.toggle-input:not(:checked) + .position-slider .slider-label.right {
+  color: white;
+}
+
+/* 체크된 상태 (LEFT 활성화) - 밝은 회색 배경 */
+.toggle-input:checked + .position-slider {
+  background-color: #e0e0e0;
+  border-color: #d0d0d0;
+}
+
+.toggle-input:checked + .position-slider:before {
+  transform: translateX(0px);
+  background-color: var(--primary-color);
+}
+
+.toggle-input:checked + .position-slider .slider-label.left {
+  color: white;
+}
+
+.toggle-input:checked + .position-slider .slider-label.right {
+  color: #666;
+}
+
+/* 사이트 표시 토글 (OFF/ON) - 오버레이 토글과 동일한 방식 */
+.hostname-slider .slider-label.off {
+  left: 2px;
+}
+
+.hostname-slider .slider-label.on {
+  right: 2px;
+}
+
+/* 체크되지 않은 상태 (OFF 활성화) - 회색 배경 */
+.toggle-input:not(:checked) + .hostname-slider {
+  background-color: #e0e0e0;
+  border-color: #d0d0d0;
+}
+
+.toggle-input:not(:checked) + .hostname-slider:before {
+  background-color: #666;
+}
+
+.toggle-input:not(:checked) + .hostname-slider .slider-label.off {
+  color: white;
+}
+
+.toggle-input:not(:checked) + .hostname-slider .slider-label.on {
+  color: #666;
+}
+
+/* 체크된 상태 (ON 활성화) - 회색 배경 */
+.toggle-input:checked + .hostname-slider {
+  background-color: #e0e0e0;
+  border-color: #d0d0d0;
+}
+
+.toggle-input:checked + .hostname-slider:before {
+  transform: translateX(60px);
+  background-color: var(--primary-color);
+}
+
+.toggle-input:checked + .hostname-slider .slider-label.off {
+  color: #666;
+}
+
+.toggle-input:checked + .hostname-slider .slider-label.on {
+  color: white;
+}
+
+/* 고급 설정 토글 (OFF/ON) - 작은 크기 */
+.advanced-toggle-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.advanced-toggle-group label {
+  font-weight: 500;
+  color: var(--text-color);
+  flex: 1;
+  cursor: pointer;
   font-size: 14px;
-  font-weight: bold;
-  margin-bottom: 4px;
 }
 
-.preview .series {
+.advanced-toggle {
+  position: relative;
+  width: 80px; /* 작은 크기 */
+  height: 28px; /* 작은 크기 */
+  margin-left: 16px;
+  flex-shrink: 0;
+}
+
+.advanced-slider .slider-label.off {
+  left: 2px;
+}
+
+.advanced-slider .slider-label.on {
+  right: 2px;
+}
+
+.advanced-slider .slider-label {
+  font-size: 9px; /* 작은 폰트 */
+  width: 36px; /* 작은 너비 */
+}
+
+.advanced-slider:before {
+  height: 24px; /* 작은 높이 */
+  width: 36px; /* 작은 너비 */
+  left: 2px;
+  top: 1px;
+}
+
+/* 체크되지 않은 상태 (OFF 활성화) */
+.toggle-input:not(:checked) + .advanced-slider {
+  background-color: #e0e0e0;
+  border-color: #d0d0d0;
+}
+
+.toggle-input:not(:checked) + .advanced-slider:before {
+  background-color: #666;
+}
+
+.toggle-input:not(:checked) + .advanced-slider .slider-label.off {
+  color: white;
+}
+
+.toggle-input:not(:checked) + .advanced-slider .slider-label.on {
+  color: #666;
+}
+
+/* 체크된 상태 (ON 활성화) */
+.toggle-input:checked + .advanced-slider {
+  background-color: #e0e0e0;
+  border-color: #d0d0d0;
+}
+
+.toggle-input:checked + .advanced-slider:before {
+  transform: translateX(40px); /* 작은 이동 거리 */
+  background-color: var(--primary-color);
+}
+
+.toggle-input:checked + .advanced-slider .slider-label.off {
+  color: #666;
+}
+
+.toggle-input:checked + .advanced-slider .slider-label.on {
+  color: white;
+}
+
+/* 기존 컨트롤 그룹 스타일 */
+.control-group {
+  margin-bottom: 10px;
+}
+
+.control-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: var(--text-color);
+  font-size: 15px;
+}
+
+/* 인라인 컨트롤 스타일 - 라벨과 드롭다운을 같은 행에 배치 */
+.inline-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.inline-control label {
+  margin-bottom: 0;
+  margin-right: 12px;
+  flex-shrink: 0;
+  font-size: 14px;
+  min-width: 70px;
+}
+
+.inline-control .control-select {
+  flex: 1;
+  max-width: 200px;
+}
+
+.label-value {
+  font-weight: 400;
+  color: var(--secondary-color);
+  font-size: 13px;
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+}
+
+.control-button {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.control-button:hover {
+  background-color: var(--light-color);
+  border-color: var(--primary-color);
+}
+
+.control-button.active-button {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.control-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.control-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.control-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-color);
+  outline: none;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.control-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.control-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.info-section {
+  background-color: var(--light-color);
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.info-section h4 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.info-section p {
+  margin: 4px 0;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.thanks-section {
+  text-align: center;
   font-size: 12px;
-  opacity: 0.9;
-  margin-bottom: 4px;
+  color: var(--secondary-color);
+  margin-bottom: 6px;
+  line-height: 1.3;
+  padding: 6px;
+  background-color: var(--light-color);
+  border-radius: 8px;
 }
 
-.preview .time {
-  font-size: 14px;
-  font-weight: bold;
-  font-family: 'Courier New', monospace;
+.thanks-section p {
+  margin: 0;
 }
 
-.preview.greenscreen .title,
-.preview.greenscreen .series,
-.preview.greenscreen .time {
-  color: black;
-  text-shadow: 0px 0px 2px white;
+.thanks-section strong {
+  font-weight: normal;
+  color: var(--text-color);
 }
 
-/* Mode Buttons Default Styles */
-#setNormalModeBtn,
-#setCompactModeBtn,
-#toggleGreenscreenModeBtn { /* This ID might be unused if greenscreen is part of theme select */
-  /* background-color: var(--button-default-bg); */ /* REMOVED - covered by .controls button */
+.version-section {
+  text-align: center;
+  margin-bottom: 6px;
+  padding: 4px;
+  background-color: var(--light-color);
+  border-radius: 8px;
 }
 
-/* Active Mode Button Style */
-/* button.active-mode { */ /* REMOVED - Consolidated to .active-button */
-  /* background-color: var(--button-active-bg) !important; */ 
-/* } */
-
-/* Time Cycle Button */
-#cycleTimeDisplayModeBtn {
-  /* background-color: var(--button-time-cycle-bg); */ /* REMOVED - Old button */
+.version-text {
+  font-size: 12px;
+  color: var(--secondary-color);
+  margin: 0;
 }
-/* #cycleTimeDisplayModeBtn:hover { */ /* REMOVED */
-  /* filter: brightness(var(--button-time-cycle-hover-brightness)); */
-/* } */
+
+hr {
+  border: none;
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 6px 0;
+}
 
 .controls-section {
   margin-top: 15px;
   padding-top: 10px;
   border-top: 1px solid var(--border-color);
-  color: var(--popup-text-color, #333);
+  color: var(--text-color);
 }
 
-.thanks-section {
-  margin-top: 2px;
-  padding : 0px;
-  text-align: center;
-  font-size: 9px;
-  color: #616060;
-}
-
-.thanks-section p {
-  margin: 0px;
-}
-
-.thanks-section strong {
-    font-weight: normal;
-    color: var(--text-color-dark);
-}
-
-.version-section {
-  margin-top: 2px;
-  padding: 2px;
-  text-align: center;
-  font-size: 8px;
-  color: #888;
-  border-top: 1px solid var(--border-color);
-}
-
-.version-section .version-text {
-  margin: 0;
-  font-style: italic;
-}
-
-/* 기본 컨테이너 및 제어 그룹 스타일 */
-body {
-  font-family: sans-serif;
-  width: 280px; /* 팝업 너비 고정 또는 필요에 따라 조절 */
-  padding: 0px 0px;
-  margin : 0px;
-  background-color: var(--popup-bg-color, #f9f9f9);
-  color: var(--popup-text-color, #333);
-}
-
-.container {
+/* 슬라이더와 숫입 입력 연동 스타일 */
+.slider-input-group {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
 }
 
-h2 {
-  text-align: center;
+.slider-input-group .control-slider {
+  flex: 1;
   margin-top: 0;
-  margin-bottom: 5px;
-  color: var(--popup-header-color, #1a73e8);
 }
 
-.status-section, .controls, .info-section, .thanks-section {
-  padding: 6px;
-  border: 1px solid var(--popup-border-color, #ddd);
-  border-radius: 4px;
-  background-color: var(--popup-section-bg-color, #fff);
+.number-input-group {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
-/* Combined .controls button and select styles */
-.controls button,
-.controls select {
-  width: 100%;
-  padding: 6px;
-  margin-top: 3px;
-  box-sizing: border-box;
-  border: 1px solid var(--popup-button-default-border, #ccc); /* Use refined var */
-  border-radius: 3px;
-  background-color: var(--popup-button-default-bg, #f0f0f0); /* Use refined var */
-  color: var(--popup-button-default-text, #333); /* Use refined var */
+.number-btn {
+  width: 28px;
+  height: 32px;
+  border: none;
+  background-color: var(--light-color);
+  color: var(--text-color);
+  font-size: 16px;
+  font-weight: bold;
   cursor: pointer;
   transition: background-color 0.2s ease;
-}
-
-.controls button:hover,
-.controls select:hover /* Added select hover */ {
-  background-color: var(--popup-button-hover-bg, #e0e0e0); /* Use refined var */
-}
-
-/* 활성화된 버튼 스타일 - This is the primary active style */
-.controls button.active-button {
-  background-color: var(--popup-button-active-bg, #4CAF50); 
-  color: var(--popup-button-active-text, white);
-  border-color: var(--popup-button-active-border, #45a049);
-}
-
-.control-group {
-  margin-bottom: 5px;
-}
-
-.control-group label {
-  display: block;
-  margin-bottom: 3px;
-  font-weight: bold;
-  font-size: 0.9em;
-}
-
-/* 버튼 그룹 (모드, 위치 변경용) */
-.button-group {
   display: flex;
-  gap: 5px; /* 버튼 간 간격 */
+  align-items: center;
+  justify-content: center;
 }
 
-.button-group button {
-  flex-grow: 1; /* 버튼들이 공간을 균등하게 차지하도록 */
-  margin-top: 0; /* 버튼 그룹 내에서는 상단 마진 제거 */
+.number-btn:hover {
+  background-color: var(--border-color);
 }
 
-/* 드롭다운 메뉴 스타일 */
-.controls select {
-  background-color: var(--popup-select-bg-color, #fff);
-  /* 필요시 추가 스타일링 */
+.number-btn:active {
+  background-color: var(--primary-color);
+  color: white;
 }
 
-.info-section p, .thanks-section p {
-  margin: 5px 0;
-  font-size: 0.9em;
-}
-
-.info-section strong {
-  color: var(--popup-info-strong-color, #555);
-}
-
-.status-section strong {
-    font-weight: bold;
-}
-
-#statusText {
-    font-style: italic;
-}
-
-hr {
+.number-input {
+  width: 50px;
+  height: 32px;
   border: none;
-  border-top: 1px solid var(--popup-hr-color, #eee);
-  margin: 10px 0;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 14px;
+  text-align: center;
+  -moz-appearance: textfield;
+  box-sizing: border-box;
 }
 
-/* 기존의 .active-mode, .active 등은 .active-button 으로 통합 고려 */
-/* 예시: .active-mode를 .active-button으로 변경하거나, .active-mode 스타일을 .active-button에 맞게 조정 */ 
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.number-input:focus {
+  outline: none;
+  background-color: var(--active-bg);
+}
+
+.number-input-group .unit-label {
+  border: none;
+  border-radius: 0;
+  background-color: var(--light-color);
+  padding: 6px 8px;
+  font-size: 11px;
+  min-width: 24px;
+}
+
+/* 인라인 슬라이더와 숫입 입력 스타일 */
+.slider-number-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.control-slider-inline {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-color);
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+
+.control-slider-inline::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.control-slider-inline::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.number-input-inline {
+  width: 60px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 14px;
+  text-align: center;
+  transition: border-color 0.2s ease;
+}
+
+.number-input-inline:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* 고급 설정 섹션 스타일 */
+.advanced-settings {
+  margin-top: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.advanced-content {
+  padding: 16px;
+  background-color: var(--bg-color);
+  max-height: 500px;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.advanced-content.collapsed {
+  max-height: 0;
+  padding: 0 16px;
+}
+
+.advanced-content .control-group {
+  margin-bottom: 12px;
+}
+
+.advanced-content .control-group:last-child {
+  margin-bottom: 0;
+} 

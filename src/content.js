@@ -51,6 +51,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     // console.log("CONTENT.JS: Initializing for the first time.");
 
     let fetchIntervalId = null;
+    let overlayCheckIntervalId = null; // NEW: 오버레이 존재 체크용 인터벌
     let currentIsFetchingActive = false;
     let currentIsOverlayVisible = false;
     let currentOverlayMode = 'normal';
@@ -58,6 +59,18 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     let currentTimeDisplayMode = 'current_duration';
     let currentTitleDisplayMode = 'episode_series'; // NEW
     let currentOverlayPositionSide = 'right';
+    let currentOverlayOffsetX = 8; // NEW: 가로 여백
+    let currentOverlayOffsetY = 8; // NEW: 세로 여백
+    let currentSeriesFontSize = 10; // NEW: 시리즈 폰트 크기
+    let currentEpisodeFontSize = 14; // NEW: 에피소드 폰트 크기
+    let currentTimeFontSize = 14; // NEW: 시간 폰트 크기
+    let currentCurrentTimeFontSize = 14; // NEW: 현재시간 폰트 크기
+    let currentDurationFontSize = 14; // NEW: 전체시간 폰트 크기
+    let currentFontScale = 1.0; // NEW: 전체 폰트 배율 (0.5~2.0)
+    let currentOverlayMinWidth = 150; // NEW: 오버레이 최소 너비
+    let currentOverlayLineSpacing = 2; // NEW: 오버레이 줄간격
+    let currentOverlayPadding = 8; // NEW: 오버레이 내부 여백
+    let currentShowHostname = true; // NEW: 사이트 이름 표시 여부
     let currentVideoInfo = null;
     let isContextInvalidated = false;
     // let lastVideoInfoString = ''; // 이 변수는 현재 사용되지 않는 것으로 보이므로 주석 처리 또는 삭제 고려
@@ -72,6 +85,8 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           isContextInvalidated = true;
           if (fetchIntervalId) clearInterval(fetchIntervalId);
           fetchIntervalId = null;
+          if (overlayCheckIntervalId) clearInterval(overlayCheckIntervalId);
+          overlayCheckIntervalId = null;
           const existingOverlay = document.getElementById('wp-overlay-timer');
           if (existingOverlay) {
             existingOverlay.innerHTML = '<div style="color:red; font-weight:bold; text-align:center;">스트리머 도구<br/>오류 발생!<br/>페이지를 새로고침 하세요.</div>';
@@ -86,6 +101,8 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
          isContextInvalidated = true;
          if (fetchIntervalId) clearInterval(fetchIntervalId);
          fetchIntervalId = null;
+         if (overlayCheckIntervalId) clearInterval(overlayCheckIntervalId);
+         overlayCheckIntervalId = null;
          return true;
       }
       return false;
@@ -119,7 +136,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
         console.warn("CONTENT.JS: getVideoInfo - currentSiteConfig is null or undefined.");
         return null;
       }
-      console.log("CONTENT.JS: getVideoInfo - currentSiteConfig:", currentSiteConfig ? JSON.parse(JSON.stringify(currentSiteConfig)) : "undefined", "Hostname:", window.location.hostname);
+      console.debug("CONTENT.JS: getVideoInfo - currentSiteConfig:", currentSiteConfig ? JSON.parse(JSON.stringify(currentSiteConfig)) : "undefined", "Hostname:", window.location.hostname);
 
       let episode = "N/A";
       let series = "N/A";
@@ -127,13 +144,13 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       let durationSeconds = 0;
       const siteName = currentSiteConfig.siteName || window.location.hostname;
       const videoEl = document.querySelector('video');
-      console.log("CONTENT.JS: getVideoInfo - videoEl:", videoEl);
+      console.debug("CONTENT.JS: getVideoInfo - videoEl:", videoEl);
 
       if (videoEl) {
         currentSeconds = videoEl.currentTime;
         durationSeconds = videoEl.duration;
         if (isNaN(durationSeconds) || !isFinite(durationSeconds)) durationSeconds = 0;
-        console.log("CONTENT.JS: getVideoInfo - Time: Current=", currentSeconds, "Duration=", durationSeconds);
+        console.debug("CONTENT.JS: getVideoInfo - Time: Current=", currentSeconds, "Duration=", durationSeconds);
       } else {
         console.warn("CONTENT.JS: getVideoInfo - videoEl not found.");
       }
@@ -190,7 +207,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
         episode = titleText || "N/A";
         series = "";
       } else if (siteName === 'Netflix') {
-        console.log("CONTENT.JS: getVideoInfo - Netflix block entered.");
+        console.debug("CONTENT.JS: getVideoInfo - Netflix block entered.");
         const previousEpisode = currentVideoInfo?.episode;
         const previousSeries = currentVideoInfo?.series;
 
@@ -206,14 +223,14 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
         // 직접 video-title 요소를 찾기
         const titleElement = document.querySelector('[data-uia="video-title"]');
-        console.log("CONTENT.JS: getVideoInfo - Netflix - titleElement:", titleElement);
+        console.debug("CONTENT.JS: getVideoInfo - Netflix - titleElement:", titleElement);
         
         if (titleElement) {
           const seriesH4 = titleElement.querySelector('h4'); 
-          console.log("CONTENT.JS: getVideoInfo - Netflix - seriesH4:", seriesH4);
+          console.debug("CONTENT.JS: getVideoInfo - Netflix - seriesH4:", seriesH4);
 
           if (seriesH4) { // 시리즈물로 판단
-            console.log("CONTENT.JS: getVideoInfo - Netflix - Detected SERIES (h4 found).");
+            console.debug("CONTENT.JS: getVideoInfo - Netflix - Detected SERIES (h4 found).");
             identifiedSeries = seriesH4.innerText?.trim() || null;
             
             const episodeSpans = titleElement.querySelectorAll('span');
@@ -228,7 +245,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
               identifiedEpisode = "N/A";
             }
           } else { // 단일 영화로 판단
-            console.log("CONTENT.JS: getVideoInfo - Netflix - Detected MOVIE (no h4 found).");
+            console.debug("CONTENT.JS: getVideoInfo - Netflix - Detected MOVIE (no h4 found).");
             const clonedTitleElement = titleElement.cloneNode(true);
             clonedTitleElement.querySelectorAll('h4, span').forEach(el => el.remove());
             const movieTitleText = clonedTitleElement.innerText?.trim();
@@ -245,7 +262,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           console.warn("CONTENT.JS: getVideoInfo - Netflix - video-title element not found.");
         }
         
-        console.log("CONTENT.JS: getVideoInfo - Netflix - Identified Series:", identifiedSeries, "Identified Episode:", identifiedEpisode);
+        console.debug("CONTENT.JS: getVideoInfo - Netflix - Identified Series:", identifiedSeries, "Identified Episode:", identifiedEpisode);
 
         // 최종적으로 series와 episode 변수 업데이트
         if (identifiedSeries !== null) {
@@ -292,6 +309,8 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           // Simplest is often just appending to body if disconnected.
           document.body.appendChild(overlayContainer);
         }
+        // 기존 오버레이에 호버 이벤트 리스너 추가
+        addHoverEventListeners();
         // updateOverlayDOM(); // Don't call update here, let the caller handle it.
         return; // Already exists or re-connected
       }
@@ -341,6 +360,9 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       compactTextContainerEl.appendChild(compactTimeEl);
       overlayContainer.appendChild(compactTextContainerEl);
       
+      // 호버 이벤트 리스너 추가
+      addHoverEventListeners();
+      
       const videoElement = document.querySelector('video');
       if (!videoElement) {
         if (retryCount < 5) {
@@ -370,16 +392,44 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
         updateOverlayDOM();
       }
     }
-    
+
+    function addHoverEventListeners() {
+      if (!overlayContainer) return;
+      
+      let hoverTimeout = null;
+      let lastHoverTime = 0;
+      const HOVER_THROTTLE_MS = 2000; // 2초마다 한 번만 실행
+      
+      // 마우스 호버 시 정보 갱신 (throttled)
+      overlayContainer.addEventListener('mouseenter', () => {
+        const now = Date.now();
+        if (now - lastHoverTime < HOVER_THROTTLE_MS) return; // throttling
+        
+        if (currentIsOverlayVisible && currentSiteConfig) {
+          console.log("CONTENT.JS: Overlay hovered, refreshing video info.");
+          lastHoverTime = now;
+          // 정보가 없거나 오래된 경우 즉시 갱신
+          if (!currentVideoInfo || currentVideoInfo.episode === "N/A" || currentVideoInfo.episode === undefined) {
+            fetchAndSendVideoInfo();
+          }
+        }
+      });
+      
+      // 더블클릭 시 강제 갱신
+      overlayContainer.addEventListener('dblclick', () => {
+        if (currentIsOverlayVisible && currentSiteConfig) {
+          console.log("CONTENT.JS: Overlay double-clicked, forcing video info refresh.");
+          currentVideoInfo = null; // 강제로 정보 초기화
+          fetchAndSendVideoInfo();
+        }
+      });
+    }
+
     function updateOverlayDOM() {
       if (checkAndHandleInvalidatedContext("updateOverlayDOM")) return;
-      // Add log at the start of the function
-      console.log("CONTENT.JS: updateOverlayDOM() called."); 
       if (!overlayContainer) { // overlayContainer가 없으면 생성 시도
-        // console.log("CONTENT.JS: updateOverlayDOM - overlayContainer is null, attempting to create.");
         createOverlayDOMIfNotExists();
         if (!overlayContainer) { // 그래도 없으면 반환
-            // console.warn("CONTENT.JS: updateOverlayDOM - Failed to create/find overlayContainer after attempt.");
             return;
         }
       }
@@ -388,12 +438,13 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       overlayContainer.style.display = shouldDisplay ? 'flex' : 'none';
       if (!shouldDisplay) return;
       
-      // Add log just before applying classes, showing the state being used
-      console.log(`CONTENT.JS: updateOverlayDOM - Applying state: isVisible=${currentIsOverlayVisible}, mode=${currentOverlayMode}, timeMode=${currentTimeDisplayMode}, titleMode=${currentTitleDisplayMode}, pos=${currentOverlayPositionSide}, theme=${currentOverlayTheme}`);
-      
       overlayContainer.classList.remove('normal-mode', 'compact-mode', 'compact-no-time', 'compact-no-title-info', 'position-left', 'position-right', 'normal-no-title-info');
-      const themeClasses = ['theme-light', 'theme-dark', 'theme-greenscreen-white-text', 'theme-greenscreen-black-text'];
-      themeClasses.forEach(cls => overlayContainer.classList.remove(cls));
+      overlayContainer.classList.remove('theme-light', 'theme-dark', 'theme-greenscreen-white-text', 'theme-greenscreen-black-text');
+      
+      overlayContainer.classList.toggle('theme-light', currentOverlayTheme === 'light');
+      overlayContainer.classList.toggle('theme-dark', currentOverlayTheme === 'dark');
+      overlayContainer.classList.toggle('theme-greenscreen-white-text', currentOverlayTheme === 'greenscreen-white-text');
+      overlayContainer.classList.toggle('theme-greenscreen-black-text', currentOverlayTheme === 'greenscreen-black-text');
       
       if (currentOverlayMode === 'compact') {
         overlayContainer.classList.add('compact-mode');
@@ -407,14 +458,23 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       if (currentOverlayPositionSide === 'left') overlayContainer.classList.add('position-left');
       else overlayContainer.classList.add('position-right');
       
-      const expectedCssClass = "theme-" + currentOverlayTheme;
-      if (currentOverlayTheme && themeClasses.includes(expectedCssClass)) {
-        overlayContainer.classList.add(expectedCssClass);
-      } else {
-         // Fallback if theme is invalid or null
-         console.warn(`CONTENT.JS: updateOverlayDOM - Invalid or null theme ('${currentOverlayTheme}'), falling back to 'theme-light'.`);
-         overlayContainer.classList.add('theme-light'); 
-      }
+      // NEW: CSS 변수를 통해 가로/세로 여백 적용
+      overlayContainer.style.setProperty('--wp-overlay-offset-x', `${currentOverlayOffsetX}px`);
+      overlayContainer.style.setProperty('--wp-overlay-offset-y', `${currentOverlayOffsetY}px`);
+      
+      // NEW: CSS 변수를 통해 폰트 크기 적용 (배율 포함)
+      overlayContainer.style.setProperty('--wp-series-font-size', `${currentSeriesFontSize * currentFontScale}px`);
+      overlayContainer.style.setProperty('--wp-episode-font-size', `${currentEpisodeFontSize * currentFontScale}px`);
+      overlayContainer.style.setProperty('--wp-time-font-size', `${currentTimeFontSize * currentFontScale}px`);
+      overlayContainer.style.setProperty('--wp-current-time-font-size', `${currentCurrentTimeFontSize * currentFontScale}px`);
+      overlayContainer.style.setProperty('--wp-duration-font-size', `${currentDurationFontSize * currentFontScale}px`);
+      overlayContainer.style.setProperty('--wp-font-scale', currentFontScale);
+      
+      // NEW: CSS 변수를 통해 오버레이 크기 적용
+      overlayContainer.style.setProperty('--wp-overlay-min-width', `${currentOverlayMinWidth}px`);
+      overlayContainer.style.setProperty('--wp-overlay-line-spacing', `${currentOverlayLineSpacing}px`);
+      overlayContainer.style.setProperty('--wp-overlay-padding', `${currentOverlayPadding}px`);
+      
       if (overlayContainer) void overlayContainer.offsetWidth; // Force reflow after class changes
 
       const infoToDisplay = currentVideoInfo;
@@ -453,7 +513,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
           // Set text for normal mode
           if (currentTimeDisplayMode === 'current_duration') {
-            textForNormalModeTimeSpan = `${formattedCurrentS} / ${formattedDurationS}`;
+            textForNormalModeTimeSpan = `<span class="current-time">${formattedCurrentS}</span><span class="duration-separator"> / </span><span class="duration-time">${formattedDurationS}</span>`;
           } else if (currentTimeDisplayMode === 'current_only') {
             textForNormalModeTimeSpan = formattedCurrentS;
           }
@@ -464,7 +524,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
           textForCompactModeTimeSpan = '00:00';
           if (currentTimeDisplayMode === 'current_duration') {
-            textForNormalModeTimeSpan = '00:00 / 00:00';
+            textForNormalModeTimeSpan = '<span class="current-time">00:00</span><span class="duration-separator"> / </span><span class="duration-time">00:00</span>';
           } else if (currentTimeDisplayMode === 'current_only') {
             textForNormalModeTimeSpan = '00:00';
           }
@@ -484,7 +544,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
              actualTimeSpanEl.classList.add('needs-start-padding');
           }
         }
-        actualTimeSpanEl.textContent = textForNormalModeTimeSpan;
+        actualTimeSpanEl.innerHTML = textForNormalModeTimeSpan;
       }
 
       if (currentOverlayMode === 'compact') {
@@ -494,26 +554,35 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
         if (compactContainerEl) compactContainerEl.style.display = 'flex';
 
         if (compactInfoSpanEl) {
-          let compactText = '';
+          let textForCompactModeInfoSpan = '';
           if (currentTitleDisplayMode !== 'none') {
             const episodeText = infoToDisplay?.episode || infoToDisplay?.title || '정보 없음';
             let compactModeMaxChars = 20; 
             if (currentTimeDisplayMode === 'none') { 
                 compactModeMaxChars = 40;
             }
-            compactText = isLoading ? 'Loading...' : (episodeText === '정보 없음' ? episodeText : truncateText(episodeText, compactModeMaxChars));
+            textForCompactModeInfoSpan = isLoading ? 'Loading...' : (episodeText === '정보 없음' ? episodeText : truncateText(episodeText, compactModeMaxChars));
           }
-          compactInfoSpanEl.textContent = compactText;
-          compactInfoSpanEl.style.display = compactText ? 'inline' : 'none';
-          if (currentTimeDisplayMode === 'none') {
-            compactInfoSpanEl.style.maxWidth = '100%';
+          compactInfoSpanEl.classList.remove('min-width-shorter-time', 'min-width-longer-time', 'needs-start-padding'); // longer should not be needed here but for safety
+          if (currentTitleDisplayMode !== 'none' && textForCompactModeInfoSpan) {
+            compactInfoSpanEl.style.display = 'inline';
+            compactInfoSpanEl.textContent = textForCompactModeInfoSpan;
+            compactInfoSpanEl.style.fontSize = `${currentEpisodeFontSize * currentFontScale}px`; // 에피소드 폰트 크기 적용
+            
+            // 스타일 속성 복원
+            if (currentTimeDisplayMode === 'none') {
+              compactInfoSpanEl.style.maxWidth = '100%';
+            } else {
+              compactInfoSpanEl.style.maxWidth = 'calc(100% - 50px)';
+            }
+            compactInfoSpanEl.style.overflow = 'hidden';
+            compactInfoSpanEl.style.textOverflow = 'ellipsis';
+            compactInfoSpanEl.style.whiteSpace = 'nowrap';
+            compactInfoSpanEl.style.verticalAlign = 'baseline';
           } else {
-            compactInfoSpanEl.style.maxWidth = 'calc(100% - 50px)';
+            compactInfoSpanEl.style.display = 'none';
+            compactInfoSpanEl.textContent = '';
           }
-          compactInfoSpanEl.style.overflow = 'hidden';
-          compactInfoSpanEl.style.textOverflow = 'ellipsis';
-          compactInfoSpanEl.style.whiteSpace = 'nowrap';
-          compactInfoSpanEl.style.verticalAlign = 'baseline';
         }
         if (compactTimeSpanEl) {
             compactTimeSpanEl.classList.remove('min-width-shorter-time', 'min-width-longer-time', 'needs-start-padding'); // longer should not be needed here but for safety
@@ -524,6 +593,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
               }
             }
             compactTimeSpanEl.textContent = textForCompactModeTimeSpan;
+            compactTimeSpanEl.style.fontSize = `${currentCurrentTimeFontSize * currentFontScale}px`; // 현재시간 폰트 크기 적용
             if (currentTitleDisplayMode === 'none' || (compactInfoSpanEl && compactInfoSpanEl.style.display === 'none')) {
                 compactTimeSpanEl.style.marginLeft = '0px';
             } else {
@@ -553,7 +623,13 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
         }
         
         if (timeContainerEl) timeContainerEl.style.display = currentTimeDisplayMode === 'none' ? 'none' : 'flex';
-        if (actualTimeSpanEl) actualTimeSpanEl.textContent = textForNormalModeTimeSpan;
+        if (actualTimeSpanEl) {
+          if (currentTimeDisplayMode === 'current_duration') {
+            actualTimeSpanEl.innerHTML = textForNormalModeTimeSpan;
+          } else {
+            actualTimeSpanEl.textContent = textForNormalModeTimeSpan;
+          }
+        }
         if (compactContainerEl) compactContainerEl.style.display = 'none';
         
         if (hostnameSpanEl) {
@@ -561,7 +637,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
             hostnameSpanEl.textContent = '';
             hostnameSpanEl.style.display = 'none';
           } else {
-            if (currentTitleDisplayMode === 'none') {
+            if (currentTitleDisplayMode === 'none' || !currentShowHostname) {
               hostnameSpanEl.textContent = '';
               hostnameSpanEl.style.display = 'none';
             } else {
@@ -595,7 +671,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
 
     function fetchAndSendVideoInfo() {
       if (checkAndHandleInvalidatedContext("fetchAndSendVideoInfo_PreFetch")) return;
-      console.log("CONTENT.JS: fetchAndSendVideoInfo called. isFetchingActive:", currentIsFetchingActive, "currentSiteConfig:", currentSiteConfig ? JSON.parse(JSON.stringify(currentSiteConfig)) : "undefined");
+      console.debug("CONTENT.JS: fetchAndSendVideoInfo called. isFetchingActive:", currentIsFetchingActive, "currentSiteConfig:", currentSiteConfig ? JSON.parse(JSON.stringify(currentSiteConfig)) : "undefined");
       if (!currentIsFetchingActive || !currentSiteConfig) return;
 
       const rawVideoInfo = getVideoInfo();
@@ -678,6 +754,18 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           break;
         case 'TOGGLE_VISIBILITY':
           currentIsOverlayVisible = message.action === 'show';
+          // 오버레이를 켤 때 정보가 있으면 즉시 표시하고, 없으면 강제로 가져오기
+          if (currentIsOverlayVisible) {
+            createOverlayDOMIfNotExists();
+            startOverlayCheck(); // NEW: 오버레이 체크 시작
+            // 정보가 없거나 오래된 경우 즉시 갱신
+            if (!currentVideoInfo || currentVideoInfo.episode === "N/A" || currentVideoInfo.episode === undefined) {
+              console.log("CONTENT.JS: Overlay turned ON but no valid info. Forcing immediate fetch.");
+              fetchAndSendVideoInfo();
+            }
+          } else {
+            stopOverlayCheck(); // NEW: 오버레이 체크 중지
+          }
           updateOverlayDOM(); // 직접 DOM 업데이트 호출
           response.isOverlayVisible = currentIsOverlayVisible;
           break;
@@ -699,6 +787,8 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           // Log received data
           console.log(`CONTENT.JS: Received BACKGROUND_STATE_UPDATE. Data:`, JSON.parse(JSON.stringify(message.data))); 
           
+          const wasOverlayVisible = currentIsOverlayVisible;
+          
           currentIsFetchingActive = message.data.isFetchingActive !== undefined ? message.data.isFetchingActive : currentIsFetchingActive;
           currentIsOverlayVisible = message.data.isOverlayVisible !== undefined ? message.data.isOverlayVisible : currentIsOverlayVisible;
           currentOverlayMode = message.data.overlayMode || currentOverlayMode;
@@ -707,6 +797,22 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           // Add theme update
           currentOverlayTheme = message.data.overlayTheme || currentOverlayTheme;
           currentTitleDisplayMode = message.data.titleDisplayMode || currentTitleDisplayMode; 
+          // NEW: 가로/세로 여백 업데이트
+          currentOverlayOffsetX = message.data.overlayOffsetX !== undefined ? message.data.overlayOffsetX : currentOverlayOffsetX;
+          currentOverlayOffsetY = message.data.overlayOffsetY !== undefined ? message.data.overlayOffsetY : currentOverlayOffsetY;
+          // NEW: 폰트 크기 업데이트
+          currentSeriesFontSize = message.data.seriesFontSize !== undefined ? message.data.seriesFontSize : currentSeriesFontSize;
+          currentEpisodeFontSize = message.data.episodeFontSize !== undefined ? message.data.episodeFontSize : currentEpisodeFontSize;
+          currentTimeFontSize = message.data.timeFontSize !== undefined ? message.data.timeFontSize : currentTimeFontSize;
+          currentCurrentTimeFontSize = message.data.currentTimeFontSize !== undefined ? message.data.currentTimeFontSize : currentCurrentTimeFontSize;
+          currentDurationFontSize = message.data.durationFontSize !== undefined ? message.data.durationFontSize : currentDurationFontSize;
+          currentFontScale = message.data.fontScale !== undefined ? message.data.fontScale : currentFontScale;
+          // NEW: 오버레이 크기 업데이트
+          currentOverlayMinWidth = message.data.overlayMinWidth !== undefined ? message.data.overlayMinWidth : currentOverlayMinWidth;
+          currentOverlayLineSpacing = message.data.overlayLineSpacing !== undefined ? message.data.overlayLineSpacing : currentOverlayLineSpacing;
+          currentOverlayPadding = message.data.overlayPadding !== undefined ? message.data.overlayPadding : currentOverlayPadding;
+          // NEW: 사이트 표시 상태 업데이트
+          currentShowHostname = message.data.showHostname !== undefined ? message.data.showHostname : currentShowHostname;
           // Don't overwrite currentVideoInfo if it's null coming from background, unless explicitly intended
           // If background forces null (due to navigation), reset but trigger fetch immediately
           if (message.data.lastVideoInfo === null) {
@@ -716,13 +822,33 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           } else if (message.data.lastVideoInfo !== undefined) {
             currentVideoInfo = message.data.lastVideoInfo; // Update with non-null info
           }
+          
+          // 오버레이가 새로 켜진 경우 정보 갱신
+          if (currentIsOverlayVisible && !wasOverlayVisible) {
+            console.log("CONTENT.JS: Overlay turned ON via BACKGROUND_STATE_UPDATE. Checking info validity.");
+            startOverlayCheck(); // NEW: 오버레이 체크 시작
+            if (!currentVideoInfo || currentVideoInfo.episode === "N/A" || currentVideoInfo.episode === undefined) {
+              console.log("CONTENT.JS: No valid info available. Forcing immediate fetch.");
+              fetchAndSendVideoInfo();
+            }
+          } else if (!currentIsOverlayVisible && wasOverlayVisible) {
+            // 오버레이가 꺼진 경우
+            stopOverlayCheck(); // NEW: 오버레이 체크 중지
+          }
 
           // Log updated internal state
-          console.log(`CONTENT.JS: Internal state updated. isFetching=${currentIsFetchingActive}, isVisible=${currentIsOverlayVisible}, mode=${currentOverlayMode}, timeMode=${currentTimeDisplayMode}, pos=${currentOverlayPositionSide}, theme=${currentOverlayTheme}, titleMode=${currentTitleDisplayMode}`);
+          console.log(`CONTENT.JS: Internal state updated. isFetching=${currentIsFetchingActive}, isVisible=${currentIsOverlayVisible}, mode=${currentOverlayMode}, timeMode=${currentTimeDisplayMode}, pos=${currentOverlayPositionSide}, theme=${currentOverlayTheme}, titleMode=${currentTitleDisplayMode}, offsetX=${currentOverlayOffsetX}, offsetY=${currentOverlayOffsetY}`);
 
           // Ensure DOM exists BEFORE updating if overlay should be visible
           if (currentIsOverlayVisible) createOverlayDOMIfNotExists();
           updateOverlayDOM();
+          
+          // NEW: 초기 상태에서 오버레이가 켜져있으면 체크 시작
+          if (currentIsOverlayVisible) {
+            startOverlayCheck();
+          }
+          
+          response.received_sync = true;
           break;
         case 'SYNC_INITIAL_BG_STATE': 
           // Log received data
@@ -735,14 +861,34 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           currentOverlayPositionSide = message.data.overlayPositionSide || currentOverlayPositionSide;
           currentOverlayTheme = message.data.overlayTheme || currentOverlayTheme;
           currentTitleDisplayMode = message.data.titleDisplayMode || currentTitleDisplayMode;
+          // NEW: 가로/세로 여백 업데이트
+          currentOverlayOffsetX = message.data.overlayOffsetX !== undefined ? message.data.overlayOffsetX : currentOverlayOffsetX;
+          currentOverlayOffsetY = message.data.overlayOffsetY !== undefined ? message.data.overlayOffsetY : currentOverlayOffsetY;
+          // NEW: 폰트 크기 업데이트
+          currentSeriesFontSize = message.data.seriesFontSize !== undefined ? message.data.seriesFontSize : currentSeriesFontSize;
+          currentEpisodeFontSize = message.data.episodeFontSize !== undefined ? message.data.episodeFontSize : currentEpisodeFontSize;
+          currentTimeFontSize = message.data.timeFontSize !== undefined ? message.data.timeFontSize : currentTimeFontSize;
+          currentCurrentTimeFontSize = message.data.currentTimeFontSize !== undefined ? message.data.currentTimeFontSize : currentCurrentTimeFontSize;
+          currentDurationFontSize = message.data.durationFontSize !== undefined ? message.data.durationFontSize : currentDurationFontSize;
+          currentFontScale = message.data.fontScale !== undefined ? message.data.fontScale : currentFontScale;
+          // NEW: 오버레이 크기 업데이트
+          currentOverlayMinWidth = message.data.overlayMinWidth !== undefined ? message.data.overlayMinWidth : currentOverlayMinWidth;
+          currentOverlayLineSpacing = message.data.overlayLineSpacing !== undefined ? message.data.overlayLineSpacing : currentOverlayLineSpacing;
+          currentOverlayPadding = message.data.overlayPadding !== undefined ? message.data.overlayPadding : currentOverlayPadding;
           if (message.data.lastVideoInfo !== undefined) currentVideoInfo = message.data.lastVideoInfo;
           
           // Log updated internal state after sync
-           console.log(`CONTENT.JS: Internal state synced. isFetching=${currentIsFetchingActive}, isVisible=${currentIsOverlayVisible}, mode=${currentOverlayMode}, timeMode=${currentTimeDisplayMode}, pos=${currentOverlayPositionSide}, theme=${currentOverlayTheme}, titleMode=${currentTitleDisplayMode}`);
+           console.log(`CONTENT.JS: Internal state synced. isFetching=${currentIsFetchingActive}, isVisible=${currentIsOverlayVisible}, mode=${currentOverlayMode}, timeMode=${currentTimeDisplayMode}, pos=${currentOverlayPositionSide}, theme=${currentOverlayTheme}, titleMode=${currentTitleDisplayMode}, offsetX=${currentOverlayOffsetX}, offsetY=${currentOverlayOffsetY}`);
 
           // Ensure DOM exists BEFORE updating if overlay should be visible
           if (currentIsOverlayVisible) createOverlayDOMIfNotExists();
           updateOverlayDOM(); 
+          
+          // NEW: 초기 상태에서 오버레이가 켜져있으면 체크 시작
+          if (currentIsOverlayVisible) {
+            startOverlayCheck();
+          }
+          
           response.received_sync = true;
           break;
         default:
@@ -786,6 +932,63 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       }
     }
     mainInitialization();
+
+    // NEW: 오버레이 존재 체크 및 복구 함수
+    function checkOverlayExistence() {
+      if (checkAndHandleInvalidatedContext("checkOverlayExistence")) return;
+      
+      // 오버레이가 켜져있는 상태에서만 체크
+      if (!currentIsOverlayVisible) return;
+      
+      const existingOverlay = document.getElementById('wp-overlay-timer');
+      
+      // DOM에 연결되어 있지 않거나 아예 없는 경우
+      if (!existingOverlay || !existingOverlay.isConnected) {
+        console.log("CONTENT.JS: Overlay should be visible but wp-container is missing. Recreating...");
+        
+        // 기존 오버레이가 있지만 연결되지 않은 경우 제거
+        if (existingOverlay && !existingOverlay.isConnected) {
+          try {
+            existingOverlay.remove();
+          } catch (e) {
+            console.warn("CONTENT.JS: Error removing disconnected overlay:", e.message);
+          }
+        }
+        
+        // overlayContainer 참조 초기화
+        overlayContainer = null;
+        
+        // 오버레이 다시 생성
+        createOverlayDOMIfNotExists();
+        
+        // 정보가 있으면 즉시 업데이트
+        if (currentVideoInfo) {
+          updateOverlayDOM();
+        }
+        
+        console.log("CONTENT.JS: Overlay recreated successfully.");
+      }
+    }
+
+    // NEW: 오버레이 체크 인터벌 시작
+    function startOverlayCheck() {
+      if (overlayCheckIntervalId) clearInterval(overlayCheckIntervalId);
+      overlayCheckIntervalId = setInterval(checkOverlayExistence, 2000); // 2초마다 체크
+      console.log("CONTENT.JS: Started overlay existence check. Interval ID:", overlayCheckIntervalId);
+    }
+
+    // NEW: 오버레이 체크 인터벌 중지
+    function stopOverlayCheck() {
+      if (overlayCheckIntervalId) clearInterval(overlayCheckIntervalId);
+      overlayCheckIntervalId = null;
+      console.log("CONTENT.JS: Stopped overlay existence check.");
+    }
+
+    // 페이지 언로드 시 정리
+    window.addEventListener('beforeunload', () => {
+      if (fetchIntervalId) clearInterval(fetchIntervalId);
+      if (overlayCheckIntervalId) clearInterval(overlayCheckIntervalId); // NEW: 오버레이 체크 인터벌 정리
+    });
   } else {
     // console.log("CONTENT.JS: Script (wpOverlayTimerHasInitialized) already initialized, skipping full re-initialization.");
   }

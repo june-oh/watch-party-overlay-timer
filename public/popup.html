@@ -8,43 +8,47 @@
 <body>
   <div class="container">
     <h2>Watch Party Overlay Timer</h2>
-    
-    <div class="status-section">
-      <strong>Status:</strong> <span id="statusText">Initializing...</span><br>
-      <strong>Current Site:</strong> <span id="currentSiteHost">N/A</span>
-    </div>
 
     <div class="controls">
-      <button id="toggleFetchingBtn">비디오 정보 가져오기 시작</button>
-      <button id="toggleVisibilityBtn">오버레이 보이기</button>
-      
-      <div class="control-group">
-        <label for="setNormalModeBtn">모드: <span id="currentOverlayModeLabel" class="label-value">(일반)</span></label>
-        <div class="button-group">
-          <button id="setNormalModeBtn" data-mode="normal" class="control-button">일반</button>
-          <button id="setCompactModeBtn" data-mode="compact" class="control-button">컴팩트</button>
+      <!-- 오버레이 보이기/숨기기 토글 -->
+      <div class="toggle-group">
+        <label for="toggleVisibility">오버레이</label>
+        <div class="toggle-switch overlay-toggle">
+          <input type="checkbox" id="toggleVisibility" class="toggle-input">
+          <span class="toggle-slider overlay-slider">
+            <span class="slider-label off">OFF</span>
+            <span class="slider-label on">ON</span>
+          </span>
         </div>
       </div>
 
-      <div class="control-group">
-        <label for="setPositionLeftBtn">위치: <span id="currentOverlayPositionLabel" class="label-value">(오른쪽)</span></label>
-        <div class="button-group">
-          <button id="setPositionLeftBtn" data-position="left" class="control-button">왼쪽</button>
-          <button id="setPositionRightBtn" data-position="right" class="control-button">오른쪽</button>
+      <!-- 컴팩트 모드 토글 -->
+      <div class="toggle-group">
+        <label for="toggleCompactMode">모드</label>
+        <div class="toggle-switch mode-toggle">
+          <input type="checkbox" id="toggleCompactMode" class="toggle-input">
+          <span class="toggle-slider mode-slider">
+            <span class="slider-label normal">NORMAL</span>
+            <span class="slider-label compact">COMPACT</span>
+          </span>
         </div>
       </div>
 
-      <div class="control-group">
-        <label for="selectTimeDisplay">시간 표시: <span id="currentTimeDisplayModeLabel" class="label-value">(현재/전체)</span></label>
-        <select id="selectTimeDisplay" class="control-select">
-          <option value="current_duration">현재/전체 시간</option>
-          <option value="current_only">현재 시간만</option>
-          <option value="none">숨김</option>
-        </select>
+      <!-- 위치 선택 토글 -->
+      <div class="toggle-group">
+        <label for="togglePosition">위치</label>
+        <div class="toggle-switch position-toggle">
+          <input type="checkbox" id="togglePosition" class="toggle-input">
+          <span class="toggle-slider position-slider">
+            <span class="slider-label left">LEFT</span>
+            <span class="slider-label right">RIGHT</span>
+          </span>
+        </div>
       </div>
 
-      <div class="control-group">
-        <label for="selectTitleDisplay">제목 표시: <span id="currentTitleDisplayModeLabel" class="label-value">(에피+시리즈)</span></label>
+      <!-- 제목 표시 -->
+      <div class="control-group inline-control">
+        <label for="selectTitleDisplay">제목 표시</label>
         <select id="selectTitleDisplay" class="control-select">
           <option value="episode_series">에피소드 + 시리즈</option>
           <option value="episode_only">에피소드만</option>
@@ -52,8 +56,19 @@
         </select>
       </div>
 
-      <div class="control-group">
-        <label for="selectTheme">테마: <span id="currentOverlayThemeLabel" class="label-value">(라이트)</span></label>
+      <!-- 시간 표시 -->
+      <div class="control-group inline-control">
+        <label for="selectTimeDisplay">시간 표시</label>
+        <select id="selectTimeDisplay" class="control-select">
+          <option value="current_duration">현재/전체 시간</option>
+          <option value="current_only">현재 시간만</option>
+          <option value="none">숨김</option>
+        </select>
+      </div>
+
+      <!-- 테마 -->
+      <div class="control-group inline-control">
+        <label for="selectTheme">테마</label>
         <select id="selectTheme" class="control-select">
           <option value="light">라이트</option>
           <option value="dark">다크</option>
@@ -62,9 +77,168 @@
         </select>
       </div>
 
+      <!-- 너비 (통합) -->
+      <div class="control-group" id="unifiedWidthControl">
+        <label for="sliderUnifiedWidth">오버레이 너비</label>
+        <div class="slider-number-inline">
+          <input type="range" id="sliderUnifiedWidth" min="50" max="800" value="150" class="control-slider-inline">
+          <input type="number" id="inputUnifiedWidth" min="50" max="800" value="150" class="number-input-inline">
+        </div>
+      </div>
+
+      <!-- 여백 (통합) -->
+      <div class="control-group" id="unifiedOffsetControl">
+        <label for="sliderUnifiedOffset">외부 여백</label>
+        <div class="slider-number-inline">
+          <input type="range" id="sliderUnifiedOffset" min="0" max="100" value="8" class="control-slider-inline">
+          <input type="number" id="inputUnifiedOffset" min="0" max="100" value="8" class="number-input-inline">
+        </div>
+      </div>
+
+      <!-- 줄간격 (통합) -->
+      <div class="control-group" id="unifiedLineSpacingControl">
+        <label for="sliderUnifiedLineSpacing">줄간격</label>
+        <div class="slider-number-inline">
+          <input type="range" id="sliderUnifiedLineSpacing" min="-5" max="10" value="2" class="control-slider-inline">
+          <input type="number" id="inputUnifiedLineSpacing" min="-5" max="10" value="2" class="number-input-inline">
+        </div>
+      </div>
+
+      <!-- 폰트 배율 (일반 설정) -->
       <div class="control-group">
-        <label for="sliderOffset">위치 여백 (<span id="sliderOffsetValue">8</span>px):</label>
-        <input type="range" id="sliderOffset" min="0" max="20" value="8" class="control-slider">
+        <label for="sliderFontScale">폰트 배율</label>
+        <div class="slider-number-inline">
+          <input type="range" id="sliderFontScale" min="0.5" max="2.0" value="1.0" step="0.1" class="control-slider-inline">
+          <input type="number" id="inputFontScale" min="0.5" max="2.0" step="0.1" value="1.0" class="number-input-inline">
+        </div>
+      </div>
+
+      <!-- 가로 여백 (개별) -->
+      <div class="control-group" id="horizontalOffsetControl" style="display: none;">
+        <label for="sliderHorizontalOffset">가로 여백</label>
+        <div class="slider-number-inline">
+          <input type="range" id="sliderHorizontalOffset" min="0" max="100" value="8" class="control-slider-inline">
+          <input type="number" id="inputHorizontalOffset" min="0" max="100" value="8" class="number-input-inline">
+        </div>
+      </div>
+
+      <!-- 세로 여백 (개별) -->
+      <div class="control-group" id="verticalOffsetControl" style="display: none;">
+        <label for="sliderVerticalOffset">세로 여백</label>
+        <div class="slider-number-inline">
+          <input type="range" id="sliderVerticalOffset" min="0" max="100" value="8" class="control-slider-inline">
+          <input type="number" id="inputVerticalOffset" min="0" max="100" value="8" class="number-input-inline">
+        </div>
+      </div>
+
+      <!-- 너비 (개별) -->
+      <div class="control-group" id="minWidthControl" style="display: none;">
+        <label for="sliderOverlayMinWidthAdvanced">너비</label>
+        <div class="slider-number-inline">
+          <input type="range" id="sliderOverlayMinWidthAdvanced" min="50" max="800" value="150" class="control-slider-inline">
+          <input type="number" id="inputOverlayMinWidthAdvanced" min="50" max="800" value="150" class="number-input-inline">
+        </div>
+      </div>
+
+      <!-- 내부 여백 (개별) -->
+      <div class="control-group" id="paddingControl" style="display: none;">
+        <label for="sliderOverlayPaddingAdvanced">내부 여백</label>
+        <div class="slider-number-inline">
+          <input type="range" id="sliderOverlayPaddingAdvanced" min="2" max="20" value="8" class="control-slider-inline">
+          <input type="number" id="inputOverlayPaddingAdvanced" min="2" max="20" value="8" class="number-input-inline">
+        </div>
+      </div>
+
+      <!-- 고급 설정 토글 (작은 토글 버튼) -->
+      <div class="advanced-toggle-group">
+        <label for="toggleAdvancedSettings">고급 설정</label>
+        <div class="toggle-switch advanced-toggle">
+          <input type="checkbox" id="toggleAdvancedSettings" class="toggle-input">
+          <span class="toggle-slider advanced-slider">
+            <span class="slider-label off">OFF</span>
+            <span class="slider-label on">ON</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- 고급 설정 (접을 수 있는 섹션) -->
+      <div class="advanced-settings">
+        <div class="advanced-content" id="advancedContent">
+          <!-- 사이트 이름 표시 (고급 설정으로 이동) -->
+          <div class="control-group inline-control">
+            <label for="toggleShowHostname">사이트 표시</label>
+            <div class="toggle-switch hostname-toggle">
+              <input type="checkbox" id="toggleShowHostname" class="toggle-input" checked>
+              <span class="toggle-slider hostname-slider">
+                <span class="slider-label off">OFF</span>
+                <span class="slider-label on">ON</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- 시리즈 폰트 크기 -->
+          <div class="control-group">
+            <label for="sliderSeriesFontSize">시리즈 폰트 크기</label>
+            <div class="slider-number-inline">
+              <input type="range" id="sliderSeriesFontSize" min="0" max="50" value="10" class="control-slider-inline">
+              <input type="number" id="inputSeriesFontSize" min="0" max="50" value="10" class="number-input-inline">
+            </div>
+          </div>
+
+          <!-- 에피소드 폰트 크기 -->
+          <div class="control-group">
+            <label for="sliderEpisodeFontSize">에피소드 폰트 크기</label>
+            <div class="slider-number-inline">
+              <input type="range" id="sliderEpisodeFontSize" min="0" max="50" value="14" class="control-slider-inline">
+              <input type="number" id="inputEpisodeFontSize" min="0" max="50" value="14" class="number-input-inline">
+            </div>
+          </div>
+
+          <!-- 현재시간 폰트 크기 -->
+          <div class="control-group">
+            <label for="sliderCurrentTimeFontSize">현재시간 폰트 크기</label>
+            <div class="slider-number-inline">
+              <input type="range" id="sliderCurrentTimeFontSize" min="0" max="50" value="14" class="control-slider-inline">
+              <input type="number" id="inputCurrentTimeFontSize" min="0" max="50" value="14" class="number-input-inline">
+            </div>
+          </div>
+
+          <!-- 전체시간 폰트 크기 -->
+          <div class="control-group">
+            <label for="sliderDurationFontSize">전체시간 폰트 크기</label>
+            <div class="slider-number-inline">
+              <input type="range" id="sliderDurationFontSize" min="0" max="50" value="14" class="control-slider-inline">
+              <input type="number" id="inputDurationFontSize" min="0" max="50" value="14" class="number-input-inline">
+            </div>
+          </div>
+
+          <!-- 줄간격 (개별) -->
+          <div class="control-group" id="lineSpacingControl" style="display: none;">
+            <label for="sliderOverlayLineSpacingAdvanced">줄간격</label>
+            <div class="slider-number-inline">
+              <input type="range" id="sliderOverlayLineSpacingAdvanced" min="-5" max="10" value="2" class="control-slider-inline">
+              <input type="number" id="inputOverlayLineSpacingAdvanced" min="-5" max="10" value="2" class="number-input-inline">
+            </div>
+          </div>
+
+          <!-- 컨테이너 내부 여백 -->
+          <div class="control-group">
+            <label for="sliderContainerPadding">컨테이너 내부 여백</label>
+            <div class="slider-number-inline">
+              <input type="range" id="sliderContainerPadding" min="2" max="20" value="8" class="control-slider-inline">
+              <input type="number" id="inputContainerPadding" min="2" max="20" value="8" class="number-input-inline">
+            </div>
+          </div>
+
+          <!-- 설정 관리 -->
+          <div class="control-group">
+            <label>설정 관리</label>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button id="saveSettingsBtn" class="settings-btn save-btn" title="현재 설정을 저장합니다. 더블클릭하면 저장된 설정을 불러옵니다.">설정 저장</button>
+              <button id="resetSettingsBtn" class="settings-btn reset-btn" title="모든 설정을 기본값으로 초기화합니다.">설정 초기화</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -72,7 +246,6 @@
       <h4>현재 비디오 정보:</h4>
       <p><strong>시리즈:</strong> <span id="videoSeries">N/A</span></p>
       <p><strong>에피소드:</strong> <span id="videoTitle">N/A</span></p>
-      <p><strong>시간:</strong> <span id="videoTime">--:-- / --:--</span></p>
     </div>
 
     <div class="thanks-section">
@@ -82,6 +255,11 @@
 
     <div class="version-section">
       <p class="version-text">버전: <span id="extensionVersion">로딩 중...</span></p>
+    </div>
+    
+    <div class="status-section">
+      <strong>Status:</strong> <span id="statusText">Initializing...</span><br>
+      <strong>Current Site:</strong> <span id="currentSiteHost">N/A</span>
     </div>
 
     <hr>
