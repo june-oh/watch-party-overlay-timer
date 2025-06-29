@@ -73,7 +73,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
     let currentShowHostname = true; // NEW: 사이트 이름 표시 여부
     let currentVideoInfo = null;
     let isContextInvalidated = false;
-    // let lastVideoInfoString = ''; // 이 변수는 현재 사용되지 않는 것으로 보이므로 주석 처리 또는 삭제 고려
+    let lastVideoInfoString = ''; // Fixed: 변수 선언 복원
 
     let currentSiteConfig = null;
 
@@ -695,6 +695,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           // 여기서는 필수 정보 변경 시 또는 lastVideoInfoString과 다를 때 전송 (시간 업데이트 포함)
           if (essentialInfoChanged || lastVideoInfoString !== newVideoInfoString) {
             lastVideoInfoString = newVideoInfoString; // 전송 전에 업데이트
+            console.log("CONTENT.JS: Sending VIDEO_INFO_UPDATE to background:", JSON.stringify(currentVideoInfo));
             try {
               chrome.runtime.sendMessage({ type: 'VIDEO_INFO_UPDATE', data: currentVideoInfo }, (response) => {
                   if (chrome.runtime.lastError) {
@@ -704,6 +705,8 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
                               checkAndHandleInvalidatedContext("fetchAndSendVideoInfo_ResponseError");
                           }
                       }
+                  } else {
+                      console.log("CONTENT.JS: VIDEO_INFO_UPDATE sent successfully, response:", response);
                   }
               });
             } catch (e) {
@@ -713,7 +716,7 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
                }
             }
           } else {
-            // console.log("CONTENT.JS: Video info unchanged, not sending update.");
+            console.log("CONTENT.JS: Video info unchanged, not sending update.");
           }
       } else if (!isContextInvalidated) {
           checkAndHandleInvalidatedContext("fetchAndSendVideoInfo_NoRuntime");

@@ -23,6 +23,8 @@ let isError = false;
 let currentHostname = null;
 let errorMessage = '';
 let currentUrlByTabId = {}; // NEW: To store current URL for each tab
+let streamingDisplayTabId = null;
+let streamingDisplayWindowId = null; // NEW: To track streaming display tab
 
 const ICONS = {
   active: { "16": "icons/icon-active-16.png", "48": "icons/icon-active-48.png", "128": "icons/icon-active-128.png" },
@@ -161,6 +163,22 @@ async function sendStateToAll() {
         data: { isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, titleDisplayMode, overlayPositionSide, overlayTheme, overlayOffsetX, overlayOffsetY, seriesFontSize, episodeFontSize, currentTimeFontSize, durationFontSize, fontScale, overlayMinWidth, overlayLineSpacing, overlayPadding, showHostname, lastVideoInfo, activeTabHostname: currentHostname, isError, errorMessage } // NEW: 오프셋 값 포함
     });
   }
+  
+  // Send state to streaming display tab if it exists
+  if (streamingDisplayTabId) {
+    try {
+      await chrome.tabs.sendMessage(streamingDisplayTabId, {
+        type: 'BACKGROUND_STATE_UPDATE',
+        data: { overlayMode, timeDisplayMode, overlayPositionSide, lastVideoInfo, activeTabHostname: currentHostname }
+      });
+    } catch (e) {
+      console.warn('BG: Failed to send state to streaming display tab:', e.message);
+      // Reset streaming display tab ID if tab no longer exists
+      if (e.message.includes('Could not establish connection')) {
+        streamingDisplayTabId = null;
+      }
+    }
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -177,53 +195,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     
     switch (message.type) {
+      case 'POPUP_TOGGLE_FETCHING':
+        if (BGasActiveTabId) {
+          currentTabId = BGasActiveTabId;
+          isFetchingActive = !isFetchingActive;
+          isError = false; errorMessage = '';
+          responsePayload.isFetchingActive = isFetchingActive;
+
+          try {
+            if (isFetchingActive) {
+              console.log(`BG: Starting fetching for tab ${currentTabId}`);
+              lastVideoInfo = null; // 새 정보 가져오기 위해 초기화
+              await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'start', forceRestart: true });
+            } else {
+              console.log(`BG: Stopping fetching for tab ${currentTabId}`);
+              lastVideoInfo = null; // 정보 초기화
+              await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'stop' });
+            }
+          } catch (e) {
+            responsePayload.success = false; responsePayload.error = e.message;
+            isError = true; errorMessage = "콘텐츠 스크립트 통신 실패 (Fetching)";
+          }
+        } else {
+          responsePayload.success = false; responsePayload.error = "No active tab for fetching.";
+          isFetchingActive = false; isError = true; errorMessage = "활성 탭 없음 (Fetching)";
+        }
+        break;
+
       case 'POPUP_TOGGLE_VISIBILITY':
         if (BGasActiveTabId) {
           currentTabId = BGasActiveTabId;
-          const previousOverlayVisibleState = isOverlayVisible;
-          const previousFetchingState = isFetchingActive;
           isOverlayVisible = !isOverlayVisible;
           isError = false; errorMessage = '';
           responsePayload.isOverlayVisible = isOverlayVisible;
 
           try {
+            console.log(`BG: ${isOverlayVisible ? 'Showing' : 'Hiding'} overlay for tab ${currentTabId}`);
             await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_VISIBILITY', action: isOverlayVisible ? 'show' : 'hide' });
-            
-            // 오버레이를 켜는 경우, 지원되는 사이트이고 fetching이 꺼져있으면 자동으로 fetching 시작
-            if (isOverlayVisible && !previousOverlayVisibleState) { // 막 켜진 경우
-              const tab = await chrome.tabs.get(currentTabId);
-              if (tab && tab.url) {
-                const currentUrlObj = new URL(tab.url);
-                if (currentUrlObj.hostname && (
-                  currentUrlObj.hostname.includes('laftel.net') || 
-                  currentUrlObj.hostname.includes('chzzk.naver.com') ||
-                  currentUrlObj.hostname.includes('netflix.com') ||
-                  currentUrlObj.hostname.includes('youtube.com')
-                )) {
-                  if (!isFetchingActive) {
-                    console.log(`BG: Overlay turned ON for supported site (${currentUrlObj.hostname}). Starting fetching automatically.`);
-                    isFetchingActive = true;
-                    lastVideoInfo = null; // 새 정보 가져오기 위해 초기화
-                    await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'start', forceRestart: true });
-                  } else {
-                    console.log(`BG: Overlay turned ON for supported site (${currentUrlObj.hostname}). Fetching already active. Ensuring info update.`);
-                    lastVideoInfo = null; // 새 정보 가져오기 위해 초기화
-                    await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'start', forceRestart: true });
-                  }
-                }
-              }
-            }
-            // 오버레이를 끄는 경우, 정보 가져오기도 중지
-            else if (!isOverlayVisible && previousOverlayVisibleState) { // 막 꺼진 경우
-              if (isFetchingActive) {
-                console.log(`BG: Overlay turned OFF. Stopping fetching automatically.`);
-                isFetchingActive = false;
-                lastVideoInfo = null; // 정보 초기화
-                await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'stop' });
-              }
-            }
-            
-            responsePayload.isFetchingActive = isFetchingActive;
           } catch (e) {
             responsePayload.success = false; responsePayload.error = e.message;
             isError = true; errorMessage = "콘텐츠 스크립트 통신 실패 (Visibility)";
@@ -485,12 +493,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case 'GET_POPUP_INITIAL_DATA':
         const [activeTabForPopup] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (activeTabForPopup?.id) {
-            currentTabId = activeTabForPopup.id;
-            currentHostname = activeTabForPopup.url ? new URL(activeTabForPopup.url).hostname.replace(/^www\./, '') : null;
-            if (activeTabForPopup.url) currentUrlByTabId[currentTabId] = activeTabForPopup.url;
+            // 스트리밍 디스플레이 탭이 활성 탭인 경우 상태를 변경하지 않음
+            if (activeTabForPopup.id !== streamingDisplayTabId) {
+                currentTabId = activeTabForPopup.id;
+                currentHostname = activeTabForPopup.url ? new URL(activeTabForPopup.url).hostname.replace(/^www\./, '') : null;
+                if (activeTabForPopup.url) currentUrlByTabId[currentTabId] = activeTabForPopup.url;
+                console.log(`BG: GET_POPUP_INITIAL_DATA - Updated currentTabId to ${currentTabId} (${currentHostname})`);
+            } else {
+                console.log(`BG: GET_POPUP_INITIAL_DATA - Active tab is streaming display tab, maintaining current state`);
+            }
         } else {
-            currentTabId = null; currentHostname = null;
-            isFetchingActive = false; lastVideoInfo = null;
+            // 활성 탭이 없는 경우에만 상태 초기화
+            if (!streamingDisplayTabId) {
+                currentTabId = null; currentHostname = null;
+                isFetchingActive = false; lastVideoInfo = null;
+                console.log(`BG: GET_POPUP_INITIAL_DATA - No active tab found, reset state`);
+            } else {
+                console.log(`BG: GET_POPUP_INITIAL_DATA - No active tab but streaming display exists, maintaining state`);
+            }
         }
         responsePayload = { 
             success: true, isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode, 
@@ -517,9 +537,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         break;
 
       case 'VIDEO_INFO_UPDATE': 
+        console.log('BG: Received VIDEO_INFO_UPDATE from tab:', sender.tab?.id, 'currentTabId:', currentTabId, 'data:', JSON.stringify(message.data));
         if (sender.tab?.id === currentTabId) {
           lastVideoInfo = message.data;
           isError = false; errorMessage = ''; 
+          console.log('BG: Updated lastVideoInfo, streamingDisplayTabId:', streamingDisplayTabId);
+          
+          // Send video info to streaming display tab if it exists
+          if (streamingDisplayTabId) {
+            console.log('BG: Sending VIDEO_INFO_UPDATE to streaming display tab:', streamingDisplayTabId);
+            try {
+              chrome.tabs.sendMessage(streamingDisplayTabId, {
+                type: 'VIDEO_INFO_UPDATE',
+                data: lastVideoInfo
+              }).catch(e => {
+                console.warn('BG: Failed to send video info to streaming display tab:', e.message);
+                if (e.message.includes('Could not establish connection')) {
+                  console.log('BG: Resetting streamingDisplayTabId due to connection error');
+                  streamingDisplayTabId = null;
+                }
+              });
+            } catch (e) {
+              // Handle sync error
+              console.warn('BG: Error sending video info to streaming display tab:', e.message);
+            }
+          } else {
+            console.log('BG: No streaming display tab to send video info to');
+          }
+        } else {
+          console.log('BG: VIDEO_INFO_UPDATE ignored - not from current tab');
         }
         break;
       
@@ -579,7 +625,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         errorMessage = '';
         
         // 모든 탭에 상태 업데이트 전송
-        broadcastStateToAllTabs();
+        sendStateToAll();
         break;
 
       case 'LOAD_SETTINGS': // NEW: 설정 불러오기
@@ -610,10 +656,162 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           errorMessage = '';
           
           // 모든 탭에 상태 업데이트 전송
-          broadcastStateToAllTabs();
+          sendStateToAll();
         } else {
           responsePayload.success = false;
           responsePayload.error = "Invalid settings data.";
+        }
+        break;
+
+      // Streaming Display cases
+      case 'REGISTER_STREAMING_DISPLAY_TAB':
+        streamingDisplayTabId = message.tabId;
+        console.log(`BG: Registered streaming display tab: ${streamingDisplayTabId}`);
+        
+        // Send initial state to streaming display tab
+        if (streamingDisplayTabId) {
+          try {
+            await chrome.tabs.sendMessage(streamingDisplayTabId, {
+              type: 'VIDEO_INFO_UPDATE',
+              data: lastVideoInfo
+            });
+            await chrome.tabs.sendMessage(streamingDisplayTabId, {
+              type: 'BACKGROUND_STATE_UPDATE',
+              data: {
+                overlayMode, timeDisplayMode, overlayPositionSide,
+                lastVideoInfo, activeTabHostname: currentHostname
+              }
+            });
+          } catch (e) {
+            console.warn('BG: Failed to send initial state to streaming display tab:', e.message);
+          }
+        }
+        break;
+
+      case 'OVERLAY_DISPLAY_CONNECT':
+        console.log('BG: Overlay display connected from window, sender.tab?.id:', sender.tab?.id);
+        const overlayDisplayTabId = sender.tab?.id || null;
+        
+        // streamingDisplayTabId만 설정하고 currentTabId는 변경하지 않음
+        streamingDisplayTabId = overlayDisplayTabId;
+        console.log('BG: Set streamingDisplayTabId to:', streamingDisplayTabId, 'currentTabId remains:', currentTabId);
+        
+        responsePayload.success = true;
+        responsePayload.streamingDisplayConnected = true;
+        
+        // Send initial state directly in response (extension pages can't receive tab messages)
+        responsePayload.initialState = {
+          isFetchingActive, isOverlayVisible, 
+          overlayMode, timeDisplayMode, overlayPositionSide,
+          lastVideoInfo, activeTabHostname: currentHostname,
+          // 고급 설정 값들도 추가
+          overlayTheme, overlayOffsetX, overlayOffsetY,
+          seriesFontSize, episodeFontSize, currentTimeFontSize, durationFontSize,
+          fontScale, overlayMinWidth, overlayLineSpacing, overlayPadding,
+          showHostname
+        };
+        console.log('BG: Sending initial state to overlay display:', JSON.stringify(responsePayload.initialState));
+        
+        // 정보 가져오기가 켜져 있으면 그대로 유지하고 content script에 재시작 신호 보내기
+        if (isFetchingActive && currentTabId) {
+          console.log('BG: Fetching is active, ensuring content script continues fetching');
+          ensureContentScriptAndSendMessage(currentTabId, { 
+            type: 'TOGGLE_FETCHING', 
+            action: 'start', 
+            forceRestart: true 
+          }).catch(e => console.warn('Error restarting fetching after overlay display connect:', e.message));
+        }
+        break;
+
+      case 'REQUEST_OVERLAY_STATE':
+        console.log('BG: Overlay state requested');
+        responsePayload.success = true;
+        responsePayload.data = {
+          isFetchingActive, isOverlayVisible, overlayMode, timeDisplayMode,
+          overlayPositionSide, overlayTheme, lastVideoInfo,
+          activeTabHostname: currentHostname
+        };
+        break;
+
+      case 'UPDATE_OVERLAY_SETTINGS':
+        if (message.settings) {
+          const { timeDisplayMode: newTimeMode } = message.settings;
+          
+          if (newTimeMode && ['current_duration', 'current_only', 'none'].includes(newTimeMode)) {
+            timeDisplayMode = newTimeMode;
+          }
+          
+          console.log('BG: Updated overlay settings from streaming display');
+          
+          // Broadcast updated settings to all tabs
+          sendStateToAll();
+        }
+        break;
+
+      case 'OPEN_STREAMING_DISPLAY_WINDOW':
+        try {
+          // Check if streaming display window already exists
+          if (streamingDisplayWindowId) {
+            try {
+              const existingWindow = await chrome.windows.get(streamingDisplayWindowId);
+              if (existingWindow) {
+                // Focus existing window
+                await chrome.windows.update(streamingDisplayWindowId, { focused: true });
+                responsePayload.success = true;
+                responsePayload.windowId = streamingDisplayWindowId;
+                responsePayload.url = chrome.runtime.getURL('public/overlay-display.html');
+                responsePayload.message = 'Existing window focused';
+                break;
+              }
+            } catch (e) {
+              // Window no longer exists, reset the ID
+              streamingDisplayWindowId = null;
+            }
+          }
+          
+          // Create new window
+          const displayUrl = chrome.runtime.getURL('public/overlay-display.html');
+          const newWindow = await chrome.windows.create({
+            url: displayUrl,
+            type: 'popup',
+            width: 1200,
+            height: 100,
+            focused: true
+          });
+          
+          streamingDisplayWindowId = newWindow.id;
+          console.log('BG: Created streaming display window:', streamingDisplayWindowId);
+          
+          responsePayload.success = true;
+          responsePayload.windowId = newWindow.id;
+          responsePayload.url = displayUrl;
+          responsePayload.message = 'New window created';
+          
+        } catch (error) {
+          console.error('BG: Failed to create streaming display window:', error);
+          responsePayload.success = false;
+          responsePayload.error = error.message;
+        }
+        break;
+
+      case 'RESIZE_STREAMING_DISPLAY_WINDOW':
+        if (streamingDisplayWindowId) {
+          try {
+            await chrome.windows.update(streamingDisplayWindowId, {
+              width: message.width || 1200,
+              height: message.height || 100
+            });
+            console.log(`BG: Window resized to ${message.width}x${message.height}`);
+            responsePayload.success = true;
+          } catch (error) {
+            console.error('BG: Failed to resize window:', error);
+            responsePayload.success = false;
+            responsePayload.error = error.message;
+          }
+        } else {
+          console.warn('BG: No streaming display window to resize');
+          responsePayload.success = false;
+          responsePayload.error = 'No window found';
         }
         break;
 
@@ -622,7 +820,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         break;
     }
 
-    if (message.type !== 'GET_POPUP_INITIAL_DATA' && message.type !== 'VIDEO_INFO_UPDATE' && message.type !== 'CONTENT_SCRIPT_READY') {
+    if (message.type !== 'GET_POPUP_INITIAL_DATA' && message.type !== 'VIDEO_INFO_UPDATE' && message.type !== 'CONTENT_SCRIPT_READY' && message.type !== 'OPEN_STREAMING_DISPLAY_WINDOW' && message.type !== 'RESIZE_STREAMING_DISPLAY_WINDOW') {
         sendStateToAll();
     }
     updateActionIcon();
@@ -759,11 +957,33 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
     initializeExtensionState(); 
     sendStateToAll();
   }
+  // Clean up streaming display tab reference
+  if (streamingDisplayTabId === tabId) {
+    streamingDisplayTabId = null;
+  }
+});
+
+// Handle window closing for streaming display window
+chrome.windows.onRemoved.addListener((windowId) => {
+  if (streamingDisplayWindowId === windowId) {
+    streamingDisplayWindowId = null;
+    console.log('BG: Streaming display window closed');
+  }
 });
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   const previousTabId = currentTabId;
-  currentTabId = activeInfo.tabId;
+  const activatedTabId = activeInfo.tabId;
+  
+  // 스트리밍 디스플레이 탭이 활성화되어도 currentTabId를 변경하지 않음
+  if (activatedTabId === streamingDisplayTabId) {
+    console.log('BG: Streaming display tab activated, maintaining currentTabId:', currentTabId);
+    return;
+  }
+  
+  currentTabId = activatedTabId;
+  console.log('BG: Tab activated, updated currentTabId from', previousTabId, 'to', currentTabId);
+  
   try {
     const tab = await chrome.tabs.get(currentTabId);
     if (tab && tab.url) {

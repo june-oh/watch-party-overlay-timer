@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch Party Overlay - Music Player Style</title>
+    <link rel="stylesheet" href="css/overlay-display.css">
+</head>
+<body>
+    <!-- Video Player Bottom Bar Style Layout (1200x100 base) -->
+    <div id="video-bar-container">
+        <!-- Main Bar Area (Always Visible) -->
+        <div id="main-bar">
+            <!-- Left: Title Info -->
+            <div id="title-info">
+                <div id="episode-title" class="primary-title">에피소드 정보를 가져오는 중...</div>
+                <div id="series-title" class="secondary-title">시리즈 정보 없음</div>
+            </div>
+            
+            <!-- Center: Progress Bar -->
+            <div id="progress-section">
+                <div id="progress-bar-container">
+                    <div id="progress-bar">
+                        <div id="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right: Time and Controls -->
+            <div id="controls-section">
+                <div id="time-display">
+                    <span id="current-time">00:00</span>
+                    <span id="time-separator"> / </span>
+                    <span id="duration-time">00:00</span>
+                </div>
+                <div id="site-name" class="platform-badge">사이트 정보 없음</div>
+                <div id="connection-status" class="status-dot disconnected">●</div>
+                <button id="expand-toggle" class="expand-btn">⚙️</button>
+            </div>
+        </div>
+        
+        <!-- Expanded Settings Panel (Hidden by default) -->
+        <div id="expanded-panel" class="collapsed">
+            <div class="panel-content">
+                <div class="control-group">
+                    <h3>OBS Capture Methods</h3>
+                    
+                    <!-- Method 1: Direct Browser Source -->
+                    <div class="capture-method" style="margin-bottom: 15px;">
+                        <h4>Method 1: Direct Browser Source (Same PC)</h4>
+                        <p style="font-size: 12px; color: #ccc; margin-bottom: 8px;">
+                            Copy this window's URL and paste it into OBS Browser Source
+                        </p>
+                        <div class="url-display">
+                            <input type="text" id="window-url-input" readonly value="">
+                            <button id="copy-window-url-btn" class="btn btn-small">Copy</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Method 2: VDO.Ninja Remote -->
+                    <div class="capture-method">
+                        <h4>Method 2: VDO.Ninja (Different PC)</h4>
+                        <p style="font-size: 12px; color: #ccc; margin-bottom: 8px;">
+                            1. Click below to open VDO.Ninja<br>
+                            2. Select "Remote Screenshare into OBS"<br>
+                            3. Choose this window to share<br>
+                            4. Copy the viewer link to use in OBS
+                        </p>
+                        <div class="url-display">
+                            <button id="open-vdo-ninja-btn" class="btn">
+                                <span style="font-size: 20px;">🎥</span> Open VDO.Ninja
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>Display Settings</h3>
+                    <div class="setting-row">
+                        <label>Time Display:</label>
+                        <select id="time-display-select">
+                            <option value="current_duration">Current / Duration</option>
+                            <option value="current_only">Current Only</option>
+                            <option value="none">Hide Time</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>Appearance Customization</h3>
+                    
+                    <!-- Colors -->
+                    <div class="setting-row">
+                        <label>Background:</label>
+                        <input type="color" id="bg-color-picker" value="#000000">
+                        <input type="range" id="bg-opacity-slider" min="0" max="100" value="90" style="width: 80px; margin-left: 8px;">
+                        <span id="bg-opacity-value" style="font-size: 11px; margin-left: 5px;">90%</span>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>Text:</label>
+                        <input type="color" id="text-color-picker" value="#ffffff">
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>Progress Bar:</label>
+                        <input type="color" id="accent-color-picker" value="#00ff88">
+                    </div>
+                    
+                    <!-- Sizes -->
+                    <h4 style="margin: 15px 0 10px 0; font-size: 12px; color: #e0e0e0;">Font Sizes</h4>
+                    
+                    <div class="setting-row">
+                        <label>Episode:</label>
+                        <input type="range" id="episode-font-size-slider" min="12" max="24" value="16" style="width: 120px;">
+                        <span id="episode-font-size-value" style="font-size: 11px; margin-left: 5px;">16px</span>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>Series:</label>
+                        <input type="range" id="series-font-size-slider" min="8" max="16" value="11" style="width: 120px;">
+                        <span id="series-font-size-value" style="font-size: 11px; margin-left: 5px;">11px</span>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>Time:</label>
+                        <input type="range" id="time-font-size-slider" min="10" max="20" value="14" style="width: 120px;">
+                        <span id="time-font-size-value" style="font-size: 11px; margin-left: 5px;">14px</span>
+                    </div>
+                    
+                    <!-- Layout -->
+                    <h4 style="margin: 15px 0 10px 0; font-size: 12px; color: #e0e0e0;">Layout</h4>
+                    
+                    <div class="setting-row">
+                        <label>Corners:</label>
+                        <input type="range" id="border-radius-slider" min="0" max="30" value="12" style="width: 120px;">
+                        <span id="border-radius-value" style="font-size: 11px; margin-left: 5px;">12px</span>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>Height:</label>
+                        <input type="range" id="window-height-slider" min="80" max="150" value="100" style="width: 120px;">
+                        <span id="window-height-value" style="font-size: 11px; margin-left: 5px;">100px</span>
+                    </div>
+                    
+                    <div class="setting-row" style="margin-top: 15px;">
+                        <button id="reset-appearance-btn" class="btn btn-small">Reset</button>
+                        <button id="apply-appearance-btn" class="btn btn-small">Save</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>연결 상태</h3>
+                    <div id="status-display">
+                        <div class="status-item">
+                            <span class="status-label">연결:</span>
+                            <span id="connection-status-detail" class="status-value">연결 중...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">소스 탭:</span>
+                            <span id="source-tab" class="status-value">None</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">마지막 업데이트:</span>
+                            <span id="last-update" class="status-value">Never</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/overlay-display.js"></script>
+</body>
+</html> 

@@ -10,9 +10,21 @@
     <h2>Watch Party Overlay Timer</h2>
 
     <div class="controls">
+      <!-- 정보 가져오기 토글 -->
+      <div class="toggle-group">
+        <label for="toggleFetching">정보 가져오기</label>
+        <div class="toggle-switch fetching-toggle">
+          <input type="checkbox" id="toggleFetching" class="toggle-input">
+          <span class="toggle-slider fetching-slider">
+            <span class="slider-label off">OFF</span>
+            <span class="slider-label on">ON</span>
+          </span>
+        </div>
+      </div>
+
       <!-- 오버레이 보이기/숨기기 토글 -->
       <div class="toggle-group">
-        <label for="toggleVisibility">오버레이</label>
+        <label for="toggleVisibility">오버레이 표시</label>
         <div class="toggle-switch overlay-toggle">
           <input type="checkbox" id="toggleVisibility" class="toggle-input">
           <span class="toggle-slider overlay-slider">
@@ -20,6 +32,22 @@
             <span class="slider-label on">ON</span>
           </span>
         </div>
+      </div>
+
+      <!-- 스트리밍 디스플레이 탭 열기 -->
+      <div class="control-group streaming-controls">
+        <label>스트리밍 디스플레이</label>
+        <div class="streaming-buttons">
+          <button id="openStreamingDisplayBtn" class="streaming-btn primary-btn" title="새 탭에서 스트리밍용 오버레이 디스플레이를 엽니다">
+            📺 스트리밍 디스플레이 열기
+          </button>
+          <button id="copyVdoNinjaUrlBtn" class="streaming-btn secondary-btn" title="VDO.Ninja URL을 클립보드에 복사합니다" style="display: none;">
+            📋 VDO.Ninja URL 복사
+          </button>
+        </div>
+        <p class="streaming-help-text">
+          방송용 컴퓨터에서 오버레이를 표시하려면 스트리밍 디스플레이 탭을 열고 VDO.Ninja URL을 사용하세요.
+        </p>
       </div>
 
       <!-- 컴팩트 모드 토글 -->

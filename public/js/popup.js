@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentSiteHostEl = document.getElementById('currentSiteHost');
   
   // 새로운 토글 스위치 요소들
+  const toggleFetchingInput = document.getElementById('toggleFetching');
   const toggleVisibilityInput = document.getElementById('toggleVisibility');
   const toggleCompactModeInput = document.getElementById('toggleCompactMode');
   const togglePositionInput = document.getElementById('togglePosition');
@@ -89,6 +90,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // 설정 관리 버튼들
   const saveSettingsBtn = document.getElementById('saveSettingsBtn');
   const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+
+  // 스트리밍 디스플레이 버튼들
+  const openStreamingDisplayBtn = document.getElementById('openStreamingDisplayBtn');
+  const copyVdoNinjaUrlBtn = document.getElementById('copyVdoNinjaUrlBtn');
 
   const videoTitleEl = document.getElementById('videoTitle');
   const videoSeriesEl = document.getElementById('videoSeries');
@@ -192,6 +197,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 4. Update Toggle Switches
+    if (toggleFetchingInput) {
+      toggleFetchingInput.checked = isFetchingActive === true;
+    }
+    
     if (toggleVisibilityInput) {
       toggleVisibilityInput.checked = isOverlayVisible === true;
     }
@@ -314,15 +323,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   // 토글 스위치 이벤트 리스너
+  if (toggleFetchingInput) {
+    toggleFetchingInput.addEventListener('change', () => {
+      console.log("POPUP.JS: Fetching toggle clicked, new state:", toggleFetchingInput.checked);
+      chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_FETCHING' }, (response) => {
+        handleResponse(response, "POPUP_TOGGLE_FETCHING");
+        if (response && response.success) {
+          console.log("POPUP.JS: Fetching toggle successful");
+          // requestInitialState() 제거 - background에서 BACKGROUND_STATE_UPDATE로 자동 전송됨
+        }
+      });
+    });
+  }
+  
   if (toggleVisibilityInput) {
     toggleVisibilityInput.addEventListener('change', () => {
       console.log("POPUP.JS: Visibility toggle clicked, new state:", toggleVisibilityInput.checked);
       chrome.runtime.sendMessage({ type: 'POPUP_TOGGLE_VISIBILITY' }, (response) => {
         handleResponse(response, "POPUP_TOGGLE_VISIBILITY");
-        // 응답 후 상태 재요청하여 UI 동기화
         if (response && response.success) {
-          console.log("POPUP.JS: Visibility toggle successful, requesting state update");
-          requestInitialState();
+          console.log("POPUP.JS: Visibility toggle successful");
+          // requestInitialState() 제거 - background에서 BACKGROUND_STATE_UPDATE로 자동 전송됨
         }
       });
     });
@@ -334,10 +355,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log("POPUP.JS: Compact mode toggle clicked, new mode:", mode);
       chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_MODE', mode: mode }, (response) => {
         handleResponse(response, "POPUP_SET_OVERLAY_MODE");
-        // 응답 후 상태 재요청하여 UI 동기화
         if (response && response.success) {
-          console.log("POPUP.JS: Compact mode toggle successful, requesting state update");
-          requestInitialState();
+          console.log("POPUP.JS: Compact mode toggle successful");
+          // requestInitialState() 제거 - background에서 BACKGROUND_STATE_UPDATE로 자동 전송됨
         }
       });
     });
@@ -349,10 +369,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log("POPUP.JS: Position toggle clicked, new position:", position);
       chrome.runtime.sendMessage({ type: 'POPUP_SET_OVERLAY_POSITION', position: position }, (response) => {
         handleResponse(response, "POPUP_SET_OVERLAY_POSITION");
-        // 응답 후 상태 재요청하여 UI 동기화
         if (response && response.success) {
-          console.log("POPUP.JS: Position toggle successful, requesting state update");
-          requestInitialState();
+          console.log("POPUP.JS: Position toggle successful");
+          // requestInitialState() 제거 - background에서 BACKGROUND_STATE_UPDATE로 자동 전송됨
         }
       });
     });
@@ -364,10 +383,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log("POPUP.JS: Show hostname toggle clicked, new state:", showHostname);
       chrome.runtime.sendMessage({ type: 'POPUP_SET_SHOW_HOSTNAME', showHostname: showHostname }, (response) => {
         handleResponse(response, "POPUP_SET_SHOW_HOSTNAME");
-        // 응답 후 상태 재요청하여 UI 동기화
         if (response && response.success) {
-          console.log("POPUP.JS: Show hostname toggle successful, requesting state update");
-          requestInitialState();
+          console.log("POPUP.JS: Show hostname toggle successful");
+          // requestInitialState() 제거 - background에서 BACKGROUND_STATE_UPDATE로 자동 전송됨
         }
       });
     });
@@ -744,10 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.runtime.sendMessage({ type: 'RESET_ALL_SETTINGS' }, (response) => {
         if (response && response.success) {
           showNotification('설정이 초기화되었습니다!', 'success');
-          // UI 새로고침
-          setTimeout(() => {
-            requestInitialState();
-          }, 500);
+          // background.js의 broadcastStateToAllTabs()가 자동으로 상태를 전송함
         } else {
           showNotification('설정 초기화에 실패했습니다.', 'error');
         }
@@ -764,10 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
           chrome.runtime.sendMessage({ type: 'LOAD_SETTINGS', settings: settings }, (response) => {
             if (response && response.success) {
               showNotification('설정이 불러와졌습니다!', 'success');
-              // UI 새로고침
-              setTimeout(() => {
-                requestInitialState();
-              }, 500);
+              // background.js의 broadcastStateToAllTabs()가 자동으로 상태를 전송함
             } else {
               showNotification('설정 불러오기에 실패했습니다.', 'error');
             }
@@ -866,4 +878,130 @@ document.addEventListener('DOMContentLoaded', () => {
   if (saveSettingsBtn) {
     saveSettingsBtn.addEventListener('dblclick', loadSavedSettings);
   }
+
+  // --- 스트리밍 디스플레이 기능 ---
+  let streamingDisplayTabId = null;
+  let streamingDisplayUrl = null;
+
+  // 스트리밍 디스플레이 탭 열기
+  if (openStreamingDisplayBtn) {
+    openStreamingDisplayBtn.addEventListener('click', async () => {
+      try {
+        // Background script를 통해 새 창 생성 요청
+        const response = await chrome.runtime.sendMessage({
+          type: 'OPEN_STREAMING_DISPLAY_WINDOW'
+        });
+        
+        if (response && response.success) {
+          streamingDisplayTabId = response.windowId;
+          streamingDisplayUrl = response.url;
+          
+          // VDO.Ninja URL 생성 및 표시
+          const vdoNinjaUrl = generateVdoNinjaUrl(streamingDisplayUrl);
+          
+          // 버튼 텍스트 변경
+          openStreamingDisplayBtn.textContent = '✅ 스트리밍 디스플레이 열림';
+          openStreamingDisplayBtn.style.background = 'linear-gradient(135deg, #66bb6a 0%, #43a047 100%)';
+          
+          // VDO.Ninja URL 복사 버튼 표시
+          if (copyVdoNinjaUrlBtn) {
+            copyVdoNinjaUrlBtn.style.display = 'block';
+            copyVdoNinjaUrlBtn.dataset.vdoUrl = vdoNinjaUrl;
+          }
+          
+          showNotification('스트리밍 디스플레이 창이 열렸습니다!', 'success');
+        } else {
+          throw new Error(response?.error || '스트리밍 디스플레이 창 생성 실패');
+        }
+        
+      } catch (error) {
+        console.error('스트리밍 디스플레이 탭 생성 실패:', error);
+        showNotification('스트리밍 디스플레이 탭 생성에 실패했습니다.', 'error');
+      }
+    });
+  }
+
+  // VDO.Ninja URL 복사
+  if (copyVdoNinjaUrlBtn) {
+    copyVdoNinjaUrlBtn.addEventListener('click', async () => {
+      try {
+        const vdoUrl = copyVdoNinjaUrlBtn.dataset.vdoUrl;
+        if (vdoUrl) {
+          await navigator.clipboard.writeText(vdoUrl);
+          
+          // 버튼 피드백
+          const originalText = copyVdoNinjaUrlBtn.textContent;
+          copyVdoNinjaUrlBtn.textContent = '📋 복사됨!';
+          copyVdoNinjaUrlBtn.style.background = 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)';
+          
+          setTimeout(() => {
+            copyVdoNinjaUrlBtn.textContent = originalText;
+            copyVdoNinjaUrlBtn.style.background = 'linear-gradient(135deg, #66bb6a 0%, #43a047 100%)';
+          }, 2000);
+          
+          showNotification('VDO.Ninja URL이 클립보드에 복사되었습니다!', 'success');
+        } else {
+          showNotification('먼저 스트리밍 디스플레이를 열어주세요.', 'info');
+        }
+      } catch (error) {
+        console.error('URL 복사 실패:', error);
+        showNotification('URL 복사에 실패했습니다.', 'error');
+      }
+    });
+  }
+
+  // VDO.Ninja URL 생성 함수
+  function generateVdoNinjaUrl(displayUrl) {
+    const roomName = `wp-overlay-${Date.now()}`;
+    // VDO.Ninja 송신 URL (원본 컴퓨터에서 사용)
+    const pushUrl = `https://vdo.ninja/?push=${roomName}&website=${encodeURIComponent(displayUrl)}&autostart&cleanoutput`;
+    // VDO.Ninja 수신 URL (방송 컴퓨터 OBS에서 사용)
+    const viewUrl = `https://vdo.ninja/?view=${roomName}&autostart&transparent`;
+    
+    console.log('VDO.Ninja URLs generated:');
+    console.log('- Push URL (원본 컴퓨터):', pushUrl);
+    console.log('- View URL (방송 컴퓨터 OBS):', viewUrl);
+    
+    return pushUrl; // 기본적으로 송신 URL 반환
+  }
+
+  // 윈도우 닫힘 감지 및 상태 초기화
+  chrome.windows.onRemoved.addListener((windowId) => {
+    if (windowId === streamingDisplayTabId) {
+      streamingDisplayTabId = null;
+      streamingDisplayUrl = null;
+      
+      // 버튼 상태 초기화
+      if (openStreamingDisplayBtn) {
+        openStreamingDisplayBtn.textContent = '📺 스트리밍 디스플레이 열기';
+        openStreamingDisplayBtn.style.background = 'linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%)';
+      }
+      
+      // VDO.Ninja URL 복사 버튼 숨기기
+      if (copyVdoNinjaUrlBtn) {
+        copyVdoNinjaUrlBtn.style.display = 'none';
+      }
+    }
+  });
+
+  // 페이지 로드 시 기존 스트리밍 디스플레이 창 확인
+  chrome.tabs.query({ url: chrome.runtime.getURL('public/overlay-display.html') }, (tabs) => {
+    if (tabs && tabs.length > 0) {
+      const tab = tabs[0];
+      streamingDisplayTabId = tab.windowId; // Use windowId instead of tab.id
+      streamingDisplayUrl = tab.url;
+      
+      // 버튼 상태 업데이트
+      if (openStreamingDisplayBtn) {
+        openStreamingDisplayBtn.textContent = '✅ 스트리밍 디스플레이 열림';
+        openStreamingDisplayBtn.style.background = 'linear-gradient(135deg, #66bb6a 0%, #43a047 100%)';
+      }
+      
+      // VDO.Ninja URL 복사 버튼 표시
+      if (copyVdoNinjaUrlBtn) {
+        copyVdoNinjaUrlBtn.style.display = 'block';
+        copyVdoNinjaUrlBtn.dataset.vdoUrl = generateVdoNinjaUrl(streamingDisplayUrl);
+      }
+    }
+  });
 }); 
