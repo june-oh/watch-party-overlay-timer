@@ -11,141 +11,134 @@
     <div id="video-bar-container">
         <!-- Main Bar Area (Always Visible) -->
         <div id="main-bar">
-            <!-- Left: Title Info -->
-            <div id="title-info">
-                <div id="episode-title" class="primary-title">에피소드 정보를 가져오는 중...</div>
-                <div id="series-title" class="secondary-title">시리즈 정보 없음</div>
-            </div>
-            
-            <!-- Center: Progress Bar -->
-            <div id="progress-section">
-                <div id="progress-bar-container">
-                    <div id="progress-bar">
-                        <div id="progress-fill"></div>
+            <!-- Normal Mode: Two rows layout -->
+            <div id="normal-mode-container">
+                <!-- Row 1: Series Title -->
+                <div id="series-row">
+                    <div id="series-title" class="series-title">시리즈 정보 없음</div>
+                </div>
+                
+                <!-- Row 2: Episode, Progress, Time, Platform, Settings -->
+                <div id="main-row">
+                    <div id="episode-title" class="episode-title">에피소드 정보를 가져오는 중...</div>
+                    
+                    <div id="progress-section">
+                        <div id="progress-bar-container">
+                            <div id="progress-bar">
+                                <div id="progress-fill"></div>
+                            </div>
+                        </div>
                     </div>
+                    
+                    <div id="time-display">
+                        <span id="current-time">00:00</span>
+                        <span id="time-separator"> / </span>
+                        <span id="duration-time">00:00</span>
+                    </div>
+                    
+                    <div id="site-name" class="platform-badge">사이트 정보 없음</div>
                 </div>
             </div>
             
-            <!-- Right: Time and Controls -->
-            <div id="controls-section">
-                <div id="time-display">
-                    <span id="current-time">00:00</span>
-                    <span id="time-separator"> / </span>
-                    <span id="duration-time">00:00</span>
+            <!-- Compact Mode: Single row layout -->
+            <div id="compact-mode-container" style="display: none;">
+                <div id="compact-episode-title" class="episode-title">에피소드 정보를 가져오는 중...</div>
+                
+                <div id="compact-time-display">
+                    <span id="compact-current-time">00:00</span>
+                    <span id="compact-time-separator"> / </span>
+                    <span id="compact-duration-time">00:00</span>
                 </div>
-                <div id="site-name" class="platform-badge">사이트 정보 없음</div>
-                <div id="connection-status" class="status-dot disconnected">●</div>
-                <button id="expand-toggle" class="expand-btn">⚙️</button>
             </div>
+        </div>
+        
+        <!-- Expand/Collapse Bar -->
+        <div id="expand-bar" class="expand-bar">
+            <span id="expand-arrow">▼</span>
         </div>
         
         <!-- Expanded Settings Panel (Hidden by default) -->
         <div id="expanded-panel" class="collapsed">
             <div class="panel-content">
                 <div class="control-group">
-                    <h3>OBS Capture Methods</h3>
-                    
-                    <!-- Method 1: Direct Browser Source -->
-                    <div class="capture-method" style="margin-bottom: 15px;">
-                        <h4>Method 1: Direct Browser Source (Same PC)</h4>
-                        <p style="font-size: 12px; color: #ccc; margin-bottom: 8px;">
-                            Copy this window's URL and paste it into OBS Browser Source
-                        </p>
-                        <div class="url-display">
-                            <input type="text" id="window-url-input" readonly value="">
-                            <button id="copy-window-url-btn" class="btn btn-small">Copy</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Method 2: VDO.Ninja Remote -->
-                    <div class="capture-method">
-                        <h4>Method 2: VDO.Ninja (Different PC)</h4>
-                        <p style="font-size: 12px; color: #ccc; margin-bottom: 8px;">
-                            1. Click below to open VDO.Ninja<br>
-                            2. Select "Remote Screenshare into OBS"<br>
-                            3. Choose this window to share<br>
-                            4. Copy the viewer link to use in OBS
-                        </p>
-                        <div class="url-display">
-                            <button id="open-vdo-ninja-btn" class="btn">
-                                <span style="font-size: 20px;">🎥</span> Open VDO.Ninja
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="control-group">
-                    <h3>Display Settings</h3>
+                    <h3>표시 설정</h3>
                     <div class="setting-row">
-                        <label>Time Display:</label>
+                        <label>표시 모드:</label>
+                        <select id="display-mode-select">
+                            <option value="normal">기본 모드 (2행)</option>
+                            <option value="compact">컴팩트 모드</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <label>시간 표시:</label>
                         <select id="time-display-select">
-                            <option value="current_duration">Current / Duration</option>
-                            <option value="current_only">Current Only</option>
-                            <option value="none">Hide Time</option>
+                            <option value="current_duration">현재 / 전체</option>
+                            <option value="current_only">현재 시간만</option>
+                            <option value="none">숨김</option>
                         </select>
                     </div>
                 </div>
                 
                 <div class="control-group">
-                    <h3>Appearance Customization</h3>
+                    <h3>모양 설정</h3>
                     
                     <!-- Colors -->
                     <div class="setting-row">
-                        <label>Background:</label>
+                        <label>배경:</label>
                         <input type="color" id="bg-color-picker" value="#000000">
                         <input type="range" id="bg-opacity-slider" min="0" max="100" value="90" style="width: 80px; margin-left: 8px;">
                         <span id="bg-opacity-value" style="font-size: 11px; margin-left: 5px;">90%</span>
                     </div>
                     
                     <div class="setting-row">
-                        <label>Text:</label>
+                        <label>텍스트:</label>
                         <input type="color" id="text-color-picker" value="#ffffff">
                     </div>
                     
                     <div class="setting-row">
-                        <label>Progress Bar:</label>
+                        <label>진행바:</label>
                         <input type="color" id="accent-color-picker" value="#00ff88">
                     </div>
                     
                     <!-- Sizes -->
-                    <h4 style="margin: 15px 0 10px 0; font-size: 12px; color: #e0e0e0;">Font Sizes</h4>
+                    <h4 style="margin: 15px 0 10px 0; font-size: 12px; color: #e0e0e0;">글자 크기</h4>
                     
                     <div class="setting-row">
-                        <label>Episode:</label>
+                        <label>에피소드:</label>
                         <input type="range" id="episode-font-size-slider" min="12" max="24" value="16" style="width: 120px;">
                         <span id="episode-font-size-value" style="font-size: 11px; margin-left: 5px;">16px</span>
                     </div>
                     
                     <div class="setting-row">
-                        <label>Series:</label>
+                        <label>시리즈:</label>
                         <input type="range" id="series-font-size-slider" min="8" max="16" value="11" style="width: 120px;">
                         <span id="series-font-size-value" style="font-size: 11px; margin-left: 5px;">11px</span>
                     </div>
                     
                     <div class="setting-row">
-                        <label>Time:</label>
+                        <label>시간:</label>
                         <input type="range" id="time-font-size-slider" min="10" max="20" value="14" style="width: 120px;">
                         <span id="time-font-size-value" style="font-size: 11px; margin-left: 5px;">14px</span>
                     </div>
                     
                     <!-- Layout -->
-                    <h4 style="margin: 15px 0 10px 0; font-size: 12px; color: #e0e0e0;">Layout</h4>
+                    <h4 style="margin: 15px 0 10px 0; font-size: 12px; color: #e0e0e0;">레이아웃</h4>
                     
                     <div class="setting-row">
-                        <label>Corners:</label>
-                        <input type="range" id="border-radius-slider" min="0" max="30" value="12" style="width: 120px;">
-                        <span id="border-radius-value" style="font-size: 11px; margin-left: 5px;">12px</span>
+                        <label>모서리:</label>
+                        <input type="range" id="border-radius-slider" min="0" max="30" value="0" style="width: 120px;">
+                        <span id="border-radius-value" style="font-size: 11px; margin-left: 5px;">0px</span>
                     </div>
                     
                     <div class="setting-row">
-                        <label>Height:</label>
-                        <input type="range" id="window-height-slider" min="80" max="150" value="100" style="width: 120px;">
+                        <label>높이:</label>
+                        <input type="range" id="window-height-slider" min="100" max="150" value="100" style="width: 120px;">
                         <span id="window-height-value" style="font-size: 11px; margin-left: 5px;">100px</span>
                     </div>
                     
                     <div class="setting-row" style="margin-top: 15px;">
-                        <button id="reset-appearance-btn" class="btn btn-small">Reset</button>
-                        <button id="apply-appearance-btn" class="btn btn-small">Save</button>
+                        <button id="reset-appearance-btn" class="btn btn-small">초기화</button>
+                        <button id="apply-appearance-btn" class="btn btn-small">저장</button>
                     </div>
                 </div>
                 
@@ -163,6 +156,34 @@
                         <div class="status-item">
                             <span class="status-label">마지막 업데이트:</span>
                             <span id="last-update" class="status-value">Never</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3 class="collapsible-header" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+                        <span>OBS 연동 도움말</span>
+                        <span id="help-toggle" style="font-size: 12px;">▶</span>
+                    </h3>
+                    <div id="help-content" style="display: none;">
+                        <div class="capture-method">
+                            <h4>VDO.Ninja로 원격 스트리밍</h4>
+                            <p style="font-size: 12px; color: #ccc; margin-bottom: 8px;">
+                                <strong>🌟 스트리밍하는 방법:</strong><br>
+                                1. 아래 버튼 클릭하여 <a href="https://vdo.ninja/" target="_blank" style="color: #00ff88;">VDO.Ninja</a> 열기<br>
+                                2. <strong>"Remote Screenshare into OBS"</strong> 선택<br>
+                                3. 화면 공유 시 <strong>이 탭(Watch Party Overlay)</strong> 선택<br>
+                                4. "Audio" 체크박스는 <strong>해제</strong> (오디오 불필요)<br>
+                                5. Share 버튼 클릭 후 생성된 링크 복사<br>
+                                6. OBS Browser Source에 복사한 링크 붙여넣기<br>
+                                <br>
+                                <strong style="color: #00ff88;">💡 팁:</strong> 검은 배경 위에 오버레이가 표시됩니다. OBS에서 필요에 따라 크로마키 등을 적용할 수 있습니다.
+                            </p>
+                            <div class="url-display">
+                                <button id="open-vdo-ninja-btn" class="btn">
+                                    <span style="font-size: 20px;">🎥</span> VDO.Ninja 열기
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

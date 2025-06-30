@@ -23,8 +23,8 @@ let isError = false;
 let currentHostname = null;
 let errorMessage = '';
 let currentUrlByTabId = {}; // NEW: To store current URL for each tab
-let streamingDisplayTabId = null;
-let streamingDisplayWindowId = null; // NEW: To track streaming display tab
+let streamingDisplayTabId = null; // NEW: To track streaming display tab
+let streamingDisplayWindowId = null; // NEW: To track streaming display window
 
 const ICONS = {
   active: { "16": "icons/icon-active-16.png", "48": "icons/icon-active-48.png", "128": "icons/icon-active-128.png" },
@@ -228,6 +228,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           isOverlayVisible = !isOverlayVisible;
           isError = false; errorMessage = '';
           responsePayload.isOverlayVisible = isOverlayVisible;
+
+          // 오버레이를 켤 때 정보 가져오기도 자동으로 켜기
+          if (isOverlayVisible && !isFetchingActive) {
+            isFetchingActive = true;
+            responsePayload.isFetchingActive = true;
+            try {
+              await ensureContentScriptAndSendMessage(currentTabId, { type: 'TOGGLE_FETCHING', action: 'start' });
+            } catch (e) {
+              console.warn('BG: Failed to start fetching when showing overlay:', e.message);
+            }
+          }
 
           try {
             console.log(`BG: ${isOverlayVisible ? 'Showing' : 'Hiding'} overlay for tab ${currentTabId}`);
@@ -712,9 +723,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         };
         console.log('BG: Sending initial state to overlay display:', JSON.stringify(responsePayload.initialState));
         
-        // 정보 가져오기가 켜져 있으면 그대로 유지하고 content script에 재시작 신호 보내기
-        if (isFetchingActive && currentTabId) {
-          console.log('BG: Fetching is active, ensuring content script continues fetching');
+        // 스트리밍 디스플레이가 연결되면 정보 가져오기만 자동 시작
+        if (!isFetchingActive && currentTabId) {
+          isFetchingActive = true;
+          console.log('BG: Auto-started fetching when streaming display connected');
+          sendStateToAll();
+        }
+        
+        // Content script에 재시작 신호 보내기
+        if (currentTabId) {
           ensureContentScriptAndSendMessage(currentTabId, { 
             type: 'TOGGLE_FETCHING', 
             action: 'start', 
@@ -769,23 +786,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
           }
           
+          // 정보 가져오기를 먼저 시작
+          if (!isFetchingActive && currentTabId) {
+            isFetchingActive = true;
+            console.log('BG: Starting fetching before opening streaming display');
+            
+            // Content script에 정보 가져오기 시작 알림
+            await ensureContentScriptAndSendMessage(currentTabId, { 
+              type: 'TOGGLE_FETCHING', 
+              action: 'start' 
+            }).catch(e => console.warn('Failed to start fetching:', e.message));
+            
+            // 모든 탭에 상태 업데이트
+            sendStateToAll();
+          }
+          
+          // 1초 대기하여 정보를 받을 시간을 줌
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
           // Create new window
           const displayUrl = chrome.runtime.getURL('public/overlay-display.html');
           const newWindow = await chrome.windows.create({
             url: displayUrl,
             type: 'popup',
-            width: 1200,
-            height: 100,
+            width: 600,
+            height: 140, // 화살표 공간 포함 (110px 컨텐츠 + 30px 타이틀바)
             focused: true
           });
           
           streamingDisplayWindowId = newWindow.id;
-          console.log('BG: Created streaming display window:', streamingDisplayWindowId);
+          // Get the tab ID from the new window
+          const tabs = await chrome.tabs.query({ windowId: newWindow.id });
+          if (tabs.length > 0) {
+            streamingDisplayTabId = tabs[0].id;
+          }
+          console.log('BG: Created streaming display window:', streamingDisplayWindowId, 'tab:', streamingDisplayTabId);
           
           responsePayload.success = true;
           responsePayload.windowId = newWindow.id;
           responsePayload.url = displayUrl;
           responsePayload.message = 'New window created';
+          responsePayload.isFetchingActive = isFetchingActive;
           
         } catch (error) {
           console.error('BG: Failed to create streaming display window:', error);
@@ -798,8 +839,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (streamingDisplayWindowId) {
           try {
             await chrome.windows.update(streamingDisplayWindowId, {
-              width: message.width || 1200,
-              height: message.height || 100
+              width: message.width || 450,
+              height: message.height || 110
             });
             console.log(`BG: Window resized to ${message.width}x${message.height}`);
             responsePayload.success = true;
@@ -967,6 +1008,7 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
 chrome.windows.onRemoved.addListener((windowId) => {
   if (streamingDisplayWindowId === windowId) {
     streamingDisplayWindowId = null;
+    streamingDisplayTabId = null;
     console.log('BG: Streaming display window closed');
   }
 });

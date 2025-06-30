@@ -887,12 +887,23 @@ document.addEventListener('DOMContentLoaded', () => {
   if (openStreamingDisplayBtn) {
     openStreamingDisplayBtn.addEventListener('click', async () => {
       try {
+        // 로딩 오버레이 표시
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+          loadingOverlay.style.display = 'block';
+        }
+        
         // Background script를 통해 새 창 생성 요청
         const response = await chrome.runtime.sendMessage({
           type: 'OPEN_STREAMING_DISPLAY_WINDOW'
         });
         
         if (response && response.success) {
+          // 로딩 오버레이 숨기기
+          if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+          }
+          
           streamingDisplayTabId = response.windowId;
           streamingDisplayUrl = response.url;
           
@@ -915,6 +926,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
       } catch (error) {
+        // 로딩 오버레이 숨기기
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+          loadingOverlay.style.display = 'none';
+        }
+        
         console.error('스트리밍 디스플레이 탭 생성 실패:', error);
         showNotification('스트리밍 디스플레이 탭 생성에 실패했습니다.', 'error');
       }

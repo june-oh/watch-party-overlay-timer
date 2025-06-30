@@ -2,7 +2,7 @@
 class OverlayDisplayManager {
     constructor() {
         this.isOverlayVisible = false;
-        this.overlayMode = 'normal';
+        this.displayMode = 'normal';
         this.timeDisplayMode = 'current_duration';
         this.overlayPosition = 'right';
         this.currentVideoInfo = null;
@@ -16,16 +16,20 @@ class OverlayDisplayManager {
             bgOpacity: 90,
             textColor: '#ffffff',
             accentColor: '#00ff88',
-            borderRadius: 12,
+            borderRadius: 0, // 곡률 제거
             episodeFontSize: 16,
             seriesFontSize: 11,
             timeFontSize: 14,
-            windowHeight: 100
+            windowHeight: 100, // Chrome 최소 높이에 맞춤
+            displayMode: 'normal'
         };
         
         // Main UI elements
         this.videoBarContainer = document.getElementById('video-bar-container');
         this.mainBar = document.getElementById('main-bar');
+        
+        // Normal mode elements
+        this.normalModeContainer = document.getElementById('normal-mode-container');
         this.episodeTitle = document.getElementById('episode-title');
         this.seriesTitle = document.getElementById('series-title');
         this.siteName = document.getElementById('site-name');
@@ -34,20 +38,22 @@ class OverlayDisplayManager {
         this.progressBar = document.getElementById('progress-bar');
         this.progressFill = document.getElementById('progress-fill');
         
+        // Compact mode elements
+        this.compactModeContainer = document.getElementById('compact-mode-container');
+        this.compactEpisodeTitle = document.getElementById('compact-episode-title');
+        this.compactCurrentTime = document.getElementById('compact-current-time');
+        this.compactDurationTime = document.getElementById('compact-duration-time');
+        
         // Controls
-        this.expandToggle = document.getElementById('expand-toggle');
+        this.expandBar = document.getElementById('expand-bar');
+        this.expandArrow = document.getElementById('expand-arrow');
         this.expandedPanel = document.getElementById('expanded-panel');
-        this.connectionStatus = document.getElementById('connection-status');
         
         // Settings elements
+        this.displayModeSelect = document.getElementById('display-mode-select');
         this.timeDisplaySelect = document.getElementById('time-display-select');
         this.windowHeightSlider = document.getElementById('window-height-slider');
         this.windowHeightValue = document.getElementById('window-height-value');
-        
-        // Capture method buttons
-        this.openVdoNinjaBtn = document.getElementById('open-vdo-ninja-btn');
-        this.windowUrlInput = document.getElementById('window-url-input');
-        this.copyWindowUrlBtn = document.getElementById('copy-window-url-btn');
         
         // Customization elements
         this.bgColorPicker = document.getElementById('bg-color-picker');
@@ -80,13 +86,9 @@ class OverlayDisplayManager {
         this.setupCustomizationListeners();
         this.updateCustomizationUI();
         this.applyCustomStyles();
+        this.updateDisplayMode();
         this.updateConnectionStatus('connecting');
         this.connectToExtension();
-        
-        // Set current window URL
-        if (this.windowUrlInput) {
-            this.windowUrlInput.value = window.location.href;
-        }
         
         // Start listening for extension messages
         if (typeof chrome !== 'undefined' && chrome.runtime) {
@@ -124,44 +126,50 @@ class OverlayDisplayManager {
     }
     
     setupEventListeners() {
-        // Expand toggle button
-        if (this.expandToggle && this.expandedPanel) {
-            this.expandToggle.addEventListener('click', () => {
+        // Expand bar
+        if (this.expandBar && this.expandedPanel) {
+            this.expandBar.addEventListener('click', () => {
                 this.toggleExpandedPanel();
             });
         }
         
+        // Help section toggle
+        const helpHeader = document.querySelector('.collapsible-header');
+        const helpContent = document.getElementById('help-content');
+        const helpToggle = document.getElementById('help-toggle');
+        
+        if (helpHeader && helpContent && helpToggle) {
+            helpHeader.addEventListener('click', () => {
+                const isHidden = helpContent.style.display === 'none';
+                helpContent.style.display = isHidden ? 'block' : 'none';
+                helpToggle.textContent = isHidden ? '▼' : '▶';
+            });
+        }
+        
         // VDO.Ninja button
-        if (this.openVdoNinjaBtn) {
-            this.openVdoNinjaBtn.addEventListener('click', () => {
+        const vdoNinjaBtn = document.getElementById('open-vdo-ninja-btn');
+        if (vdoNinjaBtn) {
+            vdoNinjaBtn.addEventListener('click', () => {
                 window.open('https://vdo.ninja/', '_blank');
             });
         }
         
-        // Window URL copy button
-        if (this.copyWindowUrlBtn && this.windowUrlInput) {
-            this.copyWindowUrlBtn.addEventListener('click', async () => {
-                try {
-                    await navigator.clipboard.writeText(this.windowUrlInput.value);
-                    const originalText = this.copyWindowUrlBtn.textContent;
-                    this.copyWindowUrlBtn.textContent = '✓';
-                    this.copyWindowUrlBtn.style.background = '#00ff88';
-                    
-                    setTimeout(() => {
-                        this.copyWindowUrlBtn.textContent = originalText;
-                        this.copyWindowUrlBtn.style.background = '';
-                    }, 1000);
-                } catch (error) {
-                    console.error('Failed to copy URL:', error);
-                }
+
+        
+        // Settings change handlers
+        if (this.displayModeSelect) {
+            this.displayModeSelect.addEventListener('change', (e) => {
+                this.displayMode = e.target.value;
+                this.updateDisplayMode();
+                this.saveCustomSettings();
             });
         }
         
-        // Settings change handlers
         if (this.timeDisplaySelect) {
             this.timeDisplaySelect.addEventListener('change', (e) => {
                 this.timeDisplayMode = e.target.value;
                 this.updateTimeDisplay();
+                this.updateDisplayMode();
                 this.sendSettingsToExtension();
             });
         }
@@ -267,6 +275,7 @@ class OverlayDisplayManager {
             const saved = localStorage.getItem('overlay-custom-settings');
             if (saved) {
                 this.customSettings = { ...this.customSettings, ...JSON.parse(saved) };
+                this.displayMode = this.customSettings.displayMode || 'normal';
                 console.log('Loaded custom settings:', this.customSettings);
             }
         } catch (error) {
@@ -276,6 +285,7 @@ class OverlayDisplayManager {
     
     saveCustomSettings() {
         try {
+            this.customSettings.displayMode = this.displayMode;
             localStorage.setItem('overlay-custom-settings', JSON.stringify(this.customSettings));
             console.log('Saved custom settings:', this.customSettings);
         } catch (error) {
@@ -284,6 +294,7 @@ class OverlayDisplayManager {
     }
     
     updateCustomizationUI() {
+        if (this.displayModeSelect) this.displayModeSelect.value = this.displayMode;
         if (this.bgColorPicker) this.bgColorPicker.value = this.customSettings.bgColor;
         if (this.bgOpacitySlider) {
             this.bgOpacitySlider.value = this.customSettings.bgOpacity;
@@ -347,14 +358,17 @@ class OverlayDisplayManager {
             bgOpacity: 90,
             textColor: '#ffffff',
             accentColor: '#00ff88',
-            borderRadius: 12,
+            borderRadius: 0, // 곡률 제거
             episodeFontSize: 16,
             seriesFontSize: 11,
             timeFontSize: 14,
-            windowHeight: 100
+            windowHeight: 100, // Chrome 최소 높이에 맞춤
+            displayMode: 'normal'
         };
+        this.displayMode = 'normal';
         this.updateCustomizationUI();
         this.applyCustomStyles();
+        this.updateDisplayMode();
     }
     
     showApplySuccess() {
@@ -374,19 +388,26 @@ class OverlayDisplayManager {
         if (isCollapsed) {
             // Expand panel
             this.expandedPanel.classList.remove('collapsed');
-            this.expandToggle.classList.add('expanded');
+            this.expandBar.classList.add('expanded');
+            if (this.expandArrow) {
+                this.expandArrow.textContent = '▲';
+            }
             this.isExpanded = true;
             
             // Resize window to accommodate expanded content
-            this.resizeWindow(1200, 600);
+            this.resizeWindow(600, 650);
         } else {
             // Collapse panel
             this.expandedPanel.classList.add('collapsed');
-            this.expandToggle.classList.remove('expanded');
+            this.expandBar.classList.remove('expanded');
+            if (this.expandArrow) {
+                this.expandArrow.textContent = '▼';
+            }
             this.isExpanded = false;
             
-            // Resize window back to custom height
-            this.resizeWindow(1200, this.customSettings.windowHeight || 100);
+            // Resize window back to custom height based on display mode
+            const baseHeight = this.displayMode === 'compact' ? 80 : 100;
+            this.resizeWindow(this.displayMode === 'compact' ? 450 : 600, baseHeight + 40); // 컨텐츠 + 화살표(10px) + 타이틀바(30px)
         }
     }
     
@@ -468,9 +489,7 @@ class OverlayDisplayManager {
     handleStateUpdate(state) {
         console.log('Handling state update:', state);
         
-        if (state.overlayMode) {
-            this.overlayMode = state.overlayMode;
-        }
+
         
         if (state.timeDisplayMode) {
             this.timeDisplayMode = state.timeDisplayMode;
@@ -504,8 +523,22 @@ class OverlayDisplayManager {
             this.episodeTitle.textContent = info.episode || '에피소드 정보를 가져오는 중...';
         }
         
+        if (this.compactEpisodeTitle) {
+            this.compactEpisodeTitle.textContent = info.episode || '에피소드 정보를 가져오는 중...';
+        }
+        
         if (this.seriesTitle) {
-            this.seriesTitle.textContent = info.series || '시리즈 정보 없음';
+            // 빈 문자열인 경우 의도적으로 빈 상태로 유지하여 CSS의 :empty 규칙이 작동하도록 함
+            if (info.series === "") {
+                this.seriesTitle.textContent = "";
+                this.seriesTitle.setAttribute('data-empty', 'true');
+            } else if (info.series) {
+                this.seriesTitle.textContent = info.series;
+                this.seriesTitle.removeAttribute('data-empty');
+            } else {
+                this.seriesTitle.textContent = '시리즈 정보 없음';
+                this.seriesTitle.removeAttribute('data-empty');
+            }
         }
         
         if (this.siteName) {
@@ -519,6 +552,9 @@ class OverlayDisplayManager {
         if (info.currentSeconds && info.durationSeconds) {
             this.updateProgressBar(info.currentSeconds, info.durationSeconds);
         }
+        
+        // Update display mode
+        this.updateDisplayMode();
     }
     
     updateProgressBar(currentSeconds, durationSeconds) {
@@ -535,50 +571,79 @@ class OverlayDisplayManager {
         if (this.currentTime) {
             this.currentTime.textContent = this.formatTime(videoInfo.currentSeconds || 0);
         }
+        if (this.compactCurrentTime) {
+            this.compactCurrentTime.textContent = this.formatTime(videoInfo.currentSeconds || 0);
+        }
         
         if (this.durationTime) {
             this.durationTime.textContent = this.formatTime(videoInfo.durationSeconds || 0);
         }
+        if (this.compactDurationTime) {
+            this.compactDurationTime.textContent = this.formatTime(videoInfo.durationSeconds || 0);
+        }
         
         // Handle different time display modes
         const timeDisplay = document.getElementById('time-display');
+        const compactTimeDisplay = document.getElementById('compact-time-display');
         const timeSeparator = document.getElementById('time-separator');
+        const compactTimeSeparator = document.getElementById('compact-time-separator');
         
-        if (timeDisplay) {
+        const updateTimeMode = (display, separator, duration) => {
+            if (!display) return;
+            
             switch (this.timeDisplayMode) {
                 case 'current_duration':
-                    timeDisplay.style.display = 'block';
-                    if (timeSeparator) timeSeparator.style.display = 'inline';
-                    if (this.durationTime) this.durationTime.style.display = 'inline';
+                    display.style.display = '';
+                    if (separator) separator.style.display = 'inline';
+                    if (duration) duration.style.display = 'inline';
                     break;
                 case 'current_only':
-                    timeDisplay.style.display = 'block';
-                    if (timeSeparator) timeSeparator.style.display = 'none';
-                    if (this.durationTime) this.durationTime.style.display = 'none';
+                    display.style.display = '';
+                    if (separator) separator.style.display = 'none';
+                    if (duration) duration.style.display = 'none';
                     break;
                 case 'none':
-                    timeDisplay.style.display = 'none';
+                    display.style.display = 'none';
                     break;
+            }
+        };
+        
+        updateTimeMode(timeDisplay, timeSeparator, this.durationTime);
+        updateTimeMode(compactTimeDisplay, compactTimeSeparator, this.compactDurationTime);
+    }
+    
+    updateDisplayMode() {
+        if (this.displayMode === 'compact') {
+            this.normalModeContainer.style.display = 'none';
+            this.compactModeContainer.style.display = 'flex';
+            
+            // 컴팩트 모드일 때 높이 조정
+            document.documentElement.style.setProperty('--window-height', '80px');
+            document.getElementById('main-bar').style.height = '80px';
+            
+            // 컴팩트 모드일 때 창 크기 조정 (타이틀바 포함)
+            if (!this.isExpanded) {
+                this.resizeWindow(450, 120); // 80px 컨텐츠 + 10px 화살표 + 30px 타이틀바
+            }
+        } else {
+            this.normalModeContainer.style.display = 'flex';
+            this.compactModeContainer.style.display = 'none';
+            
+            // 일반 모드일 때 높이 조정
+            document.documentElement.style.setProperty('--window-height', '100px');
+            document.getElementById('main-bar').style.height = '100px';
+            
+            // 일반 모드일 때 창 크기 조정 (타이틀바 포함)
+            if (!this.isExpanded) {
+                this.resizeWindow(600, 140); // 100px 컨텐츠 + 10px 화살표 + 30px 타이틀바
             }
         }
     }
     
     updateConnectionStatus(status) {
-        if (this.connectionStatus) {
-            this.connectionStatus.textContent = '●';  // Always show dot
-            this.connectionStatus.className = `status-dot ${status}`;
-        }
-        
         if (this.connectionStatusDetail) {
-            this.connectionStatusDetail.textContent = status === 'connected' ? 'Connected' : 
-                                                   status === 'connecting' ? 'Connecting...' : 'Disconnected';
-        }
-        
-        // Add pulse animation for connecting state
-        if (status === 'connecting') {
-            this.connectionStatus?.classList.add('connecting');
-        } else {
-            this.connectionStatus?.classList.remove('connecting');
+            this.connectionStatusDetail.textContent = status === 'connected' ? '연결됨' : 
+                                                   status === 'connecting' ? '연결 중...' : '연결 끊김';
         }
     }
     

@@ -1,10 +1,40 @@
 const siteSelectors = {
   'laftel.net': {
-    videoPlayerAreaHint: 'div[class*="sc-ec16796a-1"]',
-    infoContainerHint_asSiblingToVideoPlayerAreaParent: 'div[class*="sc-ec16796a-2"]',
-    seriesSubSelector: 'div[class*="sc-bae7327-0"] > a[href^="/item/"]',
-    titleSubSelector: 'div[class*="sc-bae7327-0"] div[class*="sc-bae7327-7"]',
-    movieSubSelector: 'div[class*="sc-bae7327-0"] div[class*="haCwMH"] > a[href^="/item/"]',
+    videoPlayerAreaHint: 'div[class*="player"] video, div[class*="video"] video, #root video',
+    infoContainerHint_asSiblingToVideoPlayerAreaParent: [
+      'div[class*="sc-ac310b3-0"][class*="iVLgoc"]',
+      'div[class*="sc-ac310b3-5"][class*="htdaEN"]',
+      'div:has(> a[href^="/item/"]):has(div[class*="sc-ac310b3-7"])',
+      'div:has(> a[href^="/item/"]):has(div:has(> div))',
+      '#root > div:nth-child(2) > div > div:nth-child(2) > div > div > div:first-child',
+      'div[class*="sc-"][class*="htdaEN"], div[class*="sc-"][class*="fALpfe"]',
+      'div[class*="sc-ec16796a-2"]',
+      'div[class*="sc-822cc31f-2"]',
+      'div[class*="sc-ac310b3"]'
+    ],
+    seriesSubSelector: [
+      'a[href^="/item/"]',
+      'a[class*="sc-ac310b3-6"]',
+      'a[class*="fEcIUw"]',
+      '> a[href^="/item/"]',
+      'div > a[href^="/item/"]'
+    ],
+    titleSubSelector: [
+      'div[class*="sc-ac310b3-7"][class*="fALpfe"]',
+      'div[class*="sc-ac310b3-7"]',
+      'div:has-text("화")',
+      'div[class*="sc-ac310b3-5"] > div:first-child',
+      'div[class*="htdaEN"] > div:first-child',
+      'div:contains("화 Lv")',
+      'div[class*="sc-"] div[class*="title"]',
+      'div[class*="sc-"] h1, div[class*="sc-"] h2, div[class*="sc-"] h3',
+      'div[class*="sc-bae7327-0"] div[class*="sc-bae7327-7"]',
+      'div[class*="fALpfe"] div:last-child'
+    ],
+    movieSubSelector: [
+      'div[class*="sc-"] a[href^="/item/"]:only-child',
+      'div[class*="sc-bae7327-0"] div[class*="haCwMH"] > a[href^="/item/"]'
+    ],
     siteName: 'LAFTEL'
   },
   'chzzk.naver.com': {
@@ -130,6 +160,26 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
       return str.length > maxLen ? str.slice(0, maxLen) + '…' : str;
     }
 
+    // Helper function to query with multiple selectors
+    function queryWithSelectors(container, selectors) {
+      if (!container || !selectors) return null;
+      
+      // If selectors is a string, use it directly
+      if (typeof selectors === 'string') {
+        return container.querySelector(selectors);
+      }
+      
+      // If selectors is an array, try each one until we find a match
+      if (Array.isArray(selectors)) {
+        for (const selector of selectors) {
+          const element = container.querySelector(selector);
+          if (element) return element;
+        }
+      }
+      
+      return null;
+    }
+
     function getVideoInfo() {
       if (checkAndHandleInvalidatedContext("getVideoInfo")) return null;
       if (!currentSiteConfig) {
@@ -163,29 +213,79 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
             series = previousSeries || "";
             return { series, episode, currentSeconds, durationSeconds, siteName };
         }
-        const videoPlayerArea = videoEl.closest(currentSiteConfig.videoPlayerAreaHint);
+        
+        // Find info container using multiple selectors
         let infoContainer = null;
-        if (videoPlayerArea?.parentElement) {
-            infoContainer = videoPlayerArea.parentElement.querySelector(currentSiteConfig.infoContainerHint_asSiblingToVideoPlayerAreaParent);
+        
+        // First try to find info container using array of selectors
+        if (Array.isArray(currentSiteConfig.infoContainerHint_asSiblingToVideoPlayerAreaParent)) {
+          for (const selector of currentSiteConfig.infoContainerHint_asSiblingToVideoPlayerAreaParent) {
+            infoContainer = document.querySelector(selector);
+            if (infoContainer) {
+              console.debug("CONTENT.JS: Found infoContainer with selector:", selector);
+              break;
+            }
+          }
+        } else {
+          // Fallback to old logic if not array
+          const videoPlayerArea = videoEl.closest(currentSiteConfig.videoPlayerAreaHint);
+          if (videoPlayerArea?.parentElement) {
+              infoContainer = videoPlayerArea.parentElement.querySelector(currentSiteConfig.infoContainerHint_asSiblingToVideoPlayerAreaParent);
+          }
+          if (!infoContainer) infoContainer = document.querySelector(currentSiteConfig.infoContainerHint_asSiblingToVideoPlayerAreaParent);
         }
-        if (!infoContainer) infoContainer = document.querySelector(currentSiteConfig.infoContainerHint_asSiblingToVideoPlayerAreaParent);
+        
+        // Special logic for Laftel: If no info container found, try to find by pattern
+        if (!infoContainer) {
+          // Try to find any element that contains a link to /item/ (series) and a div with "화" (episode)
+          const allContainers = document.querySelectorAll('div');
+          for (const container of allContainers) {
+            const hasSeriesLink = container.querySelector('a[href^="/item/"]');
+            const hasEpisodeDiv = Array.from(container.querySelectorAll('div')).some(div => /^\d+화/.test(div.innerText?.trim() || ''));
+            if (hasSeriesLink && hasEpisodeDiv) {
+              infoContainer = container;
+              console.debug("CONTENT.JS: Found infoContainer by pattern matching");
+              break;
+            }
+          }
+        }
 
         if (infoContainer) {
           let tempEpisode = null, tempSeries = null;
-          let movieTitleElement = currentSiteConfig.movieSubSelector ? infoContainer.querySelector(currentSiteConfig.movieSubSelector) : null;
+          
+          // Try movie selector first
+          let movieTitleElement = queryWithSelectors(infoContainer, currentSiteConfig.movieSubSelector);
           if (movieTitleElement?.innerText?.trim()) {
             tempEpisode = movieTitleElement.innerText.trim();
             tempSeries = "";
           } else {
-            const seriesElement = currentSiteConfig.seriesSubSelector ? infoContainer.querySelector(currentSiteConfig.seriesSubSelector) : null;
-            const titleElement = currentSiteConfig.titleSubSelector ? infoContainer.querySelector(currentSiteConfig.titleSubSelector) : null;
+            // Try series and title selectors
+            const seriesElement = queryWithSelectors(infoContainer, currentSiteConfig.seriesSubSelector);
+            const titleElement = queryWithSelectors(infoContainer, currentSiteConfig.titleSubSelector);
+            
+            // If title element not found by selector, try to find by pattern
+            if (!titleElement && infoContainer) {
+              const allDivs = infoContainer.querySelectorAll('div');
+              for (const div of allDivs) {
+                const text = div.innerText?.trim() || '';
+                // Check if text matches episode pattern (starts with number followed by "화")
+                if (/^\d+화/.test(text)) {
+                  tempEpisode = text;
+                  console.debug("CONTENT.JS: Found episode by pattern:", text);
+                  break;
+                }
+              }
+            } else {
+              tempEpisode = titleElement?.innerText?.trim() || null;
+            }
+            
             tempSeries = seriesElement?.innerText?.trim() || null;
-            tempEpisode = titleElement?.innerText?.trim() || null;
             if (tempSeries && !tempEpisode) tempEpisode = "에피소드 정보 없음";
           }
           episode = (tempEpisode && tempEpisode !== "N/A" && tempEpisode !== "제목 정보 없음" && tempEpisode !== "에피소드 정보 없음") ? tempEpisode : (previousEpisode || "N/A");
           series = (tempEpisode && tempSeries === "") ? "" : (tempSeries || previousSeries || "");
         } else {
+          console.warn("CONTENT.JS: getVideoInfo - LAFTEL - infoContainer not found, using previous info");
           episode = previousEpisode || "N/A";
           series = previousSeries || "";
         }
@@ -272,6 +372,11 @@ if (typeof window.wpOverlayTimerLoaded === 'undefined') {
           series = previousSeries || "";
           episode = previousEpisode || "N/A";
         }
+      } else if (siteName === 'YouTube') {
+        // YouTube는 대부분 단일 비디오이므로 시리즈 없이 제목만 표시
+        const titleElement = currentSiteConfig.titleSubSelector ? document.querySelector(currentSiteConfig.titleSubSelector) : null;
+        episode = titleElement?.innerText?.trim() || "N/A";
+        series = ""; // YouTube는 시리즈 없음
       } else {
         const titleElement = currentSiteConfig.titleSelector ? document.querySelector(currentSiteConfig.titleSelector) : null;
         const seriesElement = currentSiteConfig.seriesSelector ? document.querySelector(currentSiteConfig.seriesSelector) : null;

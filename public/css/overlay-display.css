@@ -2,21 +2,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap');
 
 :root {
-    /* Customizable Colors - 기본값: 검은색 둥근 사각형 */
-    --bg-color: rgba(0, 0, 0, 0.9);
+    /* Customizable Colors */
+    --bg-color: rgba(0, 0, 0, 0.9); /* 오버레이 배경색 */
     --text-color: #ffffff;
     --accent-color: #00ff88;
     --progress-bg: rgba(255, 255, 255, 0.2);
     --progress-fill: #00ff88;
     
-    /* Customizable Sizes - 모든 요소별 크기 조정 가능 */
-    --border-radius: 12px;
+    /* Customizable Sizes - 오버레이에 맞는 크기로 조정 */
+    --border-radius: 0px; /* 곡률 제거 */
     --font-size-base: 14px;
     --font-size-series: 11px;
     --font-size-episode: 16px;
     --font-size-time: 14px;
-    --window-width: 1200px;
-    --window-height: 100px;
+    --window-width: 450px; /* 창 크기와 일치 */
+    --window-height: 100px; /* Chrome 최소 높이에 맞춤 */
 }
 
 * {
@@ -25,63 +25,83 @@
     box-sizing: border-box;
 }
 
-body {
-    font-family: 'Noto Sans KR', 'Segoe UI', sans-serif;
-    background: white; /* 흰색 배경 */
-    color: var(--text-color);
-    overflow: hidden;
-    width: 100vw;
-    height: 100vh;
-    padding: 8px;
-    user-select: none;
+html {
+    background: transparent;
+    height: 100%;
 }
 
-/* Main Video Bar Container - Customizable Rounded Rectangle */
+body {
+    font-family: 'Noto Sans KR', 'Segoe UI', sans-serif;
+    background: black; /* 검은색 배경으로 변경하여 빈 공간 채우기 */
+    color: var(--text-color);
+    overflow: hidden; /* 창 공유를 위해 스크롤 제거 */
+    width: 100%;
+    height: 100vh;
+    margin: 0; /* margin도 제거 */
+    padding: 0; /* padding 제거 */
+    user-select: none;
+    box-sizing: border-box;
+}
+
+/* Main Video Bar Container - 오버레이만큼의 크기 */
 #video-bar-container {
-    width: var(--window-width);
-    height: var(--window-height);
-    max-width: calc(100vw - 16px);
+    width: 100%; /* 전체 너비 사용 */
+    min-height: var(--window-height); /* 최소 높이 설정 */
+    height: 100vh; /* 전체 높이 사용 */
     background: var(--bg-color);
     border-radius: var(--border-radius);
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: none; /* 그림자 제거 */
     transition: all 0.3s ease;
     position: relative;
-}
-
-/* Main Bar Area - Horizontal Layout */
-#main-bar {
-    height: 100%;
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    position: relative;
-    gap: 20px;
-}
-
-/* Title Info Section */
-#title-info {
-    flex: 0 0 320px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    min-width: 0;
+    justify-content: flex-start; /* 컨텐츠를 위에서부터 시작 */
 }
 
-/* Episode Title (Primary) */
-.primary-title {
-    font-size: var(--font-size-episode);
-    font-weight: 700;
-    color: var(--text-color);
-    line-height: 1.2;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+/* Main Bar Area */
+#main-bar {
+    height: calc(var(--window-height) - 12px); /* 하단 바 높이 제외 */
+    padding: 10px 15px;
+    position: relative;
+    display: flex;
+    align-items: center;
 }
 
-/* Series Title (Secondary) */
-.secondary-title {
+/* Normal Mode Container */
+#normal-mode-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+}
+
+/* Series Row */
+#series-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+/* Main Row */
+#main-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+}
+
+/* Compact Mode Container */
+#compact-mode-container {
+    display: none;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+    height: 100%; /* 세로 중앙 정렬을 위해 전체 높이 사용 */
+}
+
+/* Series Title */
+.series-title {
     font-size: var(--font-size-series);
     font-weight: 400;
     color: var(--text-color);
@@ -91,11 +111,30 @@ body {
     text-overflow: ellipsis;
 }
 
+/* Episode Title */
+.episode-title {
+    font-size: var(--font-size-episode);
+    font-weight: 700;
+    color: var(--text-color);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 0 1 auto;
+    min-width: 150px;
+    max-width: 300px;
+}
+
 /* Hide series when empty */
-.secondary-title:empty,
-.secondary-title[data-empty="true"] {
+.series-title:empty,
+.series-title[data-empty="true"] {
     display: none;
-    margin-bottom: 0;
+}
+
+/* Hide series row when series is empty */
+#series-row:has(.series-title:empty),
+#series-row:has(.series-title[data-empty="true"]) {
+    display: none;
 }
 
 /* Progress Bar Section */
@@ -117,7 +156,7 @@ body {
     width: 100%;
     height: min(6px, calc(var(--window-height) * 0.06));
     background: var(--progress-bg);
-    border-radius: calc(var(--border-radius) / 2);
+    border-radius: 0; /* 곡률 제거 */
     position: relative;
     overflow: hidden;
     cursor: pointer;
@@ -127,7 +166,7 @@ body {
 #progress-fill {
     height: 100%;
     background: var(--progress-fill);
-    border-radius: calc(var(--border-radius) / 2);
+    border-radius: 0; /* 곡률 제거 */
     width: 0%;
     transition: width 0.3s ease;
     position: relative;
@@ -143,34 +182,30 @@ body {
     width: 4px;
     height: 100%;
     background: rgba(255, 255, 255, 0.8);
-    border-radius: 0 calc(var(--border-radius) / 2) calc(var(--border-radius) / 2) 0;
+    border-radius: 0; /* 곡률 제거 */
     opacity: 0.7;
 }
 
-/* Time and Controls Section */
-#controls-section {
-    flex: 0 0 280px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 15px;
-}
-
 /* Time Display */
-#time-display {
+#time-display, #compact-time-display {
     font-family: 'Roboto Mono', 'Courier New', monospace;
     font-size: var(--font-size-time);
     font-weight: 600;
     color: var(--text-color);
     white-space: nowrap;
-    min-width: 100px;
-    text-align: right;
+    flex: 0 0 auto;
 }
 
-#time-separator {
+#time-separator, #compact-time-separator {
     margin: 0 2px;
     color: var(--text-color);
     opacity: 0.6;
+}
+
+/* Hide time display based on setting */
+.time-display-none #time-display,
+.time-display-none #compact-time-display {
+    display: none;
 }
 
 /* Platform Badge */
@@ -183,82 +218,62 @@ body {
     letter-spacing: 0.5px;
     background: rgba(255, 255, 255, 0.1);
     padding: 4px 8px;
-    border-radius: calc(var(--border-radius) / 2);
+    border-radius: 8px;
     white-space: nowrap;
 }
 
-/* Status Indicators */
-.status-dot {
-    font-size: 12px;
-    width: 12px;
-    height: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
 
-.status-dot.connected {
-    color: var(--accent-color);
-    text-shadow: 0 0 6px var(--accent-color);
-}
 
-.status-dot.disconnected {
-    color: #ff4757;
-    text-shadow: 0 0 6px #ff4757;
-}
-
-.status-dot.connecting {
-    color: #ffa502;
-    text-shadow: 0 0 6px #ffa502;
-    animation: pulse 2s infinite;
-}
-
-/* Expand Button */
-.expand-btn {
+/* Expand Bar - 하단 전체 너비 바 */
+.expand-bar {
+    width: 100%;
+    height: 12px; /* 높이를 약간 증가 */
     background: rgba(255, 255, 255, 0.1);
-    border: none;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    font-size: 12px;
-    color: var(--text-color);
     cursor: pointer;
-    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    transition: all 0.3s ease;
+    position: relative;
+    flex-shrink: 0; /* 크기 고정 */
 }
 
-.expand-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.1);
+.expand-bar:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.expand-bar span {
+    font-size: 10px;
+    color: var(--text-color);
+    opacity: 0.8;
+    line-height: 1;
+    display: inline-block;
 }
 
 /* Expanded Panel (Hidden by default) */
 #expanded-panel {
     background: var(--bg-color);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
-    max-height: 0;
-    overflow: hidden;
+    max-height: 500px; /* 기본적으로 확장된 높이 */
+    padding: 20px;
+    overflow-y: auto; /* 내용이 많을 경우 스크롤 */
     transition: max-height 0.3s ease, padding 0.3s ease;
-    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    border-radius: 0; /* 곡률 제거 */
 }
 
-#expanded-panel:not(.collapsed) {
-    max-height: 500px;
-    padding: 20px;
+#expanded-panel.collapsed {
+    max-height: 0;
+    padding: 0 20px; /* 가로 패딩은 유지하여 애니메이션이 부드럽게 */
+    overflow: hidden;
 }
 
 .panel-content {
-    opacity: 0;
+    opacity: 1;
     transition: opacity 0.3s ease 0.1s;
 }
 
-#expanded-panel:not(.collapsed) .panel-content {
-    opacity: 1;
+#expanded-panel.collapsed .panel-content {
+    opacity: 0;
 }
 
 /* Control Groups */
@@ -317,7 +332,7 @@ body {
     padding: 6px 10px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: calc(var(--border-radius) / 2);
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.8);
     color: var(--text-color);
     font-size: calc(var(--font-size-base) * 0.9);
 }
@@ -326,6 +341,11 @@ body {
     outline: none;
     border-color: var(--accent-color);
     box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.2);
+}
+
+.setting-row select option {
+    background: rgba(0, 0, 0, 0.9);
+    color: var(--text-color);
 }
 
 /* Color picker and slider styles */
@@ -468,38 +488,20 @@ body {
     animation: pulse 2s infinite;
 }
 
-/* Responsive adjustments */
-@media (max-width: 1250px) {
+/* Responsive adjustments - 시리즈 표시를 위해 주석처리 */
+/* @media (max-width: 900px) {
     :root {
-        --window-width: 100%;
+        --font-size-series: 0px;
     }
     
-    #title-info {
-        flex: 0 0 250px;
-    }
-    
-    #controls-section {
-        flex: 0 0 200px;
-    }
-}
-
-@media (max-width: 900px) {
-    :root {
-        --font-size-series: 0px; /* Hide series by making font size 0 */
-    }
-    
-    .secondary-title {
+    .series-title {
         display: none;
     }
     
-    #title-info {
-        flex: 0 0 180px;
+    .episode-title {
+        max-width: 200px;
     }
-    
-    .platform-badge {
-        display: none;
-    }
-}
+} */
 
 /* Scrollbar styling for expanded panel */
 #expanded-panel::-webkit-scrollbar {
