@@ -727,6 +727,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!isFetchingActive && currentTabId) {
           isFetchingActive = true;
           console.log('BG: Auto-started fetching when streaming display connected');
+          // 즉시 상태 전송하여 팝업 UI가 업데이트되도록 함
           sendStateToAll();
         }
         
@@ -797,8 +798,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               action: 'start' 
             }).catch(e => console.warn('Failed to start fetching:', e.message));
             
-            // 모든 탭에 상태 업데이트
+            // 모든 탭에 상태 업데이트 (팝업 포함)
             sendStateToAll();
+            
+            // 팝업에 즉시 상태 업데이트 전송 (확실히 하기 위해)
+            responsePayload.isFetchingStarted = true;
           }
           
           // 1초 대기하여 정보를 받을 시간을 줌

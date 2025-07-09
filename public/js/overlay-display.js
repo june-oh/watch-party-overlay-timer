@@ -1,29 +1,101 @@
 // Music Player Style Overlay Display JavaScript
 class OverlayDisplayManager {
     constructor() {
-        this.isOverlayVisible = false;
-        this.displayMode = 'normal';
-        this.timeDisplayMode = 'current_duration';
-        this.overlayPosition = 'right';
-        this.currentVideoInfo = null;
-        this.sourceTabId = null;
-        this.lastUpdateTime = null;
-        this.isExpanded = false;
+        // DOM element references
+        this.episodeTitle = null;
+        this.compactEpisodeTitle = null;
+        this.seriesTitle = null;
+        this.siteName = null;
+        this.currentTime = null;
+        this.compactCurrentTime = null;
+        this.durationTime = null;
+        this.compactDurationTime = null;
+        this.progressFill = null;
+        this.normalModeContainer = null;
+        this.compactModeContainer = null;
+        this.expandedPanel = null;
+        this.expandBar = null;
+        this.expandArrow = null;
         
-        // Customization settings
+        // Settings
         this.customSettings = {
             bgColor: '#000000',
             bgOpacity: 90,
             textColor: '#ffffff',
             accentColor: '#00ff88',
-            borderRadius: 0, // 곡률 제거
+            progressColor: '#00ff88',
+            borderRadius: 0,
             episodeFontSize: 16,
             seriesFontSize: 11,
             timeFontSize: 14,
-            windowHeight: 100, // Chrome 최소 높이에 맞춤
-            displayMode: 'normal'
+            windowHeight: 100,
+            windowWidth: 600,
+            displayMode: 'normal',
+            showProgressBar: true,
+            showPlatformBadge: true
         };
         
+        // Platform detection mapping
+        this.platformMapping = {
+            'youtube': ['youtube', 'youtu.be', '유튜브'],
+            'chzzk': ['chzzk', 'naver.com', '치지직'],
+            'laftel': ['laftel', '라프텔'],
+            'netflix': ['netflix', '넷플릭스'],
+            // Add more platforms as needed
+            'twitch': ['twitch', '트위치'],
+            'afreeca': ['afreeca', 'afreecatv', '아프리카'],
+            'wavve': ['wavve', '웨이브'],
+            'tving': ['tving', '티빙']
+        };
+        
+        // State
+        this.displayMode = 'normal';
+        this.timeDisplayMode = 'current_duration';
+        this.overlayPosition = 'left';
+        this.isExpanded = false;
+        this.currentVideoInfo = null;
+        this.lastUpdateTime = null;
+        this.sourceTabId = null;
+        
+        // Tutorial state
+        this.tutorialCompleted = localStorage.getItem('overlay-tutorial-completed') === 'true';
+        this.tutorialActive = false;
+        this.currentTutorialStep = 1;
+        this.totalTutorialSteps = 4;
+        this.originalWindowSize = null;
+        
+        this.init();
+    }
+    
+    init() {
+        console.log('Initializing overlay display...');
+        
+        // Initialize DOM elements
+        this.initializeDOMElements();
+        
+        // Load saved settings
+        this.loadCustomSettings();
+        
+        // Setup event listeners
+        this.setupEventListeners();
+        this.setupCustomizationListeners();
+        
+        // Setup tutorial system
+        this.setupTutorial();
+        
+        // Apply initial styles
+        this.updateCustomizationUI();
+        this.applyCustomStyles();
+        this.updateDisplayMode();
+        this.updateDisplayElements();
+        
+        // Start periodic updates
+        this.startPeriodicUpdates();
+        
+        console.log('Overlay display initialized');
+    }
+    
+    initializeDOMElements() {
         // Main UI elements
         this.videoBarContainer = document.getElementById('video-bar-container');
         this.mainBar = document.getElementById('main-bar');
@@ -54,6 +126,17 @@ class OverlayDisplayManager {
         this.timeDisplaySelect = document.getElementById('time-display-select');
         this.windowHeightSlider = document.getElementById('window-height-slider');
         this.windowHeightValue = document.getElementById('window-height-value');
+        this.windowWidthSlider = document.getElementById('window-width-slider');
+        this.windowWidthValue = document.getElementById('window-width-value');
+        
+        // Tutorial elements
+        this.tutorialOverlay = document.getElementById('tutorial-overlay');
+        this.tutorialSteps = document.querySelectorAll('.tutorial-step');
+        this.tutorialDots = document.querySelectorAll('.tutorial-dots .dot');
+        this.tutorialPrevBtn = document.getElementById('tutorial-prev');
+        this.tutorialNextBtn = document.getElementById('tutorial-next');
+        this.tutorialCloseBtn = document.getElementById('tutorial-close');
+        this.tutorialDontShowCheckbox = document.getElementById('tutorial-dont-show');
         
         // Customization elements
         this.bgColorPicker = document.getElementById('bg-color-picker');
@@ -61,6 +144,7 @@ class OverlayDisplayManager {
         this.bgOpacityValue = document.getElementById('bg-opacity-value');
         this.textColorPicker = document.getElementById('text-color-picker');
         this.accentColorPicker = document.getElementById('accent-color-picker');
+        this.progressColorPicker = document.getElementById('progress-color-picker');
         this.borderRadiusSlider = document.getElementById('border-radius-slider');
         this.borderRadiusValue = document.getElementById('border-radius-value');
         this.episodeFontSizeSlider = document.getElementById('episode-font-size-slider');
@@ -72,23 +156,25 @@ class OverlayDisplayManager {
         this.resetAppearanceBtn = document.getElementById('reset-appearance-btn');
         this.applyAppearanceBtn = document.getElementById('apply-appearance-btn');
         
+        // Progress bar size elements
+        this.progressBarWidthSlider = document.getElementById('progress-bar-width-slider');
+        this.progressBarWidthValue = document.getElementById('progress-bar-width-value');
+        this.progressBarHeightSlider = document.getElementById('progress-bar-height-slider');
+        this.progressBarHeightValue = document.getElementById('progress-bar-height-value');
+        
+        // Toggle elements
+        this.progressBarToggle = document.getElementById('progress-bar-toggle');
+        this.platformBadgeToggle = document.getElementById('platform-badge-toggle');
+        
         // Status elements
         this.connectionStatusDetail = document.getElementById('connection-status-detail');
         this.sourceTab = document.getElementById('source-tab');
         this.lastUpdate = document.getElementById('last-update');
-        
-        this.init();
     }
     
-    init() {
-        this.loadCustomSettings();
-        this.setupEventListeners();
-        this.setupCustomizationListeners();
-        this.updateCustomizationUI();
-        this.applyCustomStyles();
-        this.updateDisplayMode();
-        this.updateConnectionStatus('connecting');
-        this.connectToExtension();
+    startPeriodicUpdates() {
+        // Start data update if tutorial is completed
+        this.startDataUpdate();
         
         // Start listening for extension messages
         if (typeof chrome !== 'undefined' && chrome.runtime) {
@@ -97,32 +183,12 @@ class OverlayDisplayManager {
             });
         }
         
-        // Start periodic state updates
-        this.startPeriodicUpdates();
-    }
-    
-    startPeriodicUpdates() {
-        // Request state updates every 2 seconds
-        setInterval(async () => {
-            try {
-                const response = await chrome.runtime.sendMessage({
-                    type: 'REQUEST_OVERLAY_STATE'
-                });
-                
-                console.log('Periodic update response:', response);
-                
-                if (response && response.success && response.data) {
-                    this.handleStateUpdate(response.data);
-                    this.updateConnectionStatus('connected');
-                } else {
-                    console.warn('Failed to get state:', response);
-                    this.updateConnectionStatus('disconnected');
-                }
-            } catch (error) {
-                console.error('Periodic update error:', error);
-                this.updateConnectionStatus('disconnected');
+        // Periodic connection check (every 5 seconds)
+        setInterval(() => {
+            if (this.tutorialCompleted) {
+                this.connectToExtension();
             }
-        }, 2000);
+        }, 5000);
     }
     
     setupEventListeners() {
@@ -176,6 +242,7 @@ class OverlayDisplayManager {
         
         // Window height slider
         if (this.windowHeightSlider) {
+            let heightResizeTimeout;
             this.windowHeightSlider.addEventListener('input', () => {
                 const height = parseInt(this.windowHeightSlider.value);
                 this.windowHeightValue.textContent = height + 'px';
@@ -184,6 +251,38 @@ class OverlayDisplayManager {
                 document.documentElement.style.setProperty('--window-height', height + 'px');
                 // Apply immediately for preview
                 this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
+                
+                // Debounce window resize to prevent continuous resizing during drag
+                clearTimeout(heightResizeTimeout);
+                heightResizeTimeout = setTimeout(() => {
+                    // 설정 패널이 닫혀있을 때만 높이 조정 (열려있을 때는 650px 고정)
+                    if (!this.isExpanded) {
+                        this.resizeWindow(this.customSettings.windowWidth, height + 40);
+                    }
+                }, 300); // 300ms 지연 후 창 크기 변경
+            });
+        }
+        
+        // Window width slider
+        if (this.windowWidthSlider) {
+            let widthResizeTimeout;
+            this.windowWidthSlider.addEventListener('input', () => {
+                const width = parseInt(this.windowWidthSlider.value);
+                this.windowWidthValue.textContent = width + 'px';
+                this.customSettings.windowWidth = width;
+                // CSS variable update
+                document.documentElement.style.setProperty('--window-width', width + 'px');
+                // Apply immediately for preview
+                this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
+                
+                // Debounce window resize to prevent continuous resizing during drag
+                clearTimeout(widthResizeTimeout);
+                widthResizeTimeout = setTimeout(() => {
+                    const currentHeight = this.isExpanded ? 650 : this.customSettings.windowHeight + 40;
+                    this.resizeWindow(width, currentHeight);
+                }, 300); // 300ms 지연 후 창 크기 변경
             });
         }
     }
@@ -194,6 +293,7 @@ class OverlayDisplayManager {
             this.bgColorPicker.addEventListener('input', () => {
                 this.customSettings.bgColor = this.bgColorPicker.value;
                 this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
             });
         }
         
@@ -202,6 +302,7 @@ class OverlayDisplayManager {
                 this.customSettings.bgOpacity = parseInt(this.bgOpacitySlider.value);
                 this.bgOpacityValue.textContent = this.customSettings.bgOpacity + '%';
                 this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
             });
         }
         
@@ -210,6 +311,7 @@ class OverlayDisplayManager {
             this.textColorPicker.addEventListener('input', () => {
                 this.customSettings.textColor = this.textColorPicker.value;
                 this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
             });
         }
         
@@ -218,6 +320,53 @@ class OverlayDisplayManager {
             this.accentColorPicker.addEventListener('input', () => {
                 this.customSettings.accentColor = this.accentColorPicker.value;
                 this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
+            });
+        }
+        
+        // Progress color
+        if (this.progressColorPicker) {
+            this.progressColorPicker.addEventListener('input', () => {
+                this.customSettings.progressColor = this.progressColorPicker.value;
+                this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
+            });
+        }
+        
+        // Progress bar size sliders
+        if (this.progressBarWidthSlider) {
+            this.progressBarWidthSlider.addEventListener('input', () => {
+                this.customSettings.progressBarWidth = parseInt(this.progressBarWidthSlider.value);
+                this.progressBarWidthValue.textContent = this.customSettings.progressBarWidth + 'px';
+                this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
+            });
+        }
+        
+        if (this.progressBarHeightSlider) {
+            this.progressBarHeightSlider.addEventListener('input', () => {
+                this.customSettings.progressBarHeight = parseInt(this.progressBarHeightSlider.value);
+                this.progressBarHeightValue.textContent = this.customSettings.progressBarHeight + 'px';
+                this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
+            });
+        }
+        
+        // Progress bar toggle
+        if (this.progressBarToggle) {
+            this.progressBarToggle.addEventListener('change', () => {
+                this.customSettings.showProgressBar = this.progressBarToggle.checked;
+                this.applyCustomStyles();
+                this.updateDisplayElements();
+            });
+        }
+        
+        // Platform badge toggle
+        if (this.platformBadgeToggle) {
+            this.platformBadgeToggle.addEventListener('change', () => {
+                this.customSettings.showPlatformBadge = this.platformBadgeToggle.checked;
+                this.applyCustomStyles();
+                this.updateDisplayElements();
             });
         }
         
@@ -226,7 +375,9 @@ class OverlayDisplayManager {
             this.borderRadiusSlider.addEventListener('input', () => {
                 this.customSettings.borderRadius = parseInt(this.borderRadiusSlider.value);
                 this.borderRadiusValue.textContent = this.customSettings.borderRadius + 'px';
+                
                 this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
             });
         }
         
@@ -236,6 +387,7 @@ class OverlayDisplayManager {
                 this.customSettings.episodeFontSize = parseInt(this.episodeFontSizeSlider.value);
                 this.episodeFontSizeValue.textContent = this.customSettings.episodeFontSize + 'px';
                 this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
             });
         }
         
@@ -244,6 +396,7 @@ class OverlayDisplayManager {
                 this.customSettings.seriesFontSize = parseInt(this.seriesFontSizeSlider.value);
                 this.seriesFontSizeValue.textContent = this.customSettings.seriesFontSize + 'px';
                 this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
             });
         }
         
@@ -252,6 +405,7 @@ class OverlayDisplayManager {
                 this.customSettings.timeFontSize = parseInt(this.timeFontSizeSlider.value);
                 this.timeFontSizeValue.textContent = this.customSettings.timeFontSize + 'px';
                 this.applyCustomStyles();
+                this.saveCustomSettings(); // 자동 저장 추가
             });
         }
         
@@ -268,6 +422,28 @@ class OverlayDisplayManager {
                 this.showApplySuccess();
             });
         }
+        
+        // Show tutorial button
+        const showTutorialButton = document.getElementById('show-tutorial-button');
+        if (showTutorialButton) {
+            showTutorialButton.addEventListener('click', () => {
+                this.currentTutorialStep = 1;
+                // 현재 확장 패널 상태를 저장하고 닫기
+                const wasExpanded = this.isExpanded;
+                if (this.isExpanded) {
+                    this.toggleExpandedPanel(); // 패널을 닫아서 깔끔하게 보이도록
+                }
+                this.showTutorial();
+            });
+        }
+        
+        // Reset button
+        const resetButton = document.getElementById('reset-button');
+        if (resetButton) {
+            resetButton.addEventListener('click', () => {
+                this.resetToDefaults();
+            });
+        }
     }
     
     loadCustomSettings() {
@@ -276,6 +452,15 @@ class OverlayDisplayManager {
             if (saved) {
                 this.customSettings = { ...this.customSettings, ...JSON.parse(saved) };
                 this.displayMode = this.customSettings.displayMode || 'normal';
+                
+                // 진행바 설정 기본값 보장
+                if (!this.customSettings.progressBarWidth) {
+                    this.customSettings.progressBarWidth = 120;
+                }
+                if (!this.customSettings.progressBarHeight) {
+                    this.customSettings.progressBarHeight = 4;
+                }
+                
                 console.log('Loaded custom settings:', this.customSettings);
             }
         } catch (error) {
@@ -302,6 +487,7 @@ class OverlayDisplayManager {
         }
         if (this.textColorPicker) this.textColorPicker.value = this.customSettings.textColor;
         if (this.accentColorPicker) this.accentColorPicker.value = this.customSettings.accentColor;
+        if (this.progressColorPicker) this.progressColorPicker.value = this.customSettings.progressColor;
         if (this.borderRadiusSlider) {
             this.borderRadiusSlider.value = this.customSettings.borderRadius;
             this.borderRadiusValue.textContent = this.customSettings.borderRadius + 'px';
@@ -322,6 +508,24 @@ class OverlayDisplayManager {
             this.windowHeightSlider.value = this.customSettings.windowHeight;
             this.windowHeightValue.textContent = this.customSettings.windowHeight + 'px';
         }
+        if (this.windowWidthSlider) {
+            this.windowWidthSlider.value = this.customSettings.windowWidth;
+            this.windowWidthValue.textContent = this.customSettings.windowWidth + 'px';
+        }
+        
+        // Update progress bar sliders
+        if (this.progressBarWidthSlider) {
+            this.progressBarWidthSlider.value = this.customSettings.progressBarWidth;
+            this.progressBarWidthValue.textContent = this.customSettings.progressBarWidth + 'px';
+        }
+        if (this.progressBarHeightSlider) {
+            this.progressBarHeightSlider.value = this.customSettings.progressBarHeight;
+            this.progressBarHeightValue.textContent = this.customSettings.progressBarHeight + 'px';
+        }
+        
+        // Update toggles
+        if (this.progressBarToggle) this.progressBarToggle.checked = this.customSettings.showProgressBar;
+        if (this.platformBadgeToggle) this.platformBadgeToggle.checked = this.customSettings.showPlatformBadge;
     }
     
     applyCustomStyles() {
@@ -337,19 +541,46 @@ class OverlayDisplayManager {
             } : null;
         };
         
+        // Calculate luminance for automatic color contrast
+        const getLuminance = (r, g, b) => {
+            const [rs, gs, bs] = [r, g, b].map(c => {
+                c = c / 255;
+                return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+        };
+        
         const bgRgb = hexToRgb(this.customSettings.bgColor);
         const bgOpacity = this.customSettings.bgOpacity / 100;
+        const luminance = getLuminance(bgRgb.r, bgRgb.g, bgRgb.b);
+        
+        // Auto-adjust text colors based on background luminance
+        const isDark = luminance < 0.5;
+        const autoTextColor = isDark ? '#ffffff' : '#000000';
+        const autoTextColorSecondary = isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)';
+        const autoBorderColor = isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)';
+        const autoInputBg = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
         
         // Apply CSS variables
         root.style.setProperty('--bg-color', `rgba(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}, ${bgOpacity})`);
         root.style.setProperty('--text-color', this.customSettings.textColor);
         root.style.setProperty('--accent-color', this.customSettings.accentColor);
-        root.style.setProperty('--progress-fill', this.customSettings.accentColor);
+        root.style.setProperty('--progress-fill', this.customSettings.progressColor);
         root.style.setProperty('--border-radius', this.customSettings.borderRadius + 'px');
         root.style.setProperty('--font-size-episode', this.customSettings.episodeFontSize + 'px');
         root.style.setProperty('--font-size-series', this.customSettings.seriesFontSize + 'px');
         root.style.setProperty('--font-size-time', this.customSettings.timeFontSize + 'px');
         root.style.setProperty('--window-height', this.customSettings.windowHeight + 'px');
+        root.style.setProperty('--window-width', this.customSettings.windowWidth + 'px');
+        root.style.setProperty('--progress-bar-width', this.customSettings.progressBarWidth + 'px');
+        root.style.setProperty('--progress-bar-height', this.customSettings.progressBarHeight + 'px');
+        
+        // Apply automatic color contrast
+        root.style.setProperty('--auto-text-color', autoTextColor);
+        root.style.setProperty('--auto-text-color-secondary', autoTextColorSecondary);
+        root.style.setProperty('--auto-border-color', autoBorderColor);
+        root.style.setProperty('--auto-input-bg', autoInputBg);
+        root.style.setProperty('--auto-input-border', autoBorderColor);
     }
     
     resetToDefaults() {
@@ -358,17 +589,46 @@ class OverlayDisplayManager {
             bgOpacity: 90,
             textColor: '#ffffff',
             accentColor: '#00ff88',
+            progressColor: '#00ff88',
             borderRadius: 0, // 곡률 제거
             episodeFontSize: 16,
             seriesFontSize: 11,
             timeFontSize: 14,
             windowHeight: 100, // Chrome 최소 높이에 맞춤
-            displayMode: 'normal'
+            windowWidth: 600, // 기본 너비
+            displayMode: 'normal',
+            showProgressBar: true,
+            showPlatformBadge: true,
+            progressBarWidth: 120, // 진행바 기본 너비
+            progressBarHeight: 4   // 진행바 기본 높이
         };
         this.displayMode = 'normal';
         this.updateCustomizationUI();
         this.applyCustomStyles();
-        this.updateDisplayMode();
+        
+        // 창 크기를 즉시 변경하여 너비가 바로 적용되도록 함
+        this.resizeWindow(this.customSettings.windowWidth, this.customSettings.windowHeight + 40);
+        
+        // 약간의 지연 후 다시 한 번 업데이트 (확실한 적용을 위해)
+        setTimeout(() => {
+            this.updateDisplayMode();
+            this.updateDisplayElements();
+        }, 100);
+        
+        this.saveCustomSettings(); // 저장 기능 추가
+        
+        // 성공 메시지 표시
+        const resetButton = document.getElementById('reset-button');
+        if (resetButton) {
+            const originalText = resetButton.textContent;
+            resetButton.textContent = '✓ 재설정 완료';
+            resetButton.style.background = 'linear-gradient(135deg, #00ff88, #00cc6a)';
+            
+            setTimeout(() => {
+                resetButton.textContent = originalText;
+                resetButton.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a5a)';
+            }, 1500);
+        }
     }
     
     showApplySuccess() {
@@ -395,7 +655,7 @@ class OverlayDisplayManager {
             this.isExpanded = true;
             
             // Resize window to accommodate expanded content
-            this.resizeWindow(600, 650);
+            this.resizeWindow(this.customSettings.windowWidth, 650);
         } else {
             // Collapse panel
             this.expandedPanel.classList.add('collapsed');
@@ -405,14 +665,31 @@ class OverlayDisplayManager {
             }
             this.isExpanded = false;
             
-            // Resize window back to custom height based on display mode
-            const baseHeight = this.displayMode === 'compact' ? 80 : 100;
-            this.resizeWindow(this.displayMode === 'compact' ? 450 : 600, baseHeight + 40); // 컨텐츠 + 화살표(10px) + 타이틀바(30px)
+            // Resize window back to custom size
+            this.resizeWindow(this.customSettings.windowWidth, this.customSettings.windowHeight + 40);
         }
     }
     
     resizeWindow(width, height) {
+        // 튜토리얼이 활성화된 경우 외부에서의 창 크기 변경을 무시
+        if (this.tutorialActive) {
+            return;
+        }
+        
         // Send message to background to resize window
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+            chrome.runtime.sendMessage({
+                type: 'RESIZE_STREAMING_DISPLAY_WINDOW',
+                width: width,
+                height: height
+            }).catch(error => {
+                console.log('Window resize not supported:', error);
+            });
+        }
+    }
+    
+    // 튜토리얼 전용 창 크기 변경 함수 (tutorialActive 상태 무시)
+    forceResizeWindow(width, height) {
         if (typeof chrome !== 'undefined' && chrome.runtime) {
             chrome.runtime.sendMessage({
                 type: 'RESIZE_STREAMING_DISPLAY_WINDOW',
@@ -543,6 +820,19 @@ class OverlayDisplayManager {
         
         if (this.siteName) {
             this.siteName.textContent = info.siteName || '사이트 정보 없음';
+            
+            // Apply platform-specific styling based on site name
+            this.siteName.className = 'platform-badge'; // Reset to base class
+            
+            if (info.siteName) {
+                const siteName = info.siteName.toLowerCase();
+                for (const [platform, aliases] of Object.entries(this.platformMapping)) {
+                    if (aliases.some(alias => siteName.includes(alias))) {
+                        this.siteName.classList.add(platform);
+                        break;
+                    }
+                }
+            }
         }
         
         // Update time displays
@@ -617,27 +907,30 @@ class OverlayDisplayManager {
             this.normalModeContainer.style.display = 'none';
             this.compactModeContainer.style.display = 'flex';
             
-            // 컴팩트 모드일 때 높이 조정
-            document.documentElement.style.setProperty('--window-height', '80px');
-            document.getElementById('main-bar').style.height = '80px';
+            // 컴팩트 모드일 때 높이를 사용자 설정값으로 조정
+            document.documentElement.style.setProperty('--window-height', this.customSettings.windowHeight + 'px');
+            document.getElementById('main-bar').style.height = this.customSettings.windowHeight + 'px';
             
-            // 컴팩트 모드일 때 창 크기 조정 (타이틀바 포함)
+            // 컴팩트 모드일 때 창 크기 조정 - 사용자 설정 높이 사용
             if (!this.isExpanded) {
-                this.resizeWindow(450, 120); // 80px 컨텐츠 + 10px 화살표 + 30px 타이틀바
+                this.resizeWindow(this.customSettings.windowWidth, this.customSettings.windowHeight + 40);
             }
         } else {
             this.normalModeContainer.style.display = 'flex';
             this.compactModeContainer.style.display = 'none';
             
-            // 일반 모드일 때 높이 조정
-            document.documentElement.style.setProperty('--window-height', '100px');
-            document.getElementById('main-bar').style.height = '100px';
+            // 일반 모드일 때 높이를 사용자 설정값으로 조정
+            document.documentElement.style.setProperty('--window-height', this.customSettings.windowHeight + 'px');
+            document.getElementById('main-bar').style.height = this.customSettings.windowHeight + 'px';
             
-            // 일반 모드일 때 창 크기 조정 (타이틀바 포함)
+            // 일반 모드일 때 창 크기 조정 - 사용자 설정 높이 사용
             if (!this.isExpanded) {
-                this.resizeWindow(600, 140); // 100px 컨텐츠 + 10px 화살표 + 30px 타이틀바
+                this.resizeWindow(this.customSettings.windowWidth, this.customSettings.windowHeight + 40);
             }
         }
+        
+        // 표시 요소 업데이트
+        this.updateDisplayElements();
     }
     
     updateConnectionStatus(status) {
@@ -687,6 +980,204 @@ class OverlayDisplayManager {
             return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         } else {
             return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }
+
+    // Tutorial system methods
+    setupTutorial() {
+        // Show tutorial if not completed
+        if (!this.tutorialCompleted) {
+            setTimeout(() => {
+                this.showTutorial();
+            }, 1000); // Show after 1 second delay
+        }
+        
+        // Tutorial navigation
+        if (this.tutorialPrevBtn) {
+            this.tutorialPrevBtn.addEventListener('click', () => {
+                this.goToPreviousTutorialStep();
+            });
+        }
+        
+        if (this.tutorialNextBtn) {
+            this.tutorialNextBtn.addEventListener('click', () => {
+                this.goToNextTutorialStep();
+            });
+        }
+        
+        if (this.tutorialCloseBtn) {
+            this.tutorialCloseBtn.addEventListener('click', () => {
+                this.closeTutorial();
+            });
+        }
+        
+        // Dot navigation
+        this.tutorialDots.forEach((dot, index) => {
+            dot.addEventListener('click', () => {
+                this.goToTutorialStep(index + 1);
+            });
+        });
+    }
+    
+    showTutorial() {
+        if (this.tutorialOverlay) {
+            this.tutorialActive = true; // 튜토리얼 활성 상태 설정
+            this.tutorialOverlay.style.display = 'flex';
+            this.updateTutorialStep();
+            
+            // 튜토리얼 시작 시 자동으로 정보 가져오기 시작
+            this.startDataUpdate();
+            
+            // 튜토리얼 표시 시 창 크기를 늘려서 제대로 보이도록 함
+            this.originalWindowSize = {
+                width: this.customSettings.windowWidth,
+                height: this.customSettings.windowHeight,
+                isExpanded: this.isExpanded
+            };
+            
+            // 튜토리얼용 최적 크기로 조정 (너비 800px, 높이 700px)
+            this.forceResizeWindow(800, 700);
+        }
+    }
+    
+    hideTutorial() {
+        if (this.tutorialOverlay) {
+            this.tutorialActive = false; // 튜토리얼 활성 상태 해제
+            this.tutorialOverlay.style.display = 'none';
+            
+            // 원래 창 크기로 복원
+            if (this.originalWindowSize) {
+                const targetHeight = this.originalWindowSize.isExpanded ? 
+                    650 : this.originalWindowSize.height + 40;
+                this.forceResizeWindow(this.originalWindowSize.width, targetHeight);
+                this.isExpanded = this.originalWindowSize.isExpanded;
+                
+                // 확장 패널 상태도 복원
+                if (this.isExpanded) {
+                    this.expandedPanel.classList.remove('collapsed');
+                    this.expandBar.classList.add('expanded');
+                    if (this.expandArrow) {
+                        this.expandArrow.textContent = '▲';
+                    }
+                } else {
+                    this.expandedPanel.classList.add('collapsed');
+                    this.expandBar.classList.remove('expanded');
+                    if (this.expandArrow) {
+                        this.expandArrow.textContent = '▼';
+                    }
+                }
+                
+                this.originalWindowSize = null; // 복원 완료 후 초기화
+            }
+        }
+    }
+    
+    goToNextTutorialStep() {
+        if (this.currentTutorialStep < this.totalTutorialSteps) {
+            this.currentTutorialStep++;
+            this.updateTutorialStep();
+        } else {
+            this.closeTutorial();
+        }
+    }
+    
+    goToPreviousTutorialStep() {
+        if (this.currentTutorialStep > 1) {
+            this.currentTutorialStep--;
+            this.updateTutorialStep();
+        }
+    }
+    
+    goToTutorialStep(step) {
+        if (step >= 1 && step <= this.totalTutorialSteps) {
+            this.currentTutorialStep = step;
+            this.updateTutorialStep();
+        }
+    }
+    
+    updateTutorialStep() {
+        // Update step visibility
+        this.tutorialSteps.forEach((step, index) => {
+            step.classList.toggle('active', index + 1 === this.currentTutorialStep);
+        });
+        
+        // Update dots
+        this.tutorialDots.forEach((dot, index) => {
+            dot.classList.toggle('active', index + 1 === this.currentTutorialStep);
+        });
+        
+        // Update navigation buttons
+        if (this.tutorialPrevBtn) {
+            this.tutorialPrevBtn.disabled = this.currentTutorialStep === 1;
+        }
+        
+        if (this.tutorialNextBtn) {
+            this.tutorialNextBtn.textContent = this.currentTutorialStep === this.totalTutorialSteps ? '완료' : '다음';
+        }
+    }
+    
+    closeTutorial() {
+        // Save preference if checkbox is checked
+        if (this.tutorialDontShowCheckbox && this.tutorialDontShowCheckbox.checked) {
+            localStorage.setItem('overlay-tutorial-completed', 'true');
+            this.tutorialCompleted = true;
+        }
+        
+        this.hideTutorial();
+        
+        // Initialize the rest of the app
+        this.updateCustomizationUI();
+        this.updateConnectionStatus('connecting');
+        this.connectToExtension();
+    }
+
+    startDataUpdate() {
+        // Initialize the rest of the app if tutorial is already completed
+        if (this.tutorialCompleted) {
+            this.updateCustomizationUI();
+            this.updateConnectionStatus('connecting');
+            this.connectToExtension();
+        }
+    }
+
+    // 진행바와 플랫폼 배지 표시/숨김 처리
+    updateDisplayElements() {
+        // Progress bar visibility
+        const progressSection = document.getElementById('progress-section');
+        const progressBarContainer = document.getElementById('progress-bar-container');
+        const mainBar = document.getElementById('main-bar');
+        
+        if (progressSection && progressBarContainer && mainBar) {
+            if (this.customSettings.showProgressBar) {
+                progressBarContainer.style.display = 'block';
+                mainBar.classList.remove('no-progress-bar');
+            } else {
+                progressBarContainer.style.display = 'none';
+                mainBar.classList.add('no-progress-bar');
+            }
+        }
+        
+        // Platform badge visibility
+        const platformBadges = document.querySelectorAll('.platform-badge');
+        platformBadges.forEach(badge => {
+            if (this.customSettings.showPlatformBadge) {
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        });
+        
+        // 컴팩트 모드에서는 진행바와 플랫폼 배지를 자동으로 숨김
+        if (this.displayMode === 'compact') {
+            if (progressBarContainer) {
+                progressBarContainer.style.display = 'none';
+            }
+            if (mainBar) {
+                mainBar.classList.add('no-progress-bar');
+            }
+            platformBadges.forEach(badge => {
+                badge.style.display = 'none';
+            });
         }
     }
 }

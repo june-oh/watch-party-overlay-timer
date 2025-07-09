@@ -72,10 +72,32 @@
                     <div class="setting-row">
                         <label>시간 표시:</label>
                         <select id="time-display-select">
-                            <option value="current_duration">현재 / 전체</option>
-                            <option value="current_only">현재 시간만</option>
+                            <option value="current_duration">현재/전체</option>
+                            <option value="current_only">현재만</option>
                             <option value="none">숨김</option>
                         </select>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>진행바 표시:</label>
+                        <label class="ios-toggle">
+                            <input type="checkbox" id="progress-bar-toggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>플랫폼 표시:</label>
+                        <label class="ios-toggle">
+                            <input type="checkbox" id="platform-badge-toggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>너비:</label>
+                        <input type="range" id="window-width-slider" min="300" max="1200" value="600" style="width: 120px;">
+                        <span id="window-width-value" style="font-size: 11px; margin-left: 5px;">600px</span>
                     </div>
                 </div>
                 
@@ -84,9 +106,13 @@
                     
                     <!-- Colors -->
                     <div class="setting-row">
-                        <label>배경:</label>
+                        <label>배경색:</label>
                         <input type="color" id="bg-color-picker" value="#000000">
-                        <input type="range" id="bg-opacity-slider" min="0" max="100" value="90" style="width: 80px; margin-left: 8px;">
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>불투명도:</label>
+                        <input type="range" id="bg-opacity-slider" min="0" max="100" value="90" style="width: 120px;">
                         <span id="bg-opacity-value" style="font-size: 11px; margin-left: 5px;">90%</span>
                     </div>
                     
@@ -96,8 +122,28 @@
                     </div>
                     
                     <div class="setting-row">
-                        <label>진행바:</label>
+                        <label>강조색:</label>
                         <input type="color" id="accent-color-picker" value="#00ff88">
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>진행바:</label>
+                        <input type="color" id="progress-color-picker" value="#00ff88">
+                    </div>
+                    
+                    <!-- Progress Bar Settings -->
+                    <h4 style="margin: 15px 0 10px 0; font-size: 12px; color: #e0e0e0;">진행바 설정</h4>
+                    
+                    <div class="setting-row">
+                        <label>진행바 너비:</label>
+                        <input type="range" id="progress-bar-width-slider" min="80" max="200" value="120" style="width: 120px;">
+                        <span id="progress-bar-width-value" style="font-size: 11px; margin-left: 5px;">120px</span>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>진행바 높이:</label>
+                        <input type="range" id="progress-bar-height-slider" min="2" max="12" value="4" style="width: 120px;">
+                        <span id="progress-bar-height-value" style="font-size: 11px; margin-left: 5px;">4px</span>
                     </div>
                     
                     <!-- Sizes -->
@@ -105,19 +151,19 @@
                     
                     <div class="setting-row">
                         <label>에피소드:</label>
-                        <input type="range" id="episode-font-size-slider" min="12" max="24" value="16" style="width: 120px;">
+                        <input type="range" id="episode-font-size-slider" min="6" max="40" value="16" style="width: 120px;">
                         <span id="episode-font-size-value" style="font-size: 11px; margin-left: 5px;">16px</span>
                     </div>
                     
                     <div class="setting-row">
                         <label>시리즈:</label>
-                        <input type="range" id="series-font-size-slider" min="8" max="16" value="11" style="width: 120px;">
+                        <input type="range" id="series-font-size-slider" min="6" max="40" value="11" style="width: 120px;">
                         <span id="series-font-size-value" style="font-size: 11px; margin-left: 5px;">11px</span>
                     </div>
                     
                     <div class="setting-row">
                         <label>시간:</label>
-                        <input type="range" id="time-font-size-slider" min="10" max="20" value="14" style="width: 120px;">
+                        <input type="range" id="time-font-size-slider" min="6" max="40" value="14" style="width: 120px;">
                         <span id="time-font-size-value" style="font-size: 11px; margin-left: 5px;">14px</span>
                     </div>
                     
@@ -139,6 +185,18 @@
                     <div class="setting-row" style="margin-top: 15px;">
                         <button id="reset-appearance-btn" class="btn btn-small">초기화</button>
                         <button id="apply-appearance-btn" class="btn btn-small">저장</button>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <button id="reset-button" class="control-btn" style="background: linear-gradient(135deg, #ff6b6b, #ee5a5a); color: white; width: 100%;">
+                            기본값으로 재설정
+                        </button>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <button id="show-tutorial-button" class="control-btn" style="background: linear-gradient(135deg, #4ecdc4, #44a08d); color: white; width: 100%;">
+                            📚 사용법 가이드 다시 보기
+                        </button>
                     </div>
                 </div>
                 
@@ -192,5 +250,73 @@
     </div>
 
     <script src="js/overlay-display.js"></script>
+    
+    <!-- 튜토리얼 오버레이 -->
+    <div id="tutorial-overlay" class="tutorial-overlay" style="display: none;">
+        <div class="tutorial-content">
+            <div class="tutorial-header">
+                <h2>🎉 스트리밍 디스플레이 사용법</h2>
+                <p>처음 사용하시는군요! 간단한 가이드를 확인해보세요.</p>
+            </div>
+            
+            <div class="tutorial-steps">
+                <div class="tutorial-step active" data-step="1">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>📺 오버레이 정보 표시</h3>
+                        <p>현재 재생 중인 비디오의 <strong>제목</strong>, <strong>시간</strong>, <strong>진행률</strong>이 자동으로 표시됩니다.</p>
+                        <p>투컴 환경에서는 VDO.Ninja를 통해 송출용 컴퓨터로 화면을 전송할 수 있습니다.</p>
+                    </div>
+                </div>
+                
+                <div class="tutorial-step" data-step="2">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>⚙️ 설정 패널 열기</h3>
+                        <p><strong>하단의 화살표 바</strong>를 클릭하면 설정 패널이 열립니다.</p>
+                        <p>여기서 색상, 크기, 모드 등을 자유롭게 조정할 수 있습니다.</p>
+                    </div>
+                </div>
+                
+                <div class="tutorial-step" data-step="3">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>🎨 모양 커스터마이징</h3>
+                        <p>설정에서 <strong>배경색</strong>, <strong>텍스트 색상</strong>, <strong>크기</strong> 등을 조정하세요.</p>
+                        <p>크로마키 사용 시 모서리를 설정하면 배경이 자동으로 투명해집니다.</p>
+                    </div>
+                </div>
+                
+                <div class="tutorial-step" data-step="4">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>📹 투컴 환경에서 사용하기</h3>
+                        <p>설정 패널의 <strong>VDO.Ninja 버튼</strong>을 클릭하여 "Remote Screenshare into OBS"를 선택하고,</p>
+                        <p>생성된 링크를 <strong>송출용 컴퓨터의 OBS Browser Source</strong>에 추가하여 사용할 수 있습니다.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tutorial-navigation">
+                <button id="tutorial-prev" class="tutorial-btn secondary" disabled>이전</button>
+                <div class="tutorial-dots">
+                    <span class="dot active" data-step="1"></span>
+                    <span class="dot" data-step="2"></span>
+                    <span class="dot" data-step="3"></span>
+                    <span class="dot" data-step="4"></span>
+                </div>
+                <button id="tutorial-next" class="tutorial-btn primary">다음</button>
+            </div>
+            
+            <div class="tutorial-footer">
+                <label class="tutorial-checkbox">
+                    <input type="checkbox" id="tutorial-dont-show">
+                    <span class="checkmark"></span>
+                    다시 보지 않기
+                </label>
+                <button id="tutorial-close" class="tutorial-btn close">시작하기</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html> 

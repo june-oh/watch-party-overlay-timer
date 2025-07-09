@@ -57,8 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputOverlayPaddingAdvanced = document.getElementById('inputOverlayPaddingAdvanced');
   const paddingControl = document.getElementById('paddingControl');
 
-  // 고급 설정 요소들
-  const advancedContent = document.getElementById('advancedContent');
+  // 고급 설정 요소들 (기존 코드 - 현재는 사용하지 않음)
+  // const advancedContent = document.getElementById('advancedContent');
   
   // 폰트 크기 조정 요소들
   const sliderSeriesFontSize = document.getElementById('sliderSeriesFontSize');
@@ -84,8 +84,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputOverlayMinWidthAdvanced = document.getElementById('inputOverlayMinWidthAdvanced');
   const minWidthControl = document.getElementById('minWidthControl');
 
-  // 고급 설정 토글 요소들
-  const toggleAdvancedSettingsInput = document.getElementById('toggleAdvancedSettings');
+  // 고급 설정 토글 요소들 (기존 코드 - 현재는 사용하지 않음)
+  // const toggleAdvancedSettingsInput = document.getElementById('toggleAdvancedSettings');
 
   // 설정 관리 버튼들
   const saveSettingsBtn = document.getElementById('saveSettingsBtn');
@@ -494,7 +494,38 @@ document.addEventListener('DOMContentLoaded', () => {
   // 특별한 슬라이더들 설정
   setupSpecialSliders();
 
-  // 고급 설정 토글 기능
+  // 오버레이 설정 섹션 접기/펼치기 기능
+  const overlaySettingsHeader = document.getElementById('overlaySettingsHeader');
+  const overlaySettingsContent = document.getElementById('overlaySettingsContent');
+  const expandIcon = document.getElementById('expandIcon');
+  
+  if (overlaySettingsHeader && overlaySettingsContent && expandIcon) {
+    // 초기 상태: 접힌 상태로 설정
+    overlaySettingsContent.classList.add('collapsed');
+    expandIcon.textContent = '▼';
+    
+    overlaySettingsHeader.addEventListener('click', () => {
+      const isExpanded = overlaySettingsContent.classList.contains('expanded');
+      
+      if (isExpanded) {
+        // 접기
+        overlaySettingsContent.classList.remove('expanded');
+        overlaySettingsContent.classList.add('collapsed');
+        expandIcon.classList.remove('expanded');
+        expandIcon.textContent = '▼';
+      } else {
+        // 펼치기
+        overlaySettingsContent.classList.remove('collapsed');
+        overlaySettingsContent.classList.add('expanded');
+        expandIcon.classList.add('expanded');
+        expandIcon.textContent = '▲';
+      }
+    });
+  }
+
+  // 고급 설정 토글 기능 (기존 코드 유지 - 현재는 사용하지 않음)
+  const toggleAdvancedSettingsInput = document.getElementById('toggleAdvancedSettings');
+  const advancedContent = document.getElementById('advancedContent');
   if (toggleAdvancedSettingsInput && advancedContent) {
     // 초기 상태: 접힌 상태로 설정
     toggleAdvancedSettingsInput.checked = false;
@@ -553,6 +584,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     sendResponse({ received: true }); 
     return true; 
+  });
+  
+  // 팝업이 포커스를 받을 때 상태 재요청 (스트리밍 디스플레이 열기 후 돌아올 때)
+  window.addEventListener('focus', () => {
+    console.log("POPUP.JS: Window focused, requesting updated state");
+    requestInitialState();
   });
   
   function requestInitialState() {
@@ -906,6 +943,12 @@ document.addEventListener('DOMContentLoaded', () => {
           
           streamingDisplayTabId = response.windowId;
           streamingDisplayUrl = response.url;
+          
+          // 정보 가져오기가 시작되었다면 UI 즉시 업데이트
+          if (response.isFetchingStarted && toggleFetchingInput) {
+            toggleFetchingInput.checked = true;
+            console.log('POPUP.JS: Fetching started when opening streaming display');
+          }
           
           // VDO.Ninja URL 생성 및 표시
           const vdoNinjaUrl = generateVdoNinjaUrl(streamingDisplayUrl);
